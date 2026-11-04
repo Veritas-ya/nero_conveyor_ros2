@@ -1,0 +1,12 @@
+# Collision point-cloud scope in the fitted belt-plane frame. Metres.
+# New captures use the same green RGB outline projected onto the measured
+# plane for scene coverage; native 2%/98% bounds still select detector seeds.
+# Old captures/missing outline retain native bounds. Expand on every side;
+# all colors inside the box remain eligible scene obstacles. No depth fill.
+enabled: true
+xy_margin_m: 0.075
+# Include the belt surface, its lower enclosure and obstacles up to 250 mm.
+z_bounds_m: [-0.080, 0.250]
+# Sampling happens AFTER ROI/self/noise filtering on native points.
+# Actual points farther than 4 mm from their voxel representative are kept.
+voxel_size_m: 0.005

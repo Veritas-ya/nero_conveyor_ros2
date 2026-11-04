@@ -1,0 +1,43 @@
+{
+  "scope": "simulation only; single runs; same seed; no network or real devices",
+  "results": {
+    "baseline": {
+      "source": "/tmp/nero-full-preplanned-only-02/continuous",
+      "planning_mode": "full_preplanned",
+      "network_executed": false,
+      "motion_reference": "nominal",
+      "planning_success": true,
+      "planning_wall_s": 0.433468654002354,
+      "trajectory_certified": true,
+      "applied_curve": false,
+      "same_sim_time_s": 9.85599999999996,
+      "same_time_error_m": 0.012581495063944466,
+      "last_dispatch_sim_s": 9.976,
+      "gate_last_reason": "full_pick_feedback_or_live_geometry_invalid",
+      "gate_prepared_command_feedback_distance_m": 0.022986176308844926,
+      "gate_same_time_feedback_error_m": 0.020024725832698025,
+      "gate_translation_limit_m": 0.022,
+      "closure_command_sent": false,
+      "physical_lift_and_hold": false
+    },
+    "advance100": {
+      "source": "/tmp/nero-full-advance100-01/continuous",
+      "planning_mode": "full_preplanned",
+      "network_executed": false,
+      "motion_reference": "100ms_unmeasured_candidate",
+      "planning_success": true,
+      "planning_wall_s": 0.8669724469946232,
+      "trajectory_certified": true,
+      "applied_curve": true,
+      "same_sim_time_s": 9.85599999999996,
+      "same_time_error_m": 0.0029444518799629634,
+      "last_dispatch_sim_s": 9.85599999999996,
+      "gate_last_reason": "full_pick_feedback_or_live_geometry_invalid",
+      "gate_prepared_command_feedback_distance_m": 0.022077939992482563,
+      "gate_same_time_feedback_error_m": 0.0026755473678512845,
+      "gate_translation_limit_m": 0.022,
+      "closure_command_sent": false,
+      "physical_lift_and_hold": false
+    }
+  }
+}

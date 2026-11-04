@@ -1,0 +1,41 @@
+# Opt-in overrides for dynamic successful demonstrations. Robot/cameras unchanged.
+scene:
+  episode:
+    initial_objects: 1
+    max_time: 105.0
+  spawning:
+    interval_seconds: null
+    interval_range_seconds: [12.0, 15.0]
+  randomization:
+    belt_speed:
+      enabled: true
+      range: [0.10, 0.20]
+      per_object: true
+      per_object_max_delta: 0.025
+      max_acceleration: 0.008
+    belt_speed_jitter:
+      enabled: false
+    object_lateral_position:
+      enabled: true
+      # World y relative to the unchanged belt centreline (y=0).
+      range: [-0.10, 0.10]
+  workspace:
+    dynamic_intercept:
+      enabled: true
+      # Admission corridor for the dynamically predicted TCP intercept; not a station.
+      x_range: [0.02, 0.18]
+      planning_search_allowance_s: 2.0
+      candidate_step_m: 0.08
+      # Servo may follow the live object upstream of the future high waypoint.
+      # Every small step still receives the existing live IK/edge checks.
+      tracking_x_range: [-0.15, 0.25]
+      tracking_horizon_s: 1.2
+      servo_lookahead_s: 0.15
+      # If pure vertical lifting hits a joint margin, permit one downstream
+      # detour after rising 6 cm. Keep Y/yaw and the original 0.68 m clearance.
+      lift_vertical_distance_m: 0.06
+      lift_downstream_offset_m: 0.08
+latency:
+  latency:
+    control_communication: 0.0
+    control_communication_ms: 0.0

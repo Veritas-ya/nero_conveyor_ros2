@@ -1,0 +1,7 @@
+# 与厂家SDK源目录的 setup.py 保持一致；安装本文件不会连接CAN。
+-r requirements.txt
+python-can>=3.3.4
+typing-extensions>=3.7.4.3
+# Orbbec 原生SDK二进制另按现场相机型号/固件和 Python 3.10 配置；
+# 本机旧项目与新入口使用 pyorbbecsdk2==2.1.2，详见 docs/两秒策略真机接入.md。
+# 需要 import pyorbbecsdk 的兼容安装，不能由本文件假定任意 wheel 可用。

@@ -1,0 +1,132 @@
+<mujoco model="compact_conveyor_and_bins">
+  <asset>
+    <texture name="belt_tex" type="2d" builtin="checker"
+             width="512" height="128"
+             rgb1="0.055 0.060 0.065" rgb2="0.095 0.100 0.105"
+             mark="edge" markrgb="0.30 0.32 0.34"/>
+    <material name="belt_mat" texture="belt_tex"
+              texrepeat="12 2" texuniform="false" reflectance="0.05"/>
+    <material name="frame_mat" rgba="0.22 0.25 0.29 1"
+              specular="0.35" shininess="0.45" reflectance="0.08"/>
+    <material name="roller_mat" rgba="0.40 0.43 0.47 1"
+              specular="0.65" shininess="0.65" reflectance="0.12"/>
+    <material name="bin_blue_mat" rgba="0.12 0.34 0.70 1"/>
+    <material name="bin_green_mat" rgba="0.12 0.58 0.36 1"/>
+    <material name="bin_orange_mat" rgba="0.88 0.36 0.08 1"/>
+  </asset>
+
+  <default>
+    <default class="conveyor_structure">
+      <geom material="frame_mat" friction="0.9 0.01 0.001"/>
+    </default>
+    <default class="bin_wall">
+      <geom friction="0.85 0.01 0.001"
+            solref="0.008 1" solimp="0.90 0.95 0.001"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="conveyor_frame" pos="0 0 0.30">
+      <geom name="conveyor_surface" type="box"
+            pos="-0.375 0 0.18" size="1.000 0.150 0.020"
+            material="belt_mat" friction="1.10 0.01 0.001"
+            solref="0.005 1" solimp="0.92 0.97 0.001"/>
+      <site name="conveyor_surface_site" type="box"
+            pos="-0.375 0 0.202" size="0.995 0.143 0.001"
+            rgba="0.25 0.85 1.0 0.03" group="4"/>
+
+      <geom name="conveyor_left_rail" class="conveyor_structure" type="box"
+            pos="-0.375 0.165 0.225" size="1.010 0.010 0.045"/>
+      <!-- Robot-side opening covers x=[-0.30, 0.40], including the 0.38 m grasp limit. -->
+      <geom name="right_rail_upstream" class="conveyor_structure" type="box"
+            pos="-0.8425 -0.165 0.225" size="0.5425 0.010 0.045"/>
+      <geom name="right_rail_downstream" class="conveyor_structure" type="box"
+            pos="0.5175 -0.165 0.225" size="0.1175 0.010 0.045"/>
+      <geom name="conveyor_front_crossbar" class="conveyor_structure" type="box"
+            pos="-1.390 0 0.145" size="0.015 0.175 0.045"/>
+      <geom name="conveyor_rear_crossbar" class="conveyor_structure" type="box"
+            pos="0.640 0 0.145" size="0.015 0.175 0.045"/>
+
+      <geom name="roller_upstream" class="visual_only" type="cylinder"
+            pos="-1.340 0 0.165" euler="1.5707963 0 0"
+            size="0.035 0.153" material="roller_mat"/>
+      <geom name="roller_downstream" class="visual_only" type="cylinder"
+            pos="0.590 0 0.165" euler="1.5707963 0 0"
+            size="0.035 0.153" material="roller_mat"/>
+
+      <geom name="conveyor_leg_0" class="conveyor_structure" type="box"
+            pos="-1.225 -0.130 -0.075" size="0.025 0.025 0.225"/>
+      <geom name="conveyor_leg_1" class="conveyor_structure" type="box"
+            pos="-1.225 0.130 -0.075" size="0.025 0.025 0.225"/>
+      <geom name="conveyor_leg_2" class="conveyor_structure" type="box"
+            pos="0.505 -0.130 -0.075" size="0.025 0.025 0.225"/>
+      <geom name="conveyor_leg_3" class="conveyor_structure" type="box"
+            pos="0.505 0.130 -0.075" size="0.025 0.025 0.225"/>
+    </body>
+
+    <body name="camera_support">
+      <geom name="camera_support_post" class="visual_only" type="capsule"
+            fromto="-1.32 0.24 0.02 -1.32 0.24 1.53"
+            size="0.018" material="frame_mat"/>
+      <geom name="camera_support_boom" class="visual_only" type="capsule"
+            fromto="-1.32 0.24 1.53 -0.60 0 1.53"
+            size="0.014" material="frame_mat"/>
+    </body>
+
+    <!-- Unmeasured mounting plate: 220 mm square pedestal, top at z=0.60. -->
+    <body name="robot_platform" pos="0 -0.34 0.30">
+      <geom name="robot_platform_pedestal" type="box" size="0.11 0.11 0.30"
+            material="frame_mat" friction="0.9 0.01 0.001"/>
+    </body>
+    <!-- Bin support keeps the original rim-to-belt height relation. -->
+    <body name="bin_support" pos="0 -0.62 0.15">
+      <geom name="bin_support_table" type="box" size="0.38 0.14 0.15"
+            material="frame_mat"/>
+    </body>
+
+    <body name="bin_0" pos="-0.26 -0.62 0.30">
+      <geom name="bin_0_bottom" class="bin_wall" type="box"
+            pos="0 0 0.025" size="0.105 0.11 0.025" material="bin_blue_mat"/>
+      <geom name="bin_0_front" class="bin_wall" type="box"
+            pos="0 -0.12 0.11" size="0.105 0.01 0.11" material="bin_blue_mat"/>
+      <geom name="bin_0_back" class="bin_wall" type="box"
+            pos="0 0.12 0.11" size="0.105 0.01 0.11" material="bin_blue_mat"/>
+      <geom name="bin_0_left" class="bin_wall" type="box"
+            pos="-0.115 0 0.11" size="0.01 0.13 0.11" material="bin_blue_mat"/>
+      <geom name="bin_0_right" class="bin_wall" type="box"
+            pos="0.115 0 0.11" size="0.01 0.13 0.11" material="bin_blue_mat"/>
+      <site name="bin_0_interior" type="box" pos="0 0 0.125"
+            size="0.100 0.105 0.075" rgba="0.15 0.45 1.0 0.08" group="4"/>
+    </body>
+
+    <body name="bin_1" pos="0 -0.62 0.30">
+      <geom name="bin_1_bottom" class="bin_wall" type="box"
+            pos="0 0 0.025" size="0.105 0.11 0.025" material="bin_green_mat"/>
+      <geom name="bin_1_front" class="bin_wall" type="box"
+            pos="0 -0.12 0.11" size="0.105 0.01 0.11" material="bin_green_mat"/>
+      <geom name="bin_1_back" class="bin_wall" type="box"
+            pos="0 0.12 0.11" size="0.105 0.01 0.11" material="bin_green_mat"/>
+      <geom name="bin_1_left" class="bin_wall" type="box"
+            pos="-0.115 0 0.11" size="0.01 0.13 0.11" material="bin_green_mat"/>
+      <geom name="bin_1_right" class="bin_wall" type="box"
+            pos="0.115 0 0.11" size="0.01 0.13 0.11" material="bin_green_mat"/>
+      <site name="bin_1_interior" type="box" pos="0 0 0.125"
+            size="0.100 0.105 0.075" rgba="0.10 0.85 0.45 0.08" group="4"/>
+    </body>
+
+    <body name="bin_2" pos="0.26 -0.62 0.30">
+      <geom name="bin_2_bottom" class="bin_wall" type="box"
+            pos="0 0 0.025" size="0.105 0.11 0.025" material="bin_orange_mat"/>
+      <geom name="bin_2_front" class="bin_wall" type="box"
+            pos="0 -0.12 0.11" size="0.105 0.01 0.11" material="bin_orange_mat"/>
+      <geom name="bin_2_back" class="bin_wall" type="box"
+            pos="0 0.12 0.11" size="0.105 0.01 0.11" material="bin_orange_mat"/>
+      <geom name="bin_2_left" class="bin_wall" type="box"
+            pos="-0.115 0 0.11" size="0.01 0.13 0.11" material="bin_orange_mat"/>
+      <geom name="bin_2_right" class="bin_wall" type="box"
+            pos="0.115 0 0.11" size="0.01 0.13 0.11" material="bin_orange_mat"/>
+      <site name="bin_2_interior" type="box" pos="0 0 0.125"
+            size="0.100 0.105 0.075" rgba="1.0 0.42 0.08 0.08" group="4"/>
+    </body>
+  </worldbody>
+</mujoco>

@@ -1,0 +1,134 @@
+{
+  "repository": "https://github.com/Veritas-ya/Nero7_grasping",
+  "commit": "57735899ab138ce293982059ec642b5dec669d78",
+  "retrieved_at": "2026-10-15T11:27:45.655561+08:00",
+  "upstream_package_declared_license": "MIT",
+  "files": [
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/__init__.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/__init__.py",
+      "sha256": "580ac417da05641657a0e5db505f2cb67ed1a38ff88bc8c01b6590e1c91c1ae6",
+      "git_blob_sha": "f1648182561b5b12479dbc2dd72d6950fa2457c4",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/kalman_motion.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/kalman_motion.py",
+      "sha256": "b87b5934b6b02325350ece0ee0c053adcb1b7c49dba4925050058e72a8843f03",
+      "git_blob_sha": "20c22513c48474fe6391535c4c64e75bc7f5cc07",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/block_tracker.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/block_tracker.py",
+      "sha256": "b39ba43970bd3a6bdd9181dbb278b9d6c4e1a18adccc100a89ef92dab225396d",
+      "git_blob_sha": "b9b8d3b95e5ff0283af671d820dd5920d7c5773b",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/conveyor_model.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/conveyor_model.py",
+      "sha256": "e4130eb707711364b7b0b1391563cb1348b11443c493702a0015809c1afe2b81",
+      "git_blob_sha": "2ed703ea414f368c1a9dd84eadcfb9d04d16a0a7",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/geometry.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/geometry.py",
+      "sha256": "72aa3c542a86045d5a7ee54ec35a0eb7a5e0572f1808250e10e415b567303c25",
+      "git_blob_sha": "23cf28783513a3f0d9fd08ba1e3ba18c6155f7fb",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/detection.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/detection.py",
+      "sha256": "bbd3a0a1f1260125216f1e545846e2302b8c824ef20123dbb591651907ef9e52",
+      "git_blob_sha": "60e912061b4fdb834700c326f097e7826a34d587",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/speed_overlay.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/speed_overlay.py",
+      "sha256": "99d565483c1ae67f130eb8bd86a21f4843eb1f4a17766e9e722c756fd4f3db16",
+      "git_blob_sha": "39ef0aca359959975b4b91b1cd0fb05eaded1970",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/alignment.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/projection.py",
+      "extraction": "project_cloud body unchanged; ROS imports omitted",
+      "function_sha256": "8ac691d66fb6c39ac0995d587921fd65630231ffdbe3ef9601630d131e9cf4fa"
+    },
+    {
+      "upstream_path": "src/nero7_perception/config/perception.yaml",
+      "local_path": "vendor/nero7_speed_reference/upstream_perception.yaml",
+      "git_blob_sha": "98f1c54038bece244ea2e17e92fb3cab68a92dc3",
+      "sha256": "cf3501b52427270901f552611eb70c6608fe7ef0a6bce582cc10040ee897ea93",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_bringup/config/belt.yaml",
+      "local_path": "vendor/nero7_speed_reference/upstream_belt.yaml",
+      "git_blob_sha": "38b5e0035d346e5dfbb41b77e0c95327fec218b6",
+      "sha256": "8169023ab7728add1704982a0390aed6c5ce7dc79f59dffe8acbdc8ee83aa328",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/setup.py",
+      "local_path": "vendor/nero7_speed_reference/upstream_setup.py",
+      "git_blob_sha": "74a0ab535aa151b86a6f651a16ca1efdf7050835",
+      "sha256": "ec781923576bd5a9bff68f516c66c06c0f6741e7eec47c9c39d4fcc42961b80d",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/block_detector.py",
+      "local_path": "vendor/nero7_speed_reference/upstream_block_detector.py",
+      "git_blob_sha": "4457b84d80bb32f8f7bff68c3e7eccae1903bf93",
+      "sha256": "6a0c25cc2e9e4c887ed59bf156070cbf7c3c52ce2162c3fe2a81110ceb770bea",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/alignment.py",
+      "local_path": "vendor/nero7_speed_reference/upstream_alignment.py",
+      "git_blob_sha": "95c404136c613e41685dee7e8d77a7455524b99d",
+      "sha256": "181e5ccd224ae37e561f7b9b4df35c055e7d4d674d9761ff263fe38a838ec72c",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/test/test_kalman_motion.py",
+      "local_path": "vendor/nero7_speed_reference/test/test_kalman_motion.py",
+      "git_blob_sha": "aec79d9dfa679b245e3ceaf83392a04b76de6d2f",
+      "sha256": "95d2d88d19be271bbcfeb532b6972cfd4a90a3b2a7477e5d38d7d07a40e902c4",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/test/test_visual_speed.py",
+      "local_path": "vendor/nero7_speed_reference/test/test_visual_speed.py",
+      "git_blob_sha": "b045ad83f2d4d034c0e0436122ba3193ac6ae234",
+      "sha256": "943a20ff277668822b826da80f4bbca33a2fde1bb00a401335909795066c3ece",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/test/test_speed_overlay.py",
+      "local_path": "vendor/nero7_speed_reference/test/test_speed_overlay.py",
+      "git_blob_sha": "9458d9b21a6849a88cb14a5ec29fa1b0e7997d80",
+      "sha256": "4601ff05420e7be6ceef82fb946f38131efa9054711100de3676bdbdfd921234",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/base_plane.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/base_plane.py",
+      "sha256": "e959af6d41afbfdd63ae924464cf012b77ff382097482d3341cea51f42d3d876",
+      "git_blob_sha": "a0166a12ff111edc3a357cc0702a6c427a040153",
+      "verbatim": true
+    },
+    {
+      "upstream_path": "src/nero7_perception/nero7_perception/validation.py",
+      "local_path": "vendor/nero7_speed_reference/nero7_perception/validation.py",
+      "sha256": "578067565b7577c7b354a1e14d9703d0b4c325a6656483647ababe8f9c11cd58",
+      "git_blob_sha": "c82c93efea6e9441c0a075688e8a9a0133eb070d",
+      "verbatim": true
+    }
+  ],
+  "adaptation_scope": "Local SDK image/timestamp/calibration input and visualization only; peer detector, XY Kalman and tracker preserved."
+}

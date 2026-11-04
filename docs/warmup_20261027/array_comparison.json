@@ -1,0 +1,17 @@
+{
+  "same_shape": {
+    "poses": [
+      512,
+      4,
+      4
+    ],
+    "scores": [
+      512
+    ]
+  },
+  "exact_equal": {
+    "poses": true,
+    "scores": true
+  },
+  "updated_source_sha256": "acb10a1f37f9005a9a4e843695bd945cad1e6a5c99a583fc062fa4b9774e8d4b"
+}

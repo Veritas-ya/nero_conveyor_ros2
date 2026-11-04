@@ -1,0 +1,40 @@
+schema_version: 1
+latency:
+  enable_motion_compensation: true
+  camera_exposure: 0.020
+  camera_capture: 0.0
+  image_transport: 0.025
+  perception_inference: 0.055
+  trajectory_planning: 0.040
+  control_communication: 0.015
+  robot_response: 0.025
+  estimated_arm_arrival: 0.65
+  camera_exposure_ms: 20.0
+  image_transfer_ms: 25.0
+  perception_inference_ms: 55.0
+  trajectory_planning_ms: 40.0
+  control_communication_ms: 15.0
+  robot_response_ms: 25.0
+  total_nominal_ms: 180.0
+  randomization:
+    enabled: true
+    distribution: truncated_normal
+    scale_range: [0.85, 1.15]
+  observation_history:
+    duration_s: 2.0
+    sample_period_s: 0.02
+    interpolation: linear
+    minimum_samples_for_velocity: 3
+  prediction:
+    velocity_window_s: 0.20
+    # The top camera now observes a longer upstream belt section.  At the
+    # nominal 0.20 m/s belt speed the first stable RGB-D track can be about
+    # seven seconds from the preferred intercept, so the former 3.5 s horizon
+    # incorrectly marked otherwise valid upstream predictions as confidence
+    # zero.  Six seconds covers that physical look-ahead without admitting a
+    # track beyond the configured camera/active bounds.
+    maximum_horizon_s: 7.50
+    use_acceleration: false
+  validation:
+    assert_observed_timestamp_is_past: true
+    timestamp_tolerance_s: 1.0e-9

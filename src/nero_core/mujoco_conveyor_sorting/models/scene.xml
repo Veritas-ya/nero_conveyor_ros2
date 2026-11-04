@@ -1,0 +1,129 @@
+<mujoco model="compact_conveyor_sorting">
+  <compiler angle="radian"
+            autolimits="true"
+            balanceinertia="true"
+            meshdir="../assets"
+            texturedir="../assets"/>
+
+  <option timestep="0.002"
+          gravity="0 0 -9.81"
+          integrator="implicitfast"
+          solver="Newton"
+          iterations="80"
+          tolerance="1e-10"
+          cone="elliptic"
+          noslip_iterations="10"
+          impratio="5"/>
+  <size njmax="4000" nconmax="1200"/>
+
+  <statistic center="-0.35 -0.12 0.65" extent="2.05"/>
+  <visual>
+    <global offwidth="640" offheight="480" azimuth="125" elevation="-24"/>
+    <quality shadowsize="4096" offsamples="4"/>
+    <map znear="0.01" zfar="5.0" fogstart="3.0" fogend="5.0"/>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.65 0.65 0.65"
+               specular="0.15 0.15 0.15"/>
+    <rgba haze="0.12 0.15 0.18 1"/>
+  </visual>
+
+  <default>
+    <geom condim="4" friction="0.85 0.01 0.001"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <joint damping="0.35" armature="0.006"/>
+    <default class="visual_only">
+      <geom contype="0" conaffinity="0" group="2"/>
+    </default>
+    <default class="debug_marker">
+      <geom contype="0" conaffinity="0" group="5"/>
+      <site group="5"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture name="floor_grid_tex" type="2d" builtin="checker"
+             width="512" height="512"
+             rgb1="0.16 0.18 0.20" rgb2="0.22 0.24 0.26"/>
+    <material name="floor_grid_mat" texture="floor_grid_tex"
+              texrepeat="5 5" texuniform="true" reflectance="0.08"/>
+    <material name="safety_mat" rgba="0.95 0.70 0.08 0.35"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" type="plane" size="4 4 0.1"
+          material="floor_grid_mat" friction="1.0 0.01 0.001"/>
+    <light name="key_light" pos="-0.55 -0.45 1.55" dir="0.35 0.25 -1"
+           diffuse="0.90 0.88 0.82" specular="0.25 0.25 0.25"
+           castshadow="true"/>
+    <light name="fill_light" pos="0.55 0.30 1.20" dir="-0.25 -0.15 -1"
+           diffuse="0.48 0.53 0.62" specular="0.08 0.08 0.08"
+           castshadow="false"/>
+
+    <body name="top_camera_rig" pos="-0.60 0 1.55">
+      <camera name="top_camera" mode="fixed" pos="0 0 0"
+              quat="1 0 0 0" fovy="46"/>
+      <geom name="top_camera_housing" class="visual_only" type="box"
+            pos="0 0 0.025" size="0.045 0.035 0.025"
+            rgba="0.08 0.09 0.11 1"/>
+      <site name="top_camera_frame" type="sphere" size="0.008"
+            rgba="0.2 0.8 1 1" group="4"/>
+    </body>
+
+    <!-- Task close view: downstream oblique overhead angle keeps incoming
+         parts, the grasp/clearance region and all bin openings in frame.
+         The expert's top RGB-D camera and the wrist mount are independent. -->
+    <camera name="policy_external_camera" mode="fixed"
+            pos="0.85 0.20 1.65"
+            quat="0.4834750123691945 0.2065069361174782 0.3341352415506829 0.7822790027246326"
+            fovy="53"/>
+
+    <site name="grasp_region_site" class="debug_marker" type="box"
+          pos="0.09 0 0.504" size="0.29 0.140 0.003"
+          rgba="0.15 0.85 0.25 0.16"/>
+    <site name="spawn_line_site" class="debug_marker" type="box"
+          pos="-1.28 0 0.535" size="0.003 0.150 0.035"
+          rgba="0.20 0.70 1.0 0.45"/>
+    <site name="missed_line_site" class="debug_marker" type="box"
+          pos="0.665 0 0.535" size="0.003 0.150 0.035"
+          rgba="1.0 0.18 0.12 0.45"/>
+    <site name="safety_floor_site" class="debug_marker" type="box"
+          pos="-0.375 -0.31 0.004" size="0.995 0.51 0.003"
+          material="safety_mat"/>
+
+    <body name="debug_selected_target" mocap="true" pos="0 0 -2">
+      <geom name="debug_selected_target_geom" class="debug_marker"
+            type="sphere" size="0.022" rgba="1.0 0.85 0.05 0.65"/>
+    </body>
+    <body name="debug_observed_pose" mocap="true" pos="0 0 -2">
+      <geom name="debug_observed_pose_geom" class="debug_marker"
+            type="sphere" size="0.015" rgba="0.10 0.45 1.0 0.75"/>
+    </body>
+    <body name="debug_ground_truth_pose" mocap="true" pos="0 0 -2">
+      <geom name="debug_ground_truth_pose_geom" class="debug_marker"
+            type="sphere" size="0.015" rgba="0.10 0.95 0.25 0.75"/>
+    </body>
+    <body name="debug_predicted_grasp_pose" mocap="true" pos="0 0 -2">
+      <geom name="debug_predicted_grasp_pose_geom" class="debug_marker"
+            type="sphere" size="0.017" rgba="0.95 0.12 0.85 0.80"/>
+    </body>
+    <body name="debug_actual_grasp_pose" mocap="true" pos="0 0 -2">
+      <geom name="debug_actual_grasp_pose_geom" class="debug_marker"
+            type="sphere" size="0.014" rgba="1.0 0.40 0.05 0.78"/>
+    </body>
+    <body name="debug_grasp_window_start" mocap="true" pos="0 0 -2">
+      <geom name="debug_grasp_window_start_geom" class="debug_marker"
+            type="sphere" size="0.012" rgba="0.05 0.95 0.95 0.72"/>
+    </body>
+    <body name="debug_grasp_window_end" mocap="true" pos="0 0 -2">
+      <geom name="debug_grasp_window_end_geom" class="debug_marker"
+            type="sphere" size="0.012" rgba="1.0 0.12 0.12 0.72"/>
+    </body>
+    <body name="debug_pregrasp_pose" mocap="true" pos="0 0 -2">
+      <geom name="debug_pregrasp_pose_geom" class="debug_marker"
+            type="sphere" size="0.013" rgba="1.0 1.0 1.0 0.72"/>
+    </body>
+  </worldbody>
+
+  <include file="conveyor.xml"/>
+  <include file="robot.xml"/>
+  <include file="objects_tless.xml"/>
+</mujoco>

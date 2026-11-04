@@ -1,0 +1,451 @@
+schema_version: 1
+object_spec_contract:
+  required_fields:
+    - category_id
+    - object_id
+    - body_name
+    - freejoint_name
+    - parking_weld_name
+    - grasp_assist_weld_name
+    - mesh_path
+    - geometry
+    - dimensions
+    - mass
+    - friction
+    - grasp_height
+    - recommended_grip_width
+    - bin_id
+    - symmetry
+    - grasp_candidates
+  pose_convention: position_xyz_m_and_quaternion_wxyz
+  geometry_note: Placeholder primitives are mirrored in models/objects.xml; mesh_path can replace them later.
+
+defaults:
+  friction: [0.85, 0.01, 0.001]
+  condim: 4
+  solref: [0.006, 1.0]
+  solimp: [0.90, 0.95, 0.001]
+  spawn_z_clearance: 0.006
+  linear_damping: 0.001
+  angular_damping: 0.002
+  grasp_candidate_quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]
+
+object_specs: &object_specs
+  - category_id: 0
+    object_id: placeholder_cylinder
+    display_name: cylinder
+    body_name: object_00
+    freejoint_name: object_00_freejoint
+    parking_weld_name: parking_weld_00
+    grasp_assist_weld_name: grasp_assist_weld_00
+    xml_geom_names: [object_00_geom]
+    mesh_path: null
+    geometry:
+      kind: cylinder
+      radius: 0.025
+      half_height: 0.020
+    dimensions: [0.050, 0.050, 0.040]
+    mass: 0.10
+    friction: [0.90, 0.01, 0.001]
+    rgba: [0.90, 0.22, 0.18, 1.0]
+    grasp_height: 0.025
+    recommended_grip_width: 0.050
+    bin_id: 0
+    symmetry: {kind: continuous_rotational, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.045], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 1
+    object_id: placeholder_cube
+    display_name: cube
+    body_name: object_01
+    freejoint_name: object_01_freejoint
+    parking_weld_name: parking_weld_01
+    grasp_assist_weld_name: grasp_assist_weld_01
+    xml_geom_names: [object_01_geom]
+    mesh_path: null
+    geometry:
+      kind: box
+      half_size: [0.025, 0.025, 0.020]
+    dimensions: [0.050, 0.050, 0.040]
+    mass: 0.12
+    friction: [0.82, 0.01, 0.001]
+    rgba: [0.18, 0.48, 0.92, 1.0]
+    grasp_height: 0.025
+    recommended_grip_width: 0.052
+    bin_id: 0
+    symmetry: {kind: four_fold, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.045], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 2
+    object_id: placeholder_flange
+    display_name: flange
+    body_name: object_02
+    freejoint_name: object_02_freejoint
+    parking_weld_name: parking_weld_02
+    grasp_assist_weld_name: grasp_assist_weld_02
+    xml_geom_names: [object_02_base_geom, object_02_hub_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: cylinder, radius: 0.032, half_height: 0.008, position: [0.0, 0.0, 0.008]}
+        - {type: cylinder, radius: 0.014, half_height: 0.014, position: [0.0, 0.0, 0.030]}
+    dimensions: [0.064, 0.064, 0.044]
+    mass: 0.14
+    friction: [0.88, 0.01, 0.001]
+    rgba: [0.90, 0.55, 0.12, 1.0]
+    grasp_height: 0.032
+    recommended_grip_width: 0.032
+    bin_id: 0
+    symmetry: {kind: continuous_rotational, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.052], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 3
+    object_id: placeholder_ring
+    display_name: ring
+    body_name: object_03
+    freejoint_name: object_03_freejoint
+    parking_weld_name: parking_weld_03
+    grasp_assist_weld_name: grasp_assist_weld_03
+    xml_geom_names:
+      - object_03_segment_0
+      - object_03_segment_1
+      - object_03_segment_2
+      - object_03_segment_3
+      - object_03_segment_4
+      - object_03_segment_5
+      - object_03_segment_6
+      - object_03_segment_7
+    mesh_path: null
+    geometry:
+      kind: segmented_ring
+      outer_radius: 0.032
+      inner_radius: 0.016
+      height: 0.016
+      segment_count: 8
+    dimensions: [0.064, 0.064, 0.016]
+    mass: 0.08
+    friction: [0.76, 0.01, 0.001]
+    rgba: [0.63, 0.26, 0.86, 1.0]
+    # Keep the TCP 10 mm behind the distal finger plane: at this height the
+    # pads still overlap the 16 mm ring while the wrist/forearm stays clear of
+    # the conveyor on every validated redundancy branch.
+    grasp_height: 0.016
+    recommended_grip_width: 0.060
+    # Close farther than the generic mesh offset so a low ring cannot remain
+    # centred in the gap without touching both official NERO fingers.
+    grip_width_margin: 0.018
+    # A ring has little vertical contact area; retain a modest additional
+    # preload after stable bilateral contact so it does not slip at lift-off.
+    contact_hold_squeeze_fraction: 0.14
+    bin_id: 0
+    symmetry: {kind: eight_fold, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.026], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 4
+    object_id: placeholder_stepped_shaft
+    display_name: stepped_shaft
+    body_name: object_04
+    freejoint_name: object_04_freejoint
+    parking_weld_name: parking_weld_04
+    grasp_assist_weld_name: grasp_assist_weld_04
+    xml_geom_names: [object_04_lower_geom, object_04_upper_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: cylinder, radius: 0.026, half_height: 0.012, position: [0.0, 0.0, 0.012]}
+        - {type: cylinder, radius: 0.014, half_height: 0.024, position: [0.0, 0.0, 0.048]}
+    dimensions: [0.052, 0.052, 0.072]
+    mass: 0.13
+    friction: [0.92, 0.01, 0.001]
+    rgba: [0.10, 0.72, 0.61, 1.0]
+    grasp_height: 0.050
+    recommended_grip_width: 0.032
+    bin_id: 0
+    symmetry: {kind: continuous_rotational, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.078], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 5
+    object_id: placeholder_holed_plate
+    display_name: holed_plate
+    body_name: object_05
+    freejoint_name: object_05_freejoint
+    parking_weld_name: parking_weld_05
+    grasp_assist_weld_name: grasp_assist_weld_05
+    xml_geom_names: [object_05_front, object_05_back, object_05_left, object_05_right]
+    mesh_path: null
+    geometry:
+      kind: rectangular_frame
+      outer_size: [0.064, 0.052, 0.016]
+      hole_size: [0.030, 0.022]
+    dimensions: [0.064, 0.052, 0.016]
+    mass: 0.09
+    friction: [0.80, 0.01, 0.001]
+    rgba: [0.15, 0.72, 0.30, 1.0]
+    grasp_height: 0.016
+    recommended_grip_width: 0.058
+    bin_id: 1
+    symmetry: {kind: two_fold, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.026], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 6
+    object_id: placeholder_long_bar
+    display_name: long_bar
+    body_name: object_06
+    freejoint_name: object_06_freejoint
+    parking_weld_name: parking_weld_06
+    grasp_assist_weld_name: grasp_assist_weld_06
+    xml_geom_names: [object_06_geom]
+    mesh_path: null
+    geometry:
+      kind: box
+      half_size: [0.048, 0.014, 0.012]
+    dimensions: [0.096, 0.028, 0.024]
+    mass: 0.11
+    friction: [0.74, 0.01, 0.001]
+    rgba: [0.94, 0.78, 0.12, 1.0]
+    grasp_height: 0.018
+    recommended_grip_width: 0.032
+    # Track the observed short axis, but limit the correction to the small
+    # collision-free branch that keeps continuous 10 s operation on schedule.
+    grasp_yaw_mode: short_axis
+    grasp_yaw_delta_range: [0.0, 0.75]
+    # The 96 x 28 mm bar otherwise makes its first contact on the long-axis
+    # corners.  This calibrated preload holds the short-axis branch without
+    # driving the fingers all the way through their position target.
+    contact_hold_squeeze_fraction: 0.24
+    bin_id: 1
+    symmetry: {kind: two_fold, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.030], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 7
+    object_id: placeholder_cross
+    display_name: symmetric_cross
+    body_name: object_07
+    freejoint_name: object_07_freejoint
+    parking_weld_name: parking_weld_07
+    grasp_assist_weld_name: grasp_assist_weld_07
+    xml_geom_names: [object_07_x_geom, object_07_y_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: box, half_size: [0.040, 0.012, 0.011], position: [0.0, 0.0, 0.011]}
+        - {type: box, half_size: [0.012, 0.040, 0.011], position: [0.0, 0.0, 0.011]}
+    dimensions: [0.080, 0.080, 0.022]
+    mass: 0.12
+    friction: [0.86, 0.01, 0.001]
+    rgba: [0.94, 0.34, 0.56, 1.0]
+    grasp_height: 0.017
+    recommended_grip_width: 0.030
+    bin_id: 1
+    symmetry: {kind: four_fold, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.032], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 8
+    object_id: placeholder_l_bracket
+    display_name: asymmetric_l_part
+    body_name: object_08
+    freejoint_name: object_08_freejoint
+    parking_weld_name: parking_weld_08
+    grasp_assist_weld_name: grasp_assist_weld_08
+    xml_geom_names: [object_08_long_geom, object_08_short_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: box, half_size: [0.040, 0.012, 0.012], position: [0.0, 0.0, 0.012]}
+        - {type: box, half_size: [0.012, 0.026, 0.012], position: [-0.028, 0.014, 0.012]}
+    dimensions: [0.080, 0.052, 0.024]
+    mass: 0.12
+    friction: [0.84, 0.01, 0.001]
+    rgba: [0.28, 0.78, 0.84, 1.0]
+    grasp_height: 0.018
+    recommended_grip_width: 0.034
+    bin_id: 1
+    symmetry: {kind: none, axis: null}
+    grasp_candidates:
+      - {position: [0.006, 0.002, 0.032], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 9
+    object_id: placeholder_disc
+    display_name: low_disc
+    body_name: object_09
+    freejoint_name: object_09_freejoint
+    parking_weld_name: parking_weld_09
+    grasp_assist_weld_name: grasp_assist_weld_09
+    xml_geom_names: [object_09_geom]
+    mesh_path: null
+    geometry:
+      kind: cylinder
+      radius: 0.036
+      half_height: 0.009
+    dimensions: [0.072, 0.072, 0.018]
+    mass: 0.10
+    friction: [0.96, 0.01, 0.001]
+    rgba: [0.70, 0.70, 0.74, 1.0]
+    grasp_height: 0.014
+    recommended_grip_width: 0.066
+    bin_id: 1
+    symmetry: {kind: continuous_rotational, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.028], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 10
+    object_id: placeholder_capsule
+    display_name: capsule
+    body_name: object_10
+    freejoint_name: object_10_freejoint
+    parking_weld_name: parking_weld_10
+    grasp_assist_weld_name: grasp_assist_weld_10
+    xml_geom_names: [object_10_geom]
+    mesh_path: null
+    geometry:
+      kind: capsule
+      fromto: [-0.034, 0.0, 0.014, 0.034, 0.0, 0.014]
+      radius: 0.014
+    dimensions: [0.096, 0.028, 0.028]
+    mass: 0.09
+    friction: [0.78, 0.01, 0.001]
+    rgba: [0.46, 0.32, 0.88, 1.0]
+    grasp_height: 0.020
+    recommended_grip_width: 0.032
+    # Preserve the calibrated fully-closed preload after contact.  Relaxing
+    # toward the first-contact opening lets the capsule slide during lift.
+    contact_hold_max_relaxation_fraction: 0.0
+    bin_id: 2
+    symmetry: {kind: two_fold, axis: [1.0, 0.0, 0.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.034], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 11
+    object_id: placeholder_twin_boss
+    display_name: twin_boss
+    body_name: object_11
+    freejoint_name: object_11_freejoint
+    parking_weld_name: parking_weld_11
+    grasp_assist_weld_name: grasp_assist_weld_11
+    xml_geom_names: [object_11_base_geom, object_11_left_geom, object_11_right_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: box, half_size: [0.040, 0.022, 0.008], position: [0.0, 0.0, 0.008]}
+        - {type: cylinder, radius: 0.012, half_height: 0.014, position: [-0.022, 0.0, 0.030]}
+        - {type: cylinder, radius: 0.012, half_height: 0.014, position: [0.022, 0.0, 0.030]}
+    dimensions: [0.080, 0.044, 0.044]
+    mass: 0.15
+    friction: [0.90, 0.01, 0.001]
+    rgba: [0.96, 0.52, 0.24, 1.0]
+    grasp_height: 0.032
+    recommended_grip_width: 0.050
+    contact_hold_max_relaxation_fraction: 0.0
+    # Positive world-yaw candidates avoid single-finger pushing while the
+    # negative candidate reaches the NERO wrist limits in this workcell.
+    grasp_yaw_mode: short_axis
+    grasp_yaw_delta_range: [0.0, 0.60]
+    bin_id: 2
+    symmetry: {kind: two_fold, axis: [0.0, 0.0, 1.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.054], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 12
+    object_id: placeholder_offset_step
+    display_name: offset_step
+    body_name: object_12
+    freejoint_name: object_12_freejoint
+    parking_weld_name: parking_weld_12
+    grasp_assist_weld_name: grasp_assist_weld_12
+    xml_geom_names: [object_12_base_geom, object_12_top_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: box, half_size: [0.034, 0.025, 0.010], position: [0.0, 0.0, 0.010]}
+        - {type: box, half_size: [0.020, 0.018, 0.012], position: [0.012, 0.0, 0.032]}
+    dimensions: [0.068, 0.050, 0.044]
+    mass: 0.13
+    friction: [0.81, 0.01, 0.001]
+    rgba: [0.22, 0.62, 0.94, 1.0]
+    # Grip above the compound part's centre so the flared NERO fingertip is
+    # not left underneath the offset step after the jaws open.
+    grasp_height: 0.044
+    recommended_grip_width: 0.042
+    # The first contact occurs on the wide offset shoulder.  Relaxing to that
+    # measured opening removes preload from the narrower carrying surface and
+    # lets the part stay on the belt during lift.
+    contact_hold_max_relaxation_fraction: 0.0
+    bin_id: 2
+    symmetry: {kind: none, axis: null}
+    grasp_candidates:
+      - {position: [0.008, 0.0, 0.054], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 13
+    object_id: placeholder_heavy_ellipsoid
+    display_name: heavy_ellipsoid
+    body_name: object_13
+    freejoint_name: object_13_freejoint
+    parking_weld_name: parking_weld_13
+    grasp_assist_weld_name: grasp_assist_weld_13
+    xml_geom_names: [object_13_geom]
+    mesh_path: null
+    geometry:
+      kind: ellipsoid
+      radii: [0.034, 0.024, 0.019]
+      position: [0.0, 0.0, 0.019]
+    dimensions: [0.068, 0.048, 0.038]
+    mass: 0.20
+    friction: [1.00, 0.012, 0.001]
+    rgba: [0.30, 0.34, 0.38, 1.0]
+    grasp_height: 0.024
+    recommended_grip_width: 0.052
+    # This rounded part needs a fully closed command to maintain bilateral
+    # contact while the belt continues moving.
+    grip_width_margin: 0.055
+    contact_hold_max_relaxation_fraction: 0.0
+    bin_id: 2
+    symmetry: {kind: two_fold, axis: [1.0, 0.0, 0.0]}
+    grasp_candidates:
+      - {position: [0.0, 0.0, 0.045], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+  - category_id: 14
+    object_id: placeholder_eccentric_combo
+    display_name: eccentric_combo
+    body_name: object_14
+    freejoint_name: object_14_freejoint
+    parking_weld_name: parking_weld_14
+    grasp_assist_weld_name: grasp_assist_weld_14
+    xml_geom_names: [object_14_disc_geom, object_14_boss_geom]
+    mesh_path: null
+    geometry:
+      kind: compound
+      primitives:
+        - {type: cylinder, radius: 0.030, half_height: 0.010, position: [0.0, 0.0, 0.010]}
+        - {type: sphere, radius: 0.015, position: [0.016, 0.0, 0.030]}
+    dimensions: [0.061, 0.060, 0.045]
+    mass: 0.14
+    friction: [0.87, 0.01, 0.001]
+    rgba: [0.86, 0.24, 0.72, 1.0]
+    # Grip the symmetric 20 mm base disc instead of the offset upper boss.
+    # The TCP is intentionally above the disc because the official NERO
+    # fingertips extend 10 mm past it along the approach direction.
+    grasp_height: 0.018
+    recommended_grip_width: 0.055
+    bin_id: 2
+    symmetry: {kind: none, axis: null}
+    grasp_candidates:
+      - {position: [0.008, 0.0, 0.052], quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]}
+
+# The wrapper keeps both the standalone ObjectSpec loader and the project
+# environment's filename-section loader compatible without duplicating data.
+objects:
+  specs: *object_specs

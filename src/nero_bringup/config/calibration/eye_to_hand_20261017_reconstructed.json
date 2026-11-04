@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "calibration_type": "eye_to_hand",
+  "method": "park",
+  "units": "metres",
+  "camera_frame": "color_optical_cv",
+  "sample_count": 15,
+  "accepted": true,
+  "rejection_reasons": [],
+  "calibration_id": "eye-to-hand-20261017T102127186585Z",
+  "serial_number": "CP28563000CT",
+  "camera_to_base_cv": [
+    [
+      -0.03452596350505194,
+      -0.8287783672675559,
+      0.5585108555734367,
+      -0.8759232416880596
+    ],
+    [
+      -0.9986239200880548,
+      0.006535935788202885,
+      -0.0520341020037669,
+      -0.17918281364744726
+    ],
+    [
+      0.03947434701187102,
+      -0.5595388275112768,
+      -0.8278635614853987,
+      0.7545830171990642
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "base_to_camera_cv": [
+    [
+      -0.03452596350505149,
+      -0.9986239200880553,
+      0.03947434701187323,
+      -0.2389650095229518
+    ],
+    [
+      -0.8287783672675566,
+      0.006535935788204394,
+      -0.5595388275112799,
+      -0.3025566100300976
+    ],
+    [
+      0.5585108555734353,
+      -0.052034102003765376,
+      -0.8278635614854006,
+      1.1045808063840186
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "depth_to_base_cv": [
+    [
+      -0.03890396737726649,
+      -0.8295906201964232,
+      0.5570151195791351,
+      -0.8749030555459123
+    ],
+    [
+      -0.9985623450810638,
+      0.01170562632122411,
+      -0.05230945190565077,
+      -0.15525995502984452
+    ],
+    [
+      0.03687522270104549,
+      -0.5582493549681508,
+      -0.8288533239451502,
+      0.7536628945745366
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "depth_to_color_cv": [
+    [
+      0.9999870657920837,
+      -0.005083631724119186,
+      0.00028754249797202647,
+      -0.023961483001708986
+    ],
+    [
+      0.0050831083208322525,
+      0.9999854564666748,
+      0.001791644492186606,
+      -0.00017430560290813445
+    ],
+    [
+      -0.00029664637986570597,
+      -0.0017901596147567034,
+      0.9999983310699463,
+      8.671656250953674e-05
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "base_to_world": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "color_to_world_cv": [
+    [
+      -0.03452596350505194,
+      -0.8287783672675559,
+      0.5585108555734367,
+      -0.8759232416880596
+    ],
+    [
+      -0.9986239200880548,
+      0.006535935788202885,
+      -0.0520341020037669,
+      -0.17918281364744726
+    ],
+    [
+      0.03947434701187102,
+      -0.5595388275112768,
+      -0.8278635614853987,
+      0.7545830171990642
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "camera_to_world_cv": [
+    [
+      -0.03890396737726649,
+      -0.8295906201964232,
+      0.5570151195791351,
+      -0.8749030555459123
+    ],
+    [
+      -0.9985623450810638,
+      0.01170562632122411,
+      -0.05230945190565077,
+      -0.15525995502984452
+    ],
+    [
+      0.03687522270104549,
+      -0.5582493549681508,
+      -0.8288533239451502,
+      0.7536628945745366
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "captured_pnp_calibration_reference": {
+    "source": "file",
+    "path": "/home/hzq/机械臂分拣/calibration_data/20260917_103856_404826/result_20260917_104144_040357/intrinsics.json",
+    "sha256": "b01e6f6b52f0a375d7053e66898e3a76c65f3752582c7669d14081720115ab06",
+    "K": [
+      [
+        603.524651024772,
+        0.0,
+        640.0588612240552
+      ],
+      [
+        0.0,
+        603.7189569944327,
+        361.76090351710087
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "D": [
+      -0.0234426103245599,
+      0.02431168424668755,
+      0.00010858316156443146,
+      -0.00033470062400687867,
+      -0.006382970240197211
+    ],
+    "image_size": [
+      1280,
+      720
+    ],
+    "serial_number": "CP28563000CT"
+  },
+  "source_session": "recordings/teach/20261017_181906_023053",
+  "excluded_sample_ids": [],
+  "thresholds": {
+    "max_reprojection_px": 1.5,
+    "max_translation_error_m": 0.005,
+    "max_rotation_error_deg": 1.0
+  },
+  "quality": {
+    "translation_rms_m": 0.001595971912566828,
+    "translation_max_m": 0.0027671197004371824,
+    "rotation_rms_deg": 0.3245421473959463,
+    "rotation_max_deg": 0.7907350637998997,
+    "reprojection_max_px": 0.23831904229775547
+  },
+  "target_to_gripper": null,
+  "residuals": null,
+  "pnp_input_audits": null,
+  "created_at": null,
+  "reconstruction": {
+    "is_reconstructed": true,
+    "original_file_restored_byte_for_byte": false,
+    "reconstructed_at": "2026-10-23T14:41:40.390017+08:00",
+    "formula": "T_base_color = T_base_depth @ inverse(T_color_depth)",
+    "depth_to_base_source": "traditional_pipeline_linux_20260928/mujoco_conveyor_sorting/configs/runtime.yaml",
+    "depth_to_color_source": "traditional_pipeline_linux_20260928/recordings/pick_test/20261008_175405_103492/frame_000040.json",
+    "depth_to_color_crosscheck_source": "traditional_pipeline_linux_20260928/recordings/teach/20261012_151922_064532/result.json",
+    "depth_to_color_crosscheck_max_abs_error": 1.4742439040371647e-16,
+    "intrinsics_source": "calibration_data/20260917_103856_404826/result_20260917_104144_040357/intrinsics.json",
+    "original_acceptance_and_quality_source_run_id": "eye_to_hand_20261017_181906_023053_park",
+    "original_adoption_source_run_id": "eye_to_hand_20261017_181906_activation_completed",
+    "original_result_sha256_from_log": "3c810b2ded89d234da0b5a8a7e6316853e047f96b1be9a8a3faba57d4a1ab177",
+    "source_files_sha256": {
+      "traditional_pipeline_linux_20260928/mujoco_conveyor_sorting/configs/runtime.yaml": "275d50834dc13410f1a518ac6c4779a05adac0a71365bbfb6ada7f2ca779ccb6",
+      "traditional_pipeline_linux_20260928/recordings/pick_test/20261008_175405_103492/frame_000040.json": "bd248fb908e0add6199753618d50e051ac772996922bd62db346830207e47fbe",
+      "traditional_pipeline_linux_20260928/recordings/teach/20261012_151922_064532/result.json": "2f918f4c5cd2eb7b2d9aa66bf9ffaad28f733cbcd64f070fdb7a40d223b435de",
+      "calibration_data/20260917_103856_404826/result_20260917_104144_040357/intrinsics.json": "b01e6f6b52f0a375d7053e66898e3a76c65f3752582c7669d14081720115ab06",
+      "reports/calibration_reconstruction_20261023/reconstruct_result.py": "760a22e2374213f3e4f9047c07ff414390b99928ef0809b2daa9469c6a709273"
+    },
+    "not_recovered": [
+      "original_file_bytes",
+      "created_at",
+      "target_to_gripper",
+      "per_sample_residuals",
+      "per_sample_pnp_audits",
+      "solver_excitation_singular_values"
+    ],
+    "quality_scope": "Original logged solver consistency; not a new accuracy measurement.",
+    "hardware_connected": false,
+    "solver_rerun": false
+  }
+}

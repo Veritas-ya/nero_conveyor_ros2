@@ -1,0 +1,107 @@
+{
+  "source_git_commit": null,
+  "source_root": "/home/ubuntu22/\u684c\u9762/nero-agx-conveyor-sorting-main/traditional_pipeline_linux_20260928",
+  "changes": "run.py adapts imports and source snapshot path; later default spawn and duration changed, algorithm unchanged",
+  "files": [
+    {
+      "source": "experiments/continuous_intercept_sim/__init__.py",
+      "destination": "experiments/continuous_intercept_sim/__init__.py",
+      "source_sha256": "42ce529eac5314c347af8cf8359e0d8d8e825d7fbbb88384691e45ac3c3b77dc",
+      "destination_sha256": "42ce529eac5314c347af8cf8359e0d8d8e825d7fbbb88384691e45ac3c3b77dc",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/full_preplanned.py",
+      "destination": "experiments/continuous_intercept_sim/full_preplanned.py",
+      "source_sha256": "c0dfff948d20f80b9b53d9000abb5006d0aa5c5520ea6e7b63591b2f323b0b0a",
+      "destination_sha256": "c0dfff948d20f80b9b53d9000abb5006d0aa5c5520ea6e7b63591b2f323b0b0a",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/metrics.py",
+      "destination": "experiments/continuous_intercept_sim/metrics.py",
+      "source_sha256": "105e63b83512a801909cf1d251ce409fa63cfadb1cf6dc2960919484c32b4f65",
+      "destination_sha256": "105e63b83512a801909cf1d251ce409fa63cfadb1cf6dc2960919484c32b4f65",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/observed_target_geometry.py",
+      "destination": "experiments/continuous_intercept_sim/observed_target_geometry.py",
+      "source_sha256": "4ef5575b5fe8c4383b48771ed80cdae7f2e7b6e693c58de564c042769596f9d3",
+      "destination_sha256": "4ef5575b5fe8c4383b48771ed80cdae7f2e7b6e693c58de564c042769596f9d3",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/response_diagnostics.py",
+      "destination": "experiments/continuous_intercept_sim/response_diagnostics.py",
+      "source_sha256": "d237c32542f0f1eccdb2031124eaa484e41e82994bfe318bd330f057a5f2fcc2",
+      "destination_sha256": "d237c32542f0f1eccdb2031124eaa484e41e82994bfe318bd330f057a5f2fcc2",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/run.py",
+      "destination": "experiments/continuous_intercept_sim/run.py",
+      "source_sha256": "725d1a476c45fc8f8f8e03fd1e24a20580e4d7e32b07be3832e151eb3f7b6813",
+      "destination_sha256": "fd1095c67e3920a4b917360bb46ac14794d2c28861c9d755fe59109a67d42e31",
+      "same": false,
+      "current_sha256": "ab46f3840df93b2f80c5e6377333710764baebad74d715ce833c650eb28e208e",
+      "later_default_change": "seconds 25 to 55; spawn_x -0.4 to -1.28 to match belt upstream"
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/saved_network_grasp.py",
+      "destination": "experiments/continuous_intercept_sim/saved_network_grasp.py",
+      "source_sha256": "d765e53b862d6abab50114b5a5faa345bba6311dfdd87c83ece4c7b2cce7e6e6",
+      "destination_sha256": "d765e53b862d6abab50114b5a5faa345bba6311dfdd87c83ece4c7b2cce7e6e6",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/sorting_cycles.py",
+      "destination": "experiments/continuous_intercept_sim/sorting_cycles.py",
+      "source_sha256": "ef88f11bbc1133a18bf3ec8e26800cebb5dc67dc5b3b7720c1f87adaa28fc1e4",
+      "destination_sha256": "ef88f11bbc1133a18bf3ec8e26800cebb5dc67dc5b3b7720c1f87adaa28fc1e4",
+      "same": true
+    },
+    {
+      "source": "experiments/continuous_intercept_sim/viewer.py",
+      "destination": "experiments/continuous_intercept_sim/viewer.py",
+      "source_sha256": "3a9943c13aadf040c113ebb0271da4bdb8912076d9145e1b6ff466db65af1465",
+      "destination_sha256": "3a9943c13aadf040c113ebb0271da4bdb8912076d9145e1b6ff466db65af1465",
+      "same": true
+    },
+    {
+      "source": "experiments/graspgenx_sim/continuous.py",
+      "destination": "experiments/graspgenx_sim/continuous.py",
+      "source_sha256": "1b2b87a7e9bf15c8fa08ddf0f5ede1781d20279d6de8796b7cab991b81ccf70e",
+      "destination_sha256": "1b2b87a7e9bf15c8fa08ddf0f5ede1781d20279d6de8796b7cab991b81ccf70e",
+      "same": true
+    },
+    {
+      "source": "experiments/graspgenx_sim/physical_containment.py",
+      "destination": "experiments/graspgenx_sim/physical_containment.py",
+      "source_sha256": "6511147b83176317f2f66ce379ae49066f6849d08a345d74481f406809161bfa",
+      "destination_sha256": "6511147b83176317f2f66ce379ae49066f6849d08a345d74481f406809161bfa",
+      "same": true
+    },
+    {
+      "source": "experiments/graspgenx_sim/policy.py",
+      "destination": "experiments/graspgenx_sim/policy.py",
+      "source_sha256": "6fef404d9d7f1b4eadeb7d1af733c52074ec55934117f4479e9288948c32d36e",
+      "destination_sha256": "6fef404d9d7f1b4eadeb7d1af733c52074ec55934117f4479e9288948c32d36e",
+      "same": true
+    },
+    {
+      "source": "experiments/graspgenx_sim/servo_response.py",
+      "destination": "experiments/graspgenx_sim/servo_response.py",
+      "source_sha256": "2588c67e2d538b5884337a5496ee2b83b8948e969a98ae40e84c776f032eb949",
+      "destination_sha256": "2588c67e2d538b5884337a5496ee2b83b8948e969a98ae40e84c776f032eb949",
+      "same": true
+    },
+    {
+      "source": "scripts/_common.py",
+      "destination": "nero_core/sim_common.py",
+      "source_sha256": "66b4f1669f108410e68df95480be4ea06c5387c058cc11be3ff3a1e901c34028",
+      "destination_sha256": "66b4f1669f108410e68df95480be4ea06c5387c058cc11be3ff3a1e901c34028",
+      "same": true
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "source_commit": null,
+  "files": [
+    {
+      "path": "camera.py",
+      "source_sha256": "decfdbbc82c214ef9163f8fb0b37f91c101ae58c01991b3dabbb1b7d472c4e59",
+      "current_sha256": "decfdbbc82c214ef9163f8fb0b37f91c101ae58c01991b3dabbb1b7d472c4e59",
+      "same": true
+    },
+    {
+      "path": "cached_projection.py",
+      "source_sha256": "a56fe48c227eabdb8e39097c062982a695cc66c5f209a3df291b4001afceab91",
+      "current_sha256": "a56fe48c227eabdb8e39097c062982a695cc66c5f209a3df291b4001afceab91",
+      "same": true
+    },
+    {
+      "path": "nero7_config.yaml",
+      "source_sha256": "ddcd38ce64da9bf5e1b9df7b7d41c462e3ad54d5777bc0fc8d459b03154d99ea",
+      "current_sha256": "a04b8a6b96b8af60796c35bffd67c032abb7b1cb6753dce7d2e908f3f0fd4297",
+      "same": false
+    },
+    {
+      "path": "nero7_perception.py",
+      "source_sha256": "c774cde4dc9bc2c41ce4f34d1c71d8eec204027b03ff7862599128fe9390f208",
+      "current_sha256": "c774cde4dc9bc2c41ce4f34d1c71d8eec204027b03ff7862599128fe9390f208",
+      "same": true
+    },
+    {
+      "path": "nero7_identity.py",
+      "source_sha256": "55e92d2f56a8b700334ef0f226ae7b31615a67f568c858afe63e3b34c2773f4d",
+      "current_sha256": "55e92d2f56a8b700334ef0f226ae7b31615a67f568c858afe63e3b34c2773f4d",
+      "same": true
+    },
+    {
+      "path": "nero7_policy.py",
+      "source_sha256": "fd8e2e066f5212568229b45e5c40dd4d35cdfc519f83a1eda8526283e016ce0f",
+      "current_sha256": "fd8e2e066f5212568229b45e5c40dd4d35cdfc519f83a1eda8526283e016ce0f",
+      "same": true
+    },
+    {
+      "path": "nero7_run.py",
+      "source_sha256": "ad3a5cdac22b8030d39aa30e0dd8d0cd50f64085cb2db48766a5e410940e176a",
+      "current_sha256": "d1c06e76047994d9e75342fd85c472e6be4cc1d2c6509da9538358b2dea71c6e",
+      "same": false
+    },
+    {
+      "path": "run.py",
+      "source_sha256": "6200d956324668f813f74e75362963597d8a278f937c63272ceabbf819288aae",
+      "current_sha256": "6200d956324668f813f74e75362963597d8a278f937c63272ceabbf819288aae",
+      "same": true
+    },
+    {
+      "path": "report.py",
+      "source_sha256": "91b1bb4403fccbea818d1d2ecc3a2d6167b48499ca32fa8ab97d8b5bd18e856e",
+      "current_sha256": "91b1bb4403fccbea818d1d2ecc3a2d6167b48499ca32fa8ab97d8b5bd18e856e",
+      "same": true
+    },
+    {
+      "path": "sensor_control.py",
+      "source_sha256": "3787e9e44fdc90c568bcb441f0a070957209d7466e3653747fa1af3153400110",
+      "current_sha256": "3787e9e44fdc90c568bcb441f0a070957209d7466e3653747fa1af3153400110",
+      "same": true
+    },
+    {
+      "path": "input_integrity.py",
+      "source_sha256": "6cbf26cd84b380bc549cc60499e3a9f52eb396aeb591c75eb5bec7ef53ad451e",
+      "current_sha256": "6cbf26cd84b380bc549cc60499e3a9f52eb396aeb591c75eb5bec7ef53ad451e",
+      "same": true
+    },
+    {
+      "path": "diagnostic_templates.py",
+      "source_sha256": "d70855e51e53384aa4bf1116c3ebfbb420bb43dd123470e0f2dea10c7b8c8ba6",
+      "current_sha256": "d70855e51e53384aa4bf1116c3ebfbb420bb43dd123470e0f2dea10c7b8c8ba6",
+      "same": true
+    },
+    {
+      "path": "visuals.py",
+      "source_sha256": "209a505d560c20e236776dde9c0bad9b03229e3d17e3118991464abacc57893f",
+      "current_sha256": "209a505d560c20e236776dde9c0bad9b03229e3d17e3118991464abacc57893f",
+      "same": true
+    },
+    {
+      "path": "motor_effort_contract_audit.py",
+      "source_sha256": "28faca71cc3867b084b0a9a1bce513636f6bfc6f97c51f96699e540f0cdb6133",
+      "current_sha256": "28faca71cc3867b084b0a9a1bce513636f6bfc6f97c51f96699e540f0cdb6133",
+      "same": true
+    },
+    {
+      "path": "oblique_prototypes.yaml",
+      "source_sha256": "55d67dc6f67bddcff0b43adad29706fa046a38b059de8342b33ebe3a3fda50f3",
+      "current_sha256": "55d67dc6f67bddcff0b43adad29706fa046a38b059de8342b33ebe3a3fda50f3",
+      "same": true
+    },
+    {
+      "path": "inference_worker.py",
+      "source_sha256": "31aaebb4f2aadff8226861e8ef170f28456f7b27b19a1b7412de0b2ed60a37c2",
+      "current_sha256": "09ab2bc211417efbb0b6ae81d1b30aef837c516a09bf6d73b838c12708888406",
+      "same": false
+    }
+  ],
+  "changes": "config points to minimal recorded simulation calibration; nero7_run imports sim_common, writes outputs to working directory, prints legacy-policy diagnostic; inference_worker accepts explicit external checkpoint env"
+}

@@ -1,0 +1,24 @@
+# Radius outlier removal on native scene points, after robot self filtering
+# and before voxel sampling. Counts exclude the point itself; one pass only.
+# This does not filter the separately measured target workpiece.
+enabled: true
+radius_m: 0.005
+min_neighbors: 3
+# Drop a separate component only when it has fewer than 10 native points
+# AND its bounding-box diagonal is at most 10 mm. Long thin components stay.
+min_cluster_points: 10
+max_cluster_extent_m: 0.010
+
+# Dense remnants at robot depth edges: small native component, attached to
+# removed robot pixels, with missing/far-background boundaries. These limits
+# select candidates for ALL evidence checks; size alone never deletes points.
+# The target mask is protected. Missing native RGB-D skips this added filter.
+depth_edge_tail:
+  enabled: true
+  connection_radius_m: 0.005
+  max_component_points: 160
+  max_component_extent_m: 0.040
+  robot_depth_tolerance_m: 0.010
+  minimum_background_jump_m: 0.030
+  minimum_unsupported_boundary_fraction: 0.90
+  minimum_background_pixels: 3

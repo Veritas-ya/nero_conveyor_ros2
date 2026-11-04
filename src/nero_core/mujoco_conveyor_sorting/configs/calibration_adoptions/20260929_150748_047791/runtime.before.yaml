@@ -1,0 +1,54 @@
+schema_version: 1
+
+runtime:
+  # Existing scripts continue to use the MuJoCo environment.  A hardware
+  # launcher must select hardware explicitly and supply all concrete drivers.
+  mode: simulation
+  production: false
+
+  safety:
+    robot_state_max_age_s: 0.10
+    gripper_state_max_age_s: 0.20
+    conveyor_state_max_age_s: 0.20
+    camera_frame_max_age_s: 0.25
+    safety_io_max_age_s: 0.10
+    require_camera: true
+    require_camera_calibration: true
+    require_guard_closed: true
+    require_automatic_mode: false
+
+  camera:
+    backend: orbbec
+    # Orbbec Gemini 335L USB model G40055-170.  The v2 SDK reports PID 0x0804;
+    # refuse a similarly named 335/336/335Le so saved profiles/calibration are
+    # never applied to different optics.
+    expected_product_id: 0x0804
+    # Set the serial before hardware commissioning.  If omitted, the backend
+    # only accepts a cell with exactly one connected Orbbec camera.
+    serial_number: null
+    enable_color: true
+    require_color: false
+    enable_frame_sync: true
+    # Commission against one explicit factory profile.  Intrinsics and the
+    # eye-to-hand transform are profile-specific; fallback is intentionally
+    # forbidden.  Gemini 335L supports both modes at 1280x800 and 30 fps.
+    depth_width: 1280
+    depth_height: 800
+    depth_fps: 30
+    depth_format: Y16
+    color_width: 1280
+    color_height: 800
+    color_fps: 30
+    color_format: MJPG
+    frame_timeout_ms: 200
+    startup_timeout_s: 5.0
+    max_frame_age_s: 0.25
+    max_consecutive_timeouts: 10
+    minimum_depth_m: 0.17
+    maximum_depth_m: 5.0
+    # These must be populated together by eye-to-hand calibration.  The
+    # hardware runtime refuses AUTO while either is absent.
+    # Use scripts/calibrate_eye_to_hand.py; this transform maps native DEPTH
+    # optical coordinates into the cell world. See docs/eye_to_hand_calibration.md.
+    calibration_id: ""
+    camera_to_world_cv: null

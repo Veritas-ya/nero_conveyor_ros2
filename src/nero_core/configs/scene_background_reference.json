@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "captures": [
+    {
+      "files": {
+        "metadata": {
+          "path": "../recordings/pick_test/full_policy_20261020_151701_057109/frame_000271.json",
+          "sha256": "71d3befb5b197694915927c94a9077adb08ff810552b5bc1f88feb1d8855ccca"
+        },
+        "depth": {
+          "path": "../recordings/pick_test/full_policy_20261020_151701_057109/frame_000271_depth_m.npy",
+          "sha256": "ee64a63f15185eda72746eae287a330795f572a1d28bed49f0ebd2bad93ee64a"
+        },
+        "left_ir": {
+          "path": "../recordings/pick_test/full_policy_20261020_151701_057109/frame_000271_left_ir.npy",
+          "sha256": "ba20af152bde0eaa6a7ef9bec4052612f8db418b1a5762a4fe02b0e8a7138576"
+        },
+        "right_ir": {
+          "path": "../recordings/pick_test/full_policy_20261020_151701_057109/frame_000271_right_ir.npy",
+          "sha256": "ef750226b0176902898586a295d92bfa75e340fe0a0c34f953620bf952129fed"
+        },
+        "target_mask": {
+          "path": "../recordings/pick_test/full_policy_20261020_151701_057109/frame_000271_target_mask.npy",
+          "sha256": "c0f2741868191fb18d8900c9f095fadefe54e4320b95f74a587836e29cdba4db"
+        }
+      }
+    },
+    {
+      "files": {
+        "metadata": {
+          "path": "../recordings/pick_test/full_policy_20261020_155904_580055/frame_000247.json",
+          "sha256": "a293e7ef650893c2ac62ccebfd9382b2cdea252620d5fd1e056a72d519ee0027"
+        },
+        "depth": {
+          "path": "../recordings/pick_test/full_policy_20261020_155904_580055/frame_000247_depth_m.npy",
+          "sha256": "4f62d1c780fc63fd15033bc6a05602e4d9b72f8ee68bd677e557632d96f9de73"
+        },
+        "left_ir": {
+          "path": "../recordings/pick_test/full_policy_20261020_155904_580055/frame_000247_left_ir.npy",
+          "sha256": "8d0739a90b73cec29256c0fe2408661ec618d85ef414837aa7d33d286ae2ac7d"
+        },
+        "right_ir": {
+          "path": "../recordings/pick_test/full_policy_20261020_155904_580055/frame_000247_right_ir.npy",
+          "sha256": "4023416c600daf60d919b06469eca07292694ac6d43231169627d3afe32954b6"
+        },
+        "target_mask": {
+          "path": "../recordings/pick_test/full_policy_20261020_155904_580055/frame_000247_target_mask.npy",
+          "sha256": "dcd5b8ff8726ada90871f11572f56ae5d9ae2ee1924316dc3972a24d9fcb5791"
+        }
+      }
+    },
+    {
+      "files": {
+        "metadata": {
+          "path": "../recordings/pick_test/full_policy_20261020_163618_648665/frame_000163.json",
+          "sha256": "c1c626f08a53fb0de2fd9837a9645e09727a91b14f003881dda0d87932409a3f"
+        },
+        "depth": {
+          "path": "../recordings/pick_test/full_policy_20261020_163618_648665/frame_000163_depth_m.npy",
+          "sha256": "094c26fb5200fc6b9bc46cb14580dc87d18752c8bf658f9d0bfba731e6fe7731"
+        },
+        "left_ir": {
+          "path": "../recordings/pick_test/full_policy_20261020_163618_648665/frame_000163_left_ir.npy",
+          "sha256": "a0c6ace6e440f66aba22b7d1ddddd9967c0a742278450f532b6d6f4af7266b91"
+        },
+        "right_ir": {
+          "path": "../recordings/pick_test/full_policy_20261020_163618_648665/frame_000163_right_ir.npy",
+          "sha256": "3640513230ccb449c673f32d45d35abad1a0322315d5ae5dee968e6c55dbc10d"
+        },
+        "target_mask": {
+          "path": "../recordings/pick_test/full_policy_20261020_163618_648665/frame_000163_target_mask.npy",
+          "sha256": "6bb5eeaeee16507ecc39f7105e2cbc2e46d97eb2486c7d192ec92c0a694f3333"
+        }
+      }
+    }
+  ],
+  "purpose": "measured background reference; per-pixel visibility and stability checked at use"
+}

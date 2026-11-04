@@ -1,0 +1,361 @@
+<mujoco model="agilex_nero_7dof_robot">
+  <!--
+    NERO kinematics, inertias and meshes are adapted from the official AgileX
+    agx_arm_urdf model. Joint position ranges are updated from the operator's
+    NERO7 manual values provided on 2026-11-03 (manual revision not supplied).
+    MuJoCo actuators, contact tuning,
+    sensors, sites, and the wrist camera are simulation adapters used by this
+    repository.  See assets/robots/nero/SOURCE.md and LICENSE.
+  -->
+  <asset>
+    <material name="nero_black" rgba="0.025 0.028 0.032 1"
+              specular="0.35" shininess="0.48"/>
+    <material name="nero_gray" rgba="0.72 0.74 0.76 1"
+              specular="0.38" shininess="0.52"/>
+    <material name="nero_gripper" rgba="0.10 0.11 0.13 1"
+              specular="0.25" shininess="0.35"/>
+
+    <mesh name="nero_base_link_mesh" file="robots/nero/base_link.stl"/>
+    <mesh name="nero_link1_mesh" file="robots/nero/link1.stl"/>
+    <mesh name="nero_link2_mesh" file="robots/nero/link2.stl"/>
+    <mesh name="nero_link3_mesh" file="robots/nero/link3.stl"/>
+    <mesh name="nero_link4_mesh" file="robots/nero/link4.stl"/>
+    <mesh name="nero_link5_mesh" file="robots/nero/link5.stl"/>
+    <mesh name="nero_link6_mesh" file="robots/nero/link6.stl"/>
+    <mesh name="nero_link7_mesh" file="robots/nero/link7.stl"/>
+    <mesh name="nero_gripper_flange_mesh"
+          file="robots/nero/gripper_flange.stl"/>
+    <mesh name="nero_gripper_base_mesh"
+          file="robots/nero/gripper_base_drawing_20261012.stl"/>
+    <mesh name="nero_gripper_link1_mesh"
+          file="robots/nero/gripper_link1.stl"/>
+    <mesh name="nero_gripper_link2_mesh"
+          file="robots/nero/gripper_link2.stl"/>
+  </asset>
+
+  <default>
+    <default class="nero_joint">
+      <joint type="hinge" limited="true" frictionloss="0.30"
+             damping="1.0" armature="0.005"
+             solreflimit="0.008 1" solimplimit="0.90 0.95 0.001"/>
+    </default>
+    <default class="nero_visual">
+      <geom type="mesh" contype="0" conaffinity="0" group="2"
+            density="0"/>
+    </default>
+    <default class="nero_collision">
+      <geom type="mesh" group="3" rgba="0 0 0 0"
+            friction="0.72 0.01 0.001"
+            solref="0.008 1" solimp="0.90 0.95 0.001"/>
+    </default>
+    <default class="nero_finger_collision">
+      <geom type="mesh" group="3" rgba="0 0 0 0"
+            friction="2.0 0.025 0.003" condim="6"
+            solref="0.004 1" solimp="0.94 0.99 0.001"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="base_link" pos="0 -0.34 0.60">
+      <geom name="nero_base_visual" class="nero_visual"
+            mesh="nero_base_link_mesh" material="nero_black"/>
+      <geom name="nero_base_collision" class="nero_collision"
+            mesh="nero_base_link_mesh"/>
+      <site name="robot_base_site" type="cylinder" pos="0 0 0.105"
+            size="0.010 0.003" rgba="0.15 0.65 1.0 1" group="4"/>
+
+      <body name="link1" pos="0 0 0.138" gravcomp="1">
+        <inertial pos="-0.000768106 -0.0000571803 -0.00686373"
+                  quat="0.998496 0.0243284 -0.0474034 0.0129308"
+                  mass="0.767105"
+                  diaginertia="0.000668361 0.000545022 0.000513619"/>
+        <joint name="joint1" class="nero_joint" axis="0 0 1"
+               range="-2.7401669256310974 2.7401669256310974"/>
+        <geom name="nero_link1_visual" class="nero_visual"
+              mesh="nero_link1_mesh" material="nero_black"/>
+        <geom name="nero_link1_collision" class="nero_collision"
+              mesh="nero_link1_mesh"/>
+
+        <body name="link2"
+              quat="1.89469e-08 1.89469e-08 0.707107 -0.707107"
+              gravcomp="1">
+          <inertial pos="0.000796867 -0.0789033 0.00111849"
+                    quat="0.724173 0.689546 -0.00281155 -0.00963045"
+                    mass="0.693819"
+                    diaginertia="0.00201137 0.00182229 0.000632162"/>
+          <joint name="joint2" class="nero_joint" axis="0 0 1"
+                 range="-1.7802358370342162 1.7802358370342162"/>
+          <geom name="nero_link2_visual" class="nero_visual"
+                mesh="nero_link2_mesh" material="nero_gray"/>
+          <geom name="nero_link2_collision" class="nero_collision"
+                mesh="nero_link2_mesh"/>
+
+          <body name="link3" pos="0 -0.31 0"
+                quat="-1.37922e-08 1.37922e-08 -0.707107 0.707107"
+                gravcomp="1">
+            <inertial pos="0.000145134 -0.00121379 -0.0486114"
+                      quat="0.999978 -0.00572699 -0.000503892 -0.00336231"
+                      mass="0.672465"
+                      diaginertia="0.0034323 0.00338703 0.000288126"/>
+            <joint name="joint3" class="nero_joint" axis="0 0 1"
+                   range="-2.7925268031909272 2.7925268031909272"/>
+            <geom name="nero_link3_visual" class="nero_visual"
+                  mesh="nero_link3_mesh" material="nero_black"/>
+            <geom name="nero_link3_collision" class="nero_collision"
+                  mesh="nero_link3_mesh"/>
+
+            <body name="link4"
+                  quat="-1.37922e-08 1.37922e-08 -0.707107 0.707107"
+                  gravcomp="1">
+              <inertial pos="-0.000313346 -0.0567519 0.000760561"
+                        quat="0.743967 0.668141 -0.00555621 -0.00837616"
+                        mass="0.484514"
+                        diaginertia="0.000503972 0.000403451 0.00023296"/>
+              <joint name="joint4" class="nero_joint" axis="0 0 1"
+                     range="-1.0471975511965976 2.1816615649929121"/>
+              <geom name="nero_link4_visual" class="nero_visual"
+                    mesh="nero_link4_mesh" material="nero_gray"/>
+              <geom name="nero_link4_collision" class="nero_collision"
+                    mesh="nero_link4_mesh"/>
+
+              <body name="link5" pos="0 -0.27001 0"
+                    quat="0.5 0.5 -0.5 0.5" gravcomp="1">
+                <inertial pos="0.00265591 0.00201196 -0.116209"
+                          quat="0.994383 -0.0299767 0.0135244 0.100607"
+                          mass="0.583684"
+                          diaginertia="0.000897188 0.000859677 0.000214923"/>
+                <joint name="joint5" class="nero_joint" axis="0 0 1"
+                       range="-2.7925268031909272 2.7925268031909272"/>
+                <geom name="nero_link5_visual" class="nero_visual"
+                      mesh="nero_link5_mesh" material="nero_gray"/>
+                <geom name="nero_link5_collision" class="nero_collision"
+                      mesh="nero_link5_mesh"/>
+
+                <body name="link6" quat="0.5 0.5 -0.5 0.5"
+                      gravcomp="1">
+                  <inertial pos="0.0000950151 0.00107831 -0.00019111"
+                            quat="0.708463 0.705104 -0.0268147 0.0137484"
+                            mass="0.314041"
+                            diaginertia="0.0000602857 0.0000575589 0.0000469904"/>
+                  <joint name="joint6" class="nero_joint" axis="0 0 1"
+                         range="-0.7679448708775050 0.9948376736367679"/>
+                  <geom name="nero_link6_visual" class="nero_visual"
+                        mesh="nero_link6_mesh" material="nero_black"/>
+                  <geom name="nero_link6_collision" class="nero_collision"
+                        mesh="nero_link6_mesh"/>
+
+                  <body name="link7" pos="0 -0.0235 0"
+                        quat="0.707107 0.707107 0 0" gravcomp="1">
+                    <!--
+                      Keep link7's URDF inertia here.  The official standalone
+                      MJCF fuses the 0.047711 kg flange and 0.45 kg gripper base
+                      into link7; this adapter retains those fixed bodies, so
+                      using the fused inertia as well would count them twice.
+                    -->
+                    <inertial pos="-0.00014 -0.00010 -0.00275"
+                              mass="0.000001"
+                              diaginertia="0.00000011 0.00000011 0.00000020"/>
+                    <joint name="joint7" class="nero_joint" axis="0 0 1"
+                           range="-1.6929693744344996 1.6929693744344996"/>
+                    <geom name="nero_link7_visual" class="nero_visual"
+                          mesh="nero_link7_mesh" material="nero_black"/>
+                    <geom name="nero_link7_collision" class="nero_collision"
+                          mesh="nero_link7_mesh"/>
+
+                    <body name="gripper_flange"
+                          pos="0.031 0 -0.0235"
+                          quat="0.499998 -0.5 0.500002 -0.5"
+                          gravcomp="1">
+                      <inertial pos="0.000253201 -0.000322696 -0.0100829"
+                                mass="0.047711"
+                                diaginertia="0.0000361411 0.0000178242 0.0000269594"/>
+                      <geom name="nero_gripper_flange_visual"
+                            class="nero_visual"
+                            mesh="nero_gripper_flange_mesh"
+                            material="nero_gripper"/>
+                      <geom name="nero_gripper_flange_collision"
+                            class="nero_collision"
+                            mesh="nero_gripper_flange_mesh"/>
+
+                      <body name="gripper_base" pos="0 0 0.006"
+                            gravcomp="1">
+                        <!-- Drawing changes geometry only; upstream mass and
+                             inertia remain nominal approximations. -->
+                        <inertial pos="-0.000183807 0.0000805033 0.0321437"
+                                  mass="0.45"
+                                  fullinertia="0.00092934 0.00071447 0.00039442 0.00000034 -0.00000738 0.00000005"/>
+                        <geom name="nero_gripper_base_visual"
+                              class="nero_visual"
+                              mesh="nero_gripper_base_mesh"
+                              material="nero_gripper"/>
+                        <geom name="nero_gripper_base_collision"
+                              class="nero_collision"
+                              mesh="nero_gripper_base_mesh"/>
+
+                        <!--
+                          User drawing (2026-10-12): upper section 50.5 mm,
+                          palm 19 mm, free finger 73 mm.  The upper mounting
+                          face is assumed to be gripper_base z=0.  The derived
+                          palm mesh and both finger mounts share this datum;
+                          the distal finger plane is now z=0.1425 instead of
+                          the upstream 0.138.  The task TCP is 10 mm behind
+                          the distal finger plane so even the lowest workpiece
+                          can be grasped without driving the fingertips through
+                          the conveyor surface.
+                        -->
+                        <site name="ee_site" type="sphere"
+                              pos="0 0 0.1325" size="0.006"
+                              rgba="0.95 0.25 0.10 0.85" group="4"/>
+                        <site name="grasp_attach_site" type="sphere"
+                              pos="0 0 0.1325" size="0.004"
+                              rgba="1.0 0.85 0.15 0.35" group="4"/>
+                        <!-- The optical centre is outside the opaque housing.
+                          Look inward from the palm's +X side toward the space
+                          between the finger tips; local +Y is image-left.
+                          The rigid gripper_base mount follows Nero joint7.
+                        -->
+                        <camera name="wrist_camera" mode="fixed"
+                                pos="0.075 0 0.0565"
+                                quat="0.24439462 -0.66352940 0.66352940 -0.24439462"
+                                fovy="75"/>
+                        <geom name="wrist_camera_housing"
+                              class="visual_only" type="box"
+                              pos="0.082785 0 0.047366"
+                              quat="0.24439462 -0.66352940 0.66352940 -0.24439462"
+                              size="0.014 0.014 0.006"
+                              rgba="0.07 0.08 0.10 1"/>
+
+                        <body name="gripper_link1"
+                              pos="0 0 0.1425"
+                              quat="0 0 0.7071068 0.7071068"
+                              gravcomp="1">
+                          <inertial pos="0.000651232 -0.049193 0.00972259"
+                                    quat="0.477798 0.572974 -0.518028 0.418398"
+                                    mass="0.025"
+                                    diaginertia="0.0000774531 0.0000736783 0.0000050886"/>
+                          <joint name="gripper_joint1" type="slide"
+                                 axis="0 0 1" range="0 0.05"
+                                 limited="true" damping="1.5"
+                                 frictionloss="0.02" armature="0.001"/>
+                          <geom name="left_finger_visual"
+                                class="nero_visual"
+                                mesh="nero_gripper_link1_mesh"
+                                material="nero_gripper"/>
+                          <geom name="left_finger_geom"
+                                class="nero_finger_collision"
+                                mesh="nero_gripper_link1_mesh"/>
+                          <site name="left_finger_pad_site" type="box"
+                                pos="0 -0.010 0.004"
+                                size="0.018 0.010 0.006"
+                                rgba="0.15 0.95 0.25 0.20" group="4"/>
+                        </body>
+
+                        <body name="gripper_link2"
+                              pos="0 0 0.1425"
+                              quat="0.7071068 0.7071068 0 0"
+                              gravcomp="1">
+                          <inertial pos="0.000651232 -0.049193 0.00972259"
+                                    quat="0.477798 0.572974 -0.518028 0.418398"
+                                    mass="0.025"
+                                    diaginertia="0.0000774531 0.0000736783 0.0000050886"/>
+                          <joint name="gripper_joint2" type="slide"
+                                 axis="0 0 -1" range="-0.05 0"
+                                 limited="true" damping="1.5"
+                                 frictionloss="0.02" armature="0.001"/>
+                          <geom name="right_finger_visual"
+                                class="nero_visual"
+                                mesh="nero_gripper_link2_mesh"
+                                material="nero_gripper"/>
+                          <geom name="right_finger_geom"
+                                class="nero_finger_collision"
+                                mesh="nero_gripper_link2_mesh"/>
+                          <site name="right_finger_pad_site" type="box"
+                                pos="0 -0.010 0.004"
+                                size="0.018 0.010 0.006"
+                                rgba="0.15 0.95 0.25 0.20" group="4"/>
+                        </body>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="base_link" body2="link1"/>
+    <exclude body1="link1" body2="link2"/>
+    <exclude body1="link2" body2="link3"/>
+    <exclude body1="link3" body2="link4"/>
+    <exclude body1="link4" body2="link5"/>
+    <exclude body1="link5" body2="link6"/>
+    <exclude body1="link6" body2="link7"/>
+    <exclude body1="link5" body2="link7"/>
+    <!-- The fixed NERO flange occupies the same swept wrist envelope as
+         link5 in the vendor mesh; treating that overlap as an external
+         collision locks joint6 near the calibrated home pose. -->
+    <exclude body1="link5" body2="gripper_flange"/>
+    <exclude body1="link5" body2="gripper_base"/>
+    <exclude body1="link7" body2="gripper_flange"/>
+    <exclude body1="gripper_flange" body2="gripper_base"/>
+    <exclude body1="gripper_base" body2="gripper_link1"/>
+    <exclude body1="gripper_base" body2="gripper_link2"/>
+    <exclude body1="gripper_link1" body2="gripper_link2"/>
+  </contact>
+
+  <equality>
+    <joint name="finger_symmetry"
+           joint1="gripper_joint2" joint2="gripper_joint1"
+           polycoef="0 -1 0 0 0"
+           solref="0.004 1" solimp="0.95 0.99 0.001"/>
+  </equality>
+
+  <actuator>
+    <position name="joint1" joint="joint1" kp="90" kv="7"
+              ctrlrange="-2.7401669256310974 2.7401669256310974" forcerange="-100 100"/>
+    <position name="joint2" joint="joint2" kp="90" kv="7"
+              ctrlrange="-1.7802358370342162 1.7802358370342162" forcerange="-100 100"/>
+    <position name="joint3" joint="joint3" kp="90" kv="7"
+              ctrlrange="-2.7925268031909272 2.7925268031909272" forcerange="-100 100"/>
+    <position name="joint4" joint="joint4" kp="70" kv="6"
+              ctrlrange="-1.0471975511965976 2.1816615649929121" forcerange="-100 100"/>
+    <position name="joint5" joint="joint5" kp="45" kv="4"
+              ctrlrange="-2.7925268031909272 2.7925268031909272" forcerange="-100 100"/>
+    <position name="joint6" joint="joint6" kp="45" kv="4"
+              ctrlrange="-0.7679448708775050 0.9948376736367679" forcerange="-100 100"/>
+    <position name="joint7" joint="joint7" kp="40" kv="3.5"
+              ctrlrange="-1.6929693744344996 1.6929693744344996" forcerange="-100 100"/>
+    <position name="gripper" joint="gripper_joint1" kp="300" kv="10"
+              ctrlrange="0 0.05" forcerange="-40 40"/>
+  </actuator>
+
+  <sensor>
+    <jointpos name="joint1_pos" joint="joint1"/>
+    <jointpos name="joint2_pos" joint="joint2"/>
+    <jointpos name="joint3_pos" joint="joint3"/>
+    <jointpos name="joint4_pos" joint="joint4"/>
+    <jointpos name="joint5_pos" joint="joint5"/>
+    <jointpos name="joint6_pos" joint="joint6"/>
+    <jointpos name="joint7_pos" joint="joint7"/>
+    <jointvel name="joint1_vel" joint="joint1"/>
+    <jointvel name="joint2_vel" joint="joint2"/>
+    <jointvel name="joint3_vel" joint="joint3"/>
+    <jointvel name="joint4_vel" joint="joint4"/>
+    <jointvel name="joint5_vel" joint="joint5"/>
+    <jointvel name="joint6_vel" joint="joint6"/>
+    <jointvel name="joint7_vel" joint="joint7"/>
+    <framepos name="ee_position" objtype="site" objname="ee_site"/>
+    <framequat name="ee_quaternion" objtype="site" objname="ee_site"/>
+    <framelinvel name="ee_linear_velocity"
+                 objtype="site" objname="ee_site"/>
+    <frameangvel name="ee_angular_velocity"
+                 objtype="site" objname="ee_site"/>
+    <jointpos name="gripper_opening" joint="gripper_joint1"/>
+    <touch name="left_finger_touch" site="left_finger_pad_site"/>
+    <touch name="right_finger_touch" site="right_finger_pad_site"/>
+  </sensor>
+</mujoco>

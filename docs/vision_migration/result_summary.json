@@ -1,0 +1,99 @@
+{
+  "seed": 1543,
+  "belt_setpoint_m_s": 0.1,
+  "initial_pose": [
+    -1.28,
+    -0.014416530768266003,
+    0.501,
+    0.975603728969437,
+    0.0,
+    0.0,
+    0.21953898064109093
+  ],
+  "visual_speed": {
+    "capture_interval_sim_s": [
+      6.3,
+      9.2
+    ],
+    "track_id": 0,
+    "samples": 86,
+    "median_m_s": 0.0987458701930561,
+    "min_m_s": 0.0985351252782922,
+    "max_m_s": 0.09880047342089228
+  },
+  "model_load_s": 8.212505478000821,
+  "model_warmup": null,
+  "inference_s": 2.108557429999564,
+  "candidate_filter_s": 0.27266835699992953,
+  "network_capture_sim_s": 6.267999999999532,
+  "network_ready_sim_s": 9.229999999999752,
+  "accepted_candidates": 1,
+  "planner": "diffusion",
+  "timing": {
+    "mode": "wall_clock_paced",
+    "wall_seconds": 54.18382789300085,
+    "sim_seconds": 25.009999999997017,
+    "real_time_factor": 0.46157683893034185,
+    "maximum_wall_lag_s": 29.173827893003835,
+    "p95_wall_lag_s": 26.849843476402363,
+    "inference_asynchronous": true
+  },
+  "physical_evaluation": {
+    "metric": "released_in_correct_bin_and_stable",
+    "geometry_metric_version": "collision_hull_physical_bin_v1",
+    "containment_tolerance_m": 0.003,
+    "floor_tolerance_m": 0.006,
+    "bin_interiors": {},
+    "expected_objects": 1,
+    "spawned_objects": 1,
+    "not_spawned_objects": 0,
+    "successful_sorted_objects": 0,
+    "failed_or_incomplete_objects": 1,
+    "grasped_but_not_sorted": 0,
+    "ungrasped_objects": 1,
+    "classification_error_objects": 0,
+    "released_wrong_bin_objects": 0,
+    "success_rate": 0.0,
+    "one_sided_95_percent_lower_bound": 0.0,
+    "elapsed_sim_s": 25.009999999997017,
+    "throughput_sorted_per_minute": 0.0,
+    "mean_completion_interval_s": null,
+    "p95_completion_interval_s": null,
+    "settle_time_s": 0.5,
+    "maximum_speed_m_s": 0.08,
+    "maximum_angular_speed_rad_s": 1.0,
+    "terminal_retention_s": 15.0,
+    "retain_sorted_until_independently_evaluated": false,
+    "objects": [
+      {
+        "object_id": 0,
+        "category_id": 12,
+        "target_bin_id": 2,
+        "spawned_at_s": 0.0,
+        "grasped": false,
+        "released": false,
+        "success": false,
+        "placed_at_s": null,
+        "stable_at_s": null,
+        "lifecycle_state": "FAILED",
+        "failure_reason": "ik_unreachable",
+        "last_coarse_bin_id": null,
+        "last_position_world_m": [
+          0.07757887484935776,
+          -0.014436997727098118,
+          0.49990152773399166
+        ],
+        "placement_checks": {
+          "status": "pending_release",
+          "geometry_evaluated": false,
+          "instantaneously_stable": false
+        },
+        "visual_track_id": 0,
+        "physical_failure_reasons": [
+          "not_grasped"
+        ]
+      }
+    ]
+  },
+  "result_status": "completed"
+}

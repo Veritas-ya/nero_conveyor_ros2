@@ -1,0 +1,41 @@
+schema_version: 1
+# All geometric values below must be measured in the world frame used by
+# runtime.camera.camera_to_world_cv.  In particular, a robot-base frame
+# calibration must use robot-base support/ROI coordinates, not simulation ones.
+world_frame: null
+
+perception:
+  # Upright parts are assumed to rest on a horizontal plane; lengths are metres.
+  # Set this to the measured belt surface Z, in the calibrated world frame.
+  support_plane_z: null
+  detection_roi:
+    # Set [min, max] bounds covering only the real belt's usable camera region.
+    x: null
+    y: null
+  tracker:
+    # Belt motion is assumed along world +X.  Choose an upstream acquisition
+    # boundary and the last X coordinate where geometry measurements are trusted.
+    # The trusted limit must be >= the acquisition limit and both within ROI X.
+    new_track_max_x: null
+    trusted_measurement_max_x: null
+
+  # The simulation's top-view descriptors do not apply automatically to a
+  # relocated camera. Geometry-only mode keeps localization and tracking, but
+  # emits category_id=-1/category_confidence=0 and cannot select a sorting bin.
+  classifier:
+    mode: geometry_only
+
+  # To enable classification, set mode: calibrated_prototypes and explicitly
+  # supply a catalog captured from the current calibrated physical camera view.
+  # Relative paths resolve beside THIS hardware perception YAML.
+  # prototype_catalog_path: physical_rgbd_prototypes.yaml
+  # Catalog schema_version: 1; source must contain:
+  #   domain: physical_rgbd
+  #   calibration_id: <exact runtime.camera.calibration_id>
+  #   serial_number: <exact runtime.camera.serial_number>
+  #   world_frame: <same world_frame as this file>
+  # Every active category needs nine-value feature_mean and feature_scale arrays
+  # in the same feature order as tless_rgbd_prototypes.yaml. Validate accuracy on
+  # held-out physical captures; matching metadata alone is not an accuracy test.
+  # Recollect/revalidate these prototypes after moving/recalibrating the camera.
+  # Other classifier/tracker thresholds still inherit cameras.yaml.

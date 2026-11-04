@@ -1,0 +1,14 @@
+# 必须来自现场标定；长度 m，角度 rad，时间 s；不要直接用于运动
+world_frame: null
+camera_topic: null
+camera_calibration_file: null
+tcp_calibration_file: null
+joint_names: null  # seven names, in controller order
+workspace_base_m: null
+grasp_follow_region_base_m: null
+home_joint_rad: null # seven measured values
+bin_pose_base: null
+unknown_category_rule: null # e.g. reject, or named configured bin
+control_frequency_hz: null
+fast_stereo_model_path: null
+graspgenx_model_path: null

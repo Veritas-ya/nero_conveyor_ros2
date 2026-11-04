@@ -1,0 +1,31 @@
+"""User-supplied manual bounds must agree in simulation and hardware mirror."""
+from pathlib import Path
+import mujoco
+import numpy as np
+import yaml
+from mujoco_conveyor_sorting.runtime.single_pick import RobotModel
+
+
+ROOT=Path(__file__).resolve().parents[1]/'src/nero_core/mujoco_conveyor_sorting'
+DEGREES=np.array([[-157,157],[-102,102],[-160,160],[-60,125],
+                  [-160,160],[-44,57],[-97,97]],dtype=float)
+
+
+def test_manual_ranges_match_simulation_model_actuators_and_config():
+    expected=np.deg2rad(DEGREES)
+    scene=mujoco.MjModel.from_xml_path(str(ROOT/'models/scene.xml'))
+    joints=[scene.joint(f'joint{i}').id for i in range(1,8)]
+    actuators=[scene.actuator(f'joint{i}').id for i in range(1,8)]
+    np.testing.assert_allclose(scene.jnt_range[joints],expected,atol=1e-12,rtol=0)
+    np.testing.assert_allclose(scene.actuator_ctrlrange[actuators],expected,atol=1e-12,rtol=0)
+    cfg=yaml.safe_load((ROOT/'configs/robot.yaml').read_text())['robot']['joint_limits']
+    np.testing.assert_allclose(np.column_stack([cfg['lower'],cfg['upper']]),expected,atol=1e-12,rtol=0)
+
+
+def test_hardware_kinematic_mirror_uses_same_ranges_with_existing_margin():
+    model=RobotModel()
+    expected=np.deg2rad(DEGREES)
+    np.testing.assert_allclose(model.limits,expected,atol=1e-12,rtol=0)
+    assert model.joint_margin_rad==.02
+    np.testing.assert_allclose(model.command_lower,expected[:,0]+.02,atol=1e-12,rtol=0)
+    np.testing.assert_allclose(model.command_upper,expected[:,1]-.02,atol=1e-12,rtol=0)

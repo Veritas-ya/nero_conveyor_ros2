@@ -1,0 +1,183 @@
+schema_version: 1
+source:
+  method: offline_oblique_CAD_RGBD_geometry_descriptor
+  runtime_oracle_free: true
+  calibration_seed: 42
+  network_training: false
+  camera:
+    source: /home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/recordings/pick_test/20261008_175405_103492/frame_000040.json
+    camera_fixed: true
+    world_depth_cv:
+    - - -0.014743608750368842
+      - -0.8454040154608243
+      - 0.5339238491055913
+      - -0.8588222494649672
+    - - -0.9998912518332638
+      - 0.012288130493035898
+      - -0.008153916622978985
+      - -0.4790479301518811
+    - - 0.00033242792364568396
+      - -0.5339860040222968
+      - -0.8454932507122545
+      - 1.375871441049061
+    - - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+    resolution:
+    - 1280
+    - 800
+    K_render:
+    - - 621.6527099609374
+      - 0.0
+      - 639.5
+    - - 0.0
+      - 621.6527099609374
+      - 399.5
+    - - 0.0
+      - 0.0
+      - 1.0
+    D_render:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    physical_depth_intrinsics_reference:
+      width: 1280
+      height: 800
+      fx: 621.6527099609375
+      fy: 621.6527099609375
+      cx: 637.5
+      cy: 401.0
+      distortion:
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      - 0.0
+      distortion_model: orbbec_factory
+    principal_point_note: Simulation uses centered raster principal point; physical
+      reference cx/cy are not silently applied to a different render.
+    preprocessing: native MuJoCo pinhole render; no crop/resize/undistort
+    scene_note: Camera pose relative to base is replayed; conveyor/base/bin layout
+      is the existing simulation, not a measured digital twin.
+prototypes:
+- category_id: 0
+  feature_mean:
+  - 0.03487078708241821
+  - 0.03193292880349056
+  - 0.06112752909685775
+  - 0.0383968910630394
+  - 1.3246467467382315
+  - 0.7232666019643851
+  - 0.8913167459719311
+  - 0.9810962273853797
+  - 0.024899382076809428
+  feature_scale:
+  - 0.0025
+  - 0.0025
+  - 0.0015
+  - 0.0025
+  - 0.08
+  - 0.08076461914663276
+  - 0.035
+  - 0.035
+  - 0.05
+  successful_samples: 16
+  requested_samples: 16
+- category_id: 6
+  feature_mean:
+  - 0.08177634879571312
+  - 0.04348083990152999
+  - 0.06261875183758062
+  - 0.06365445872606643
+  - 1.1435043943441512
+  - 0.6983480455252361
+  - 0.746391581599648
+  - 0.902924578360026
+  - 0.4757365817084973
+  feature_scale:
+  - 0.0025
+  - 0.0025
+  - 0.0015
+  - 0.0069194971234409425
+  - 0.2631429413391906
+  - 0.06332762478438651
+  - 0.035
+  - 0.06733402367712976
+  - 0.16951162754861507
+  successful_samples: 16
+  requested_samples: 16
+- category_id: 9
+  feature_mean:
+  - 0.04002923555638819
+  - 0.03986194455061497
+  - 0.045883442489009454
+  - 0.044911057748678956
+  - 1.265019670167363
+  - 0.3969051074239034
+  - 0.7497019620479471
+  - 0.9170175491328552
+  - 0.28571149714421595
+  feature_scale:
+  - 0.0025
+  - 0.0025
+  - 0.0015
+  - 0.0025
+  - 0.12111694316728186
+  - 0.04823381437887396
+  - 0.035
+  - 0.035
+  - 0.05
+  successful_samples: 16
+  requested_samples: 16
+- category_id: 12
+  feature_mean:
+  - 0.053025415569815285
+  - 0.051167032026378075
+  - 0.04689402414365215
+  - 0.05867852569075911
+  - 1.2694937718947423
+  - 0.44246158006326497
+  - 0.7512645145297565
+  - 0.9258414199192685
+  - 0.15594746545326632
+  feature_scale:
+  - 0.0025
+  - 0.0025
+  - 0.0015
+  - 0.0025
+  - 0.08133541284368419
+  - 0.035
+  - 0.035
+  - 0.035
+  - 0.05
+  successful_samples: 16
+  requested_samples: 16
+- category_id: 14
+  feature_mean:
+  - 0.0437995646126551
+  - 0.037690508305559325
+  - 0.08049141031990684
+  - 0.05434808724806161
+  - 1.5
+  - 0.4132893797212909
+  - 0.635175848097743
+  - 0.8682962589920443
+  - 0.2384475920345184
+  feature_scale:
+  - 0.0025
+  - 0.0034167369787511874
+  - 0.0015
+  - 0.0025
+  - 0.08
+  - 0.05397759963654746
+  - 0.048243761281958196
+  - 0.035
+  - 0.15646228880833915
+  successful_samples: 16
+  requested_samples: 16

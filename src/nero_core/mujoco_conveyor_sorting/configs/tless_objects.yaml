@@ -1,0 +1,1157 @@
+schema_version: 1
+source:
+  dataset: T-LESS
+  format: BOP
+  model_variant: models_eval
+  license: CC BY 4.0
+  selected_object_ids:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+  - 16
+  - 20
+  - 24
+  generated_by: scripts/prepare_tless_assets.py
+object_spec_contract:
+  pose_convention: position_xyz_m_and_quaternion_wxyz
+  body_origin: support_plane_below_bbox_centred_BOP_model
+  grasp_candidate_frame: object
+  online_identity: visual_track_from_depth_components
+defaults:
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  condim: 4
+  spawn_z_clearance: 0.001
+  grasp_candidate_quaternion_wxyz:
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+object_specs:
+- category_id: 0
+  tless_object_id: 1
+  object_id: tless_obj_000001
+  display_name: T-LESS object 01
+  body_name: object_00
+  freejoint_name: object_00_freejoint
+  parking_weld_name: parking_weld_00
+  grasp_assist_weld_name: grasp_assist_weld_00
+  xml_geom_names:
+  - object_00_geom
+  mesh_path: ../assets/tless/mujoco/obj_000001.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.030600000000000002
+  dimensions:
+  - 0.0349916
+  - 0.0349916
+  - 0.061200000000000004
+  bop_bbox_min_m:
+  - -0.0174958
+  - -0.0174958
+  - -0.030600000000000002
+  lowest_local_z: 0.0
+  spawn_half_height: 0.030600000000000002
+  mass: 0.09555445045081484
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.62
+  - 0.65
+  - 0.68
+  - 1.0
+  grasp_height: 0.034884
+  grasp_cross_section_m:
+  - 0.033590999603271485
+  - 0.03358478164672852
+  recommended_grip_width: 0.03658478164672852
+  grip_width_margin: 0.018
+  # This tall, narrow cylinder needs one extra control tick of jaw lead so
+  # both pads establish stable force before the belt can pull it ahead during
+  # lift.  The value remains below the 35 mm jaw-capture envelope at nominal
+  # belt speed and is specific to this rotationally symmetric part.
+  close_lead_time: 0.22
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 0
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.034884
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+- category_id: 1
+  tless_object_id: 2
+  object_id: tless_obj_000002
+  display_name: T-LESS object 02
+  body_name: object_01
+  freejoint_name: object_01_freejoint
+  parking_weld_name: parking_weld_01
+  grasp_assist_weld_name: grasp_assist_weld_01
+  xml_geom_names:
+  - object_01_geom
+  mesh_path: ../assets/tless/mujoco/obj_000002.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0308511
+  dimensions:
+  - 0.0432896
+  - 0.0432896
+  - 0.0617022
+  bop_bbox_min_m:
+  - -0.0216448
+  - -0.0216448
+  - -0.0308511
+  lowest_local_z: 0.0
+  spawn_half_height: 0.0308511
+  mass: 0.10400177953511133
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.74
+  - 0.68
+  - 0.57
+  - 1.0
+  grasp_height: 0.035170254
+  grasp_cross_section_m:
+  - 0.04248714065551758
+  - 0.042487619400024414
+  recommended_grip_width: 0.04548714065551758
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 0
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.035170254
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+- category_id: 2
+  tless_object_id: 3
+  object_id: tless_obj_000003
+  display_name: T-LESS object 03
+  body_name: object_02
+  freejoint_name: object_02_freejoint
+  parking_weld_name: parking_weld_02
+  grasp_assist_weld_name: grasp_assist_weld_02
+  xml_geom_names:
+  - object_02_geom
+  mesh_path: ../assets/tless/mujoco/obj_000003.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0308351
+  dimensions:
+  - 0.047762700000000005
+  - 0.0477616
+  - 0.0616702
+  bop_bbox_min_m:
+  - -0.0238837
+  - -0.0238842
+  - -0.0308351
+  lowest_local_z: 0.0
+  spawn_half_height: 0.0308351
+  mass: 0.10920241312102118
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.54
+  - 0.62
+  - 0.66
+  - 1.0
+  grasp_height: 0.035152013999999995
+  grasp_cross_section_m:
+  - 0.042291568756103515
+  - 0.04228952026367187
+  recommended_grip_width: 0.045289520263671876
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 0
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.035152013999999995
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+- category_id: 3
+  tless_object_id: 4
+  object_id: tless_obj_000004
+  display_name: T-LESS object 04
+  body_name: object_03
+  freejoint_name: object_03_freejoint
+  parking_weld_name: parking_weld_03
+  grasp_assist_weld_name: grasp_assist_weld_03
+  xml_geom_names:
+  - object_03_geom
+  mesh_path: ../assets/tless/mujoco/obj_000004.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.039
+  dimensions:
+  - 0.039995600000000006
+  - 0.039985799999999995
+  - 0.078
+  bop_bbox_min_m:
+  - -0.019997800000000003
+  - -0.019992899999999997
+  - -0.039
+  lowest_local_z: 0.0
+  spawn_half_height: 0.039
+  mass: 0.10589335083564241
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.67
+  - 0.64
+  - 0.73
+  - 1.0
+  # Use the upper cylindrical contact band so both fingers seat before lift;
+  # the lower nominal band produced intermittent empty grasps on the belt.
+  grasp_height: 0.054
+  grasp_cross_section_m:
+  - 0.03996146011352539
+  - 0.03997760009765625
+  recommended_grip_width: 0.04296146011352539
+  grip_width_margin: 0.03
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 0
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.054
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  closure_horizontal_tolerance: 0.007
+- category_id: 4
+  tless_object_id: 5
+  object_id: tless_obj_000005
+  display_name: T-LESS object 05
+  body_name: object_04
+  freejoint_name: object_04_freejoint
+  parking_weld_name: parking_weld_04
+  grasp_assist_weld_name: grasp_assist_weld_04
+  xml_geom_names:
+  - object_04_geom
+  mesh_path: ../assets/tless/mujoco/obj_000005.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.029500000000000002
+  dimensions:
+  - 0.095
+  - 0.0535
+  - 0.059000000000000004
+  bop_bbox_min_m:
+  - -0.0475
+  - -0.02675
+  - -0.029500000000000002
+  lowest_local_z: 0.0
+  spawn_half_height: 0.029500000000000002
+  mass: 0.14224508241171346
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.72
+  - 0.6
+  - 0.55
+  - 1.0
+  grasp_height: 0.038
+  grasp_cross_section_m:
+  - 0.095
+  - 0.0535
+  recommended_grip_width: 0.0565
+  grip_width_margin: 0.018
+  # The generic 180 ms close lead pinches this long asymmetric part at its
+  # distal edge.  Start jaw motion when its centre reaches the admitted TCP.
+  close_lead_time: 0.0
+  contact_hold_squeeze_fraction: 0.18
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 0
+  symmetry:
+    kind: two_fold
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_discrete_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.038
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  grasp_yaw_mode: short_axis
+  # Bias the jaws toward the stable short-axis approach measured for this
+  # asymmetric part instead of allowing the former edge-prone positive yaw.
+  grasp_yaw_delta_range:
+  - -0.2
+  - -0.1
+- category_id: 5
+  tless_object_id: 6
+  object_id: tless_obj_000006
+  display_name: T-LESS object 06
+  body_name: object_05
+  freejoint_name: object_05_freejoint
+  parking_weld_name: parking_weld_05
+  grasp_assist_weld_name: grasp_assist_weld_05
+  xml_geom_names:
+  - object_05_geom
+  mesh_path: ../assets/tless/mujoco/obj_000006.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.02775
+  dimensions:
+  - 0.08940000000000001
+  - 0.05
+  - 0.0555
+  bop_bbox_min_m:
+  - -0.044700000000000004
+  - -0.025
+  - -0.02775
+  lowest_local_z: 0.0
+  spawn_half_height: 0.02775
+  mass: 0.13149631510620505
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.62
+  - 0.65
+  - 0.68
+  - 1.0
+  grasp_height: 0.031634999999999996
+  grasp_cross_section_m:
+  - 0.0894000015258789
+  - 0.05
+  recommended_grip_width: 0.053000000000000005
+  grip_width_margin: 0.018
+  # Keep the analogous long part centred instead of confirming an early
+  # bilateral edge contact during the global close lead.
+  close_lead_time: 0.0
+  contact_hold_squeeze_fraction: 0.18
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 1
+  symmetry:
+    kind: two_fold
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_discrete_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.031634999999999996
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  grasp_yaw_mode: short_axis
+  grasp_yaw_delta_range:
+  - 0.0
+  - 0.1
+- category_id: 6
+  tless_object_id: 10
+  object_id: tless_obj_000010
+  display_name: T-LESS object 10
+  body_name: object_06
+  freejoint_name: object_06_freejoint
+  parking_weld_name: parking_weld_06
+  grasp_assist_weld_name: grasp_assist_weld_06
+  xml_geom_names:
+  - object_06_geom
+  mesh_path: ../assets/tless/mujoco/obj_000010.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0317513
+  dimensions:
+  - 0.0806598
+  - 0.0420072
+  - 0.0635026
+  bop_bbox_min_m:
+  - -0.0403299
+  - -0.0210036
+  - -0.0317513
+  lowest_local_z: 0.0
+  spawn_half_height: 0.0317513
+  mass: 0.12466301425000986
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.74
+  - 0.68
+  - 0.57
+  - 1.0
+  grasp_height: 0.036196482
+  grasp_cross_section_m:
+  - 0.041841989517211915
+  - 0.041407798767089846
+  recommended_grip_width: 0.04440779876708985
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.18
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 1
+  symmetry:
+    kind: two_fold
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_discrete_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.036196482
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  grasp_yaw_mode: short_axis
+  # The +0.66 rad silhouette preference reaches object 10's distal edge with
+  # one open finger roughly 80 mm before interception.  Keep the calibrated
+  # NERO flange yaw so both pads enter the capture band together.
+  grasp_yaw_delta_range:
+  - 0.0
+  - 0.0
+- category_id: 7
+  tless_object_id: 11
+  object_id: tless_obj_000011
+  display_name: T-LESS object 11
+  body_name: object_07
+  freejoint_name: object_07_freejoint
+  parking_weld_name: parking_weld_07
+  grasp_assist_weld_name: grasp_assist_weld_07
+  xml_geom_names:
+  - object_07_geom
+  mesh_path: ../assets/tless/mujoco/obj_000011.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.027649999999999997
+  dimensions:
+  - 0.06629120000000001
+  - 0.048242
+  - 0.055299999999999995
+  bop_bbox_min_m:
+  - -0.033145600000000004
+  - -0.024121
+  - -0.027649999999999997
+  lowest_local_z: 0.0
+  spawn_half_height: 0.027649999999999997
+  mass: 0.11670979536912404
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.54
+  - 0.62
+  - 0.66
+  - 1.0
+  grasp_height: 0.03152099999999999
+  grasp_cross_section_m:
+  - 0.041015899658203125
+  - 0.03152099990844727
+  recommended_grip_width: 0.03452099990844727
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.18
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 1
+  symmetry:
+    kind: two_fold
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_discrete_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.03152099999999999
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  grasp_yaw_mode: short_axis
+  # Object 11's silhouette short axis asks for +0.75 rad at this seeded pose,
+  # but the tilted NERO fingers then reach the trailing edge one at a time and
+  # push the part along the belt.  The nominal flange yaw seats both pads in
+  # the same closing stroke (verified at the strict rendered-RGBD phase and
+  # the exact outer-lane/yaw spawn), so keep the calibrated interval fixed.
+  grasp_yaw_delta_range:
+  - 0.0
+  - 0.0
+- category_id: 8
+  tless_object_id: 12
+  object_id: tless_obj_000012
+  display_name: T-LESS object 12
+  body_name: object_08
+  freejoint_name: object_08_freejoint
+  parking_weld_name: parking_weld_08
+  grasp_assist_weld_name: grasp_assist_weld_08
+  xml_geom_names:
+  - object_08_geom
+  mesh_path: ../assets/tless/mujoco/obj_000012.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.028300000000000002
+  dimensions:
+  - 0.0783312
+  - 0.057627000000000005
+  - 0.056600000000000004
+  bop_bbox_min_m:
+  - -0.0391656
+  - -0.028813500000000002
+  - -0.028300000000000002
+  lowest_local_z: 0.0
+  spawn_half_height: 0.028300000000000002
+  mass: 0.13303381503108147
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.67
+  - 0.64
+  - 0.73
+  - 1.0
+  grasp_height: 0.032262
+  grasp_cross_section_m:
+  - 0.04863733100891113
+  - 0.043975799560546876
+  recommended_grip_width: 0.04697579956054688
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.18
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 1
+  symmetry:
+    kind: two_fold
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_discrete_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.032262
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  grasp_yaw_mode: short_axis
+  grasp_yaw_delta_range:
+  - 0.0
+  - 0.75
+- category_id: 9
+  tless_object_id: 13
+  object_id: tless_obj_000013
+  display_name: T-LESS object 13
+  body_name: object_09
+  freejoint_name: object_09_freejoint
+  parking_weld_name: parking_weld_09
+  grasp_assist_weld_name: grasp_assist_weld_09
+  xml_geom_names:
+  - object_09_geom
+  mesh_path: ../assets/tless/mujoco/obj_000013.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.023
+  dimensions:
+  - 0.0399942
+  - 0.0399886
+  - 0.046
+  bop_bbox_min_m:
+  - -0.0199971
+  - -0.0199943
+  - -0.023
+  lowest_local_z: 0.0
+  spawn_half_height: 0.023
+  mass: 0.09527097242099797
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.72
+  - 0.6
+  - 0.55
+  - 1.0
+  grasp_height: 0.026219999999999997
+  grasp_cross_section_m:
+  - 0.03545907974243164
+  - 0.03550995063781738
+  recommended_grip_width: 0.038459079742431644
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 1
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.026219999999999997
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+- category_id: 10
+  tless_object_id: 14
+  object_id: tless_obj_000014
+  display_name: T-LESS object 14
+  body_name: object_10
+  freejoint_name: object_10_freejoint
+  parking_weld_name: parking_weld_10
+  grasp_assist_weld_name: grasp_assist_weld_10
+  xml_geom_names:
+  - object_10_geom
+  mesh_path: ../assets/tless/mujoco/obj_000014.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.032549999999999996
+  dimensions:
+  - 0.0441346
+  - 0.0441346
+  - 0.06509999999999999
+  bop_bbox_min_m:
+  - -0.0220673
+  - -0.0220673
+  - -0.032549999999999996
+  lowest_local_z: 0.0
+  spawn_half_height: 0.032549999999999996
+  mass: 0.1063217661004542
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.62
+  - 0.65
+  - 0.68
+  - 1.0
+  # The CAD mid-body band lets this tall round part tip against the distal
+  # finger edge before closure; bilateral force can then be confirmed on a
+  # contact that immediately slides out during lift.  Contact/lane/yaw sweeps
+  # identify this upper cylindrical band as stable without changing preload,
+  # trajectory limits, or using grasp assist.
+  grasp_height: 0.052107
+  grasp_cross_section_m:
+  - 0.0346872501373291
+  - 0.03460916137695313
+  recommended_grip_width: 0.03760916137695313
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 2
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.052107
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+- category_id: 11
+  tless_object_id: 15
+  object_id: tless_obj_000015
+  display_name: T-LESS object 15
+  body_name: object_11
+  freejoint_name: object_11_freejoint
+  parking_weld_name: parking_weld_11
+  grasp_assist_weld_name: grasp_assist_weld_11
+  xml_geom_names:
+  - object_11_geom
+  mesh_path: ../assets/tless/mujoco/obj_000015.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0275
+  dimensions:
+  - 0.04454760000000001
+  - 0.0445542
+  - 0.055
+  bop_bbox_min_m:
+  - -0.022273800000000003
+  - -0.0222771
+  - -0.0275
+  lowest_local_z: 0.0
+  spawn_half_height: 0.0275
+  mass: 0.1026595509064934
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.74
+  - 0.68
+  - 0.57
+  - 1.0
+  grasp_height: 0.031349999999999996
+  grasp_cross_section_m:
+  - 0.03654112052917481
+  - 0.03624634933471679
+  recommended_grip_width: 0.039246349334716796
+  grip_width_margin: 0.018
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 2
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.031349999999999996
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+- category_id: 12
+  tless_object_id: 16
+  object_id: tless_obj_000016
+  display_name: T-LESS object 16
+  body_name: object_12
+  freejoint_name: object_12_freejoint
+  parking_weld_name: parking_weld_12
+  grasp_assist_weld_name: grasp_assist_weld_12
+  xml_geom_names:
+  - object_12_geom
+  mesh_path: ../assets/tless/mujoco/obj_000016.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0235
+  dimensions:
+  - 0.0552676
+  - 0.0552634
+  - 0.047
+  bop_bbox_min_m:
+  - -0.0276338
+  - -0.0276317
+  - -0.0235
+  lowest_local_z: 0.0
+  spawn_half_height: 0.0235
+  mass: 0.109797629213692
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.54
+  - 0.62
+  - 0.66
+  - 1.0
+  grasp_height: 0.026789999999999998
+  grasp_cross_section_m:
+  - 0.05205623054504395
+  - 0.05205758094787598
+  recommended_grip_width: 0.05505623054504395
+  grip_width_margin: 0.03
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 2
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.026789999999999998
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  closure_horizontal_tolerance: 0.007
+- category_id: 13
+  tless_object_id: 20
+  object_id: tless_obj_000020
+  display_name: T-LESS object 20
+  body_name: object_13
+  freejoint_name: object_13_freejoint
+  parking_weld_name: parking_weld_13
+  grasp_assist_weld_name: grasp_assist_weld_13
+  xml_geom_names:
+  - object_13_geom
+  mesh_path: ../assets/tless/mujoco/obj_000020.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.0235
+  dimensions:
+  - 0.083
+  - 0.0755
+  - 0.047
+  bop_bbox_min_m:
+  - -0.0415
+  - -0.03775
+  - -0.0235
+  lowest_local_z: 0.0
+  spawn_half_height: 0.0235
+  mass: 0.14113621522789604
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.67
+  - 0.64
+  - 0.73
+  - 1.0
+  grasp_height: 0.038
+  grasp_cross_section_m:
+  - 0.083
+  - 0.055999999999999994
+  # Strict contact traces establish bilateral support near 41 mm.  Command a
+  # bounded preload directly.  The strict trace brackets the stable interval:
+  # 35--41 mm slips during lift, while 28--29 mm expels the convex shoulder.
+  recommended_grip_width: 0.059
+  grip_width_margin: 0.027
+  contact_hold_squeeze_fraction: 0.0
+  contact_hold_max_relaxation_fraction: 0.0
+  confirmed_grasp_settle_time: 0.1
+  # The raised-layout controller now gates the actual contact pose. Requiring
+  # zero joint velocity while tracking the moving centre prevents closure at
+  # downstream intercepts; retain the pose gates and 100 ms bilateral dwell.
+  closure_requires_arm_settle: false
+  # This wide convex body is blocked by a leading finger when the generic
+  # 180 ms close lead narrows the jaws before its centre reaches the intercept.
+  close_lead_time: 0.0
+  bin_id: 2
+  symmetry:
+    kind: discrete_3d
+    axis:
+    - 0.0
+    - 1.0
+    - 0.0
+    bop_discrete_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.038
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  closure_horizontal_tolerance: 0.01
+  grasp_target_y_range:
+  - -0.018
+  - 0.035
+- category_id: 14
+  tless_object_id: 24
+  object_id: tless_obj_000024
+  display_name: T-LESS object 24
+  body_name: object_14
+  freejoint_name: object_14_freejoint
+  parking_weld_name: parking_weld_14
+  grasp_assist_weld_name: grasp_assist_weld_14
+  xml_geom_names:
+  - object_14_geom
+  mesh_path: ../assets/tless/mujoco/obj_000024.obj
+  geometry:
+    kind: mesh
+    collision_approximation: mujoco_convex_hull
+    bop_model_origin: bbox_center
+    bop_model_to_body_translation_m:
+    - 0.0
+    - 0.0
+    - 0.040299999999999996
+  dimensions:
+  - 0.042995399999999996
+  - 0.042997
+  - 0.08059999999999999
+  bop_bbox_min_m:
+  - -0.021497699999999998
+  - -0.0214985
+  - -0.040299999999999996
+  lowest_local_z: 0.0
+  spawn_half_height: 0.040299999999999996
+  mass: 0.11092935317615893
+  friction:
+  - 0.9
+  - 0.01
+  - 0.001
+  rgba:
+  - 0.72
+  - 0.6
+  - 0.55
+  - 1.0
+  grasp_height: 0.038
+  grasp_cross_section_m:
+  - 0.042986030578613284
+  - 0.042966201782226564
+  recommended_grip_width: 0.045966201782226566
+  grip_width_margin: 0.03
+  contact_hold_squeeze_fraction: 0.12
+  contact_hold_max_relaxation_fraction: 0.0
+  bin_id: 2
+  symmetry:
+    kind: continuous_rotational
+    axis:
+    - 0.0
+    - 0.0
+    - 1.0
+    bop_continuous_count: 1
+  grasp_candidates:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.038
+    quaternion_wxyz:
+    - 0.0
+    - 1.0
+    - 0.0
+    - 0.0
+    score: 1.0
+    approach_direction:
+    - 0.0
+    - 0.0
+    - -1.0
+  closure_horizontal_tolerance: 0.007

@@ -1,0 +1,93 @@
+schema_version: 1
+experiment:
+  name: nero7_actual_async_rgbd_physical
+  backend: mujoco_only
+  belt_speed_m_s: 0.1
+  feed_interval_s: 25.0
+  objects: 1
+  seed: 1000
+  active_category_ids:
+  - 0
+  - 6
+  - 9
+  - 12
+  - 14
+  target_success_rate: 0.95
+  success_metric: released_in_correct_bin_and_stable
+  real_time: true
+  grasp_assist: false
+  terminal_retention_s: 15.0
+  max_tail_s: 50.0
+  maximum_wall_lag_s: 0.25
+  minimum_real_time_factor: 0.98
+camera:
+  # Synthetic MuJoCo view only; these are not physical calibration values.
+  early_view_world_xyz_m: [-0.50, 0.0, 1.65]
+  capture_reference: experiments/graspgenx_sim/calibration/render_intrinsics_reference.json
+  resolution:
+  - 1280
+  - 800
+  capture_hz: 30.0
+  distortion:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  render_principal_point: centered_pixel_indices
+  fixed_relative_to_robot_base: true
+  require_mask_inside_frame: true
+  input_border_margin_pixels: 2
+tracking:
+  # Visual search range in simulation world X; independent of arm grasp region.
+  early_visual_workspace_x_world_m: [-1.40, 0.70]
+  history_window_s: 0.8
+  velocity_window_s: 0.8
+  maximum_track_age_s: 1.0
+  coast_confidence_half_life_s: 2.0
+  maximum_result_age_s: null
+  dynamic_intercept:
+    enabled: true
+control:
+  # Host wall clock for one pre-motion candidate, separate from policy-time ETA.
+  candidate_planning_wall_budget_s: 3.0
+  # Simulation reset experiment only: world TCP above the grasp-zone midpoint.
+  simulation_standby_tcp_world_m: [0.04, 0.0, 0.70]
+  simulation_standby_quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]
+  release_retreat_distance_m: 0.02
+  speculative_prefetch: false
+  acquisition_translation_step_m: 0.05
+  acquisition_command_integrator: true
+  visual_acquisition_tracking: true
+  minimum_motor_hold_effort_sim_N: 3.0
+  visual_servo_bias_compensation: true
+graspgenx:
+  planner: diffusion
+  generated_candidates: 512
+  returned_candidates: 512
+  maximum_input_points: 3500
+  minimum_input_points: 100
+  maximum_inferences_per_track: 3
+  minimum_retry_interval_sim_s: 0.8
+  maximum_approach_tilt_deg: null
+  minimum_tcp_height_above_belt_m: 0.012
+  minimum_score: 0.0
+  maximum_ik_candidates: 12
+  maximum_accepted_candidates: 1
+  fingertip_clearance_m: 0.002
+  closing_preload_m: 0.006
+  inference_trigger_x:
+  - -0.65
+  - -0.2
+  visual_approach_validation: true
+  visual_penetration_margin_m: 0.001
+  visual_descent_sample_step_m: 0.01
+  vertical_reachability_validation: true
+video:
+  enabled: false
+  fps: 5
+  resolution:
+  - 640
+  - 480
+  camera: policy_external_camera
+  maximum_seconds: 300

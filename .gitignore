@@ -1,0 +1,17 @@
+build/
+install/
+log/
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+
+runs/
+/Log/
+*.egg-info/
+docs/evidence_*/
+taught/*backup*.json
+.env
+.env.*
+*.pem
+*.key

@@ -1,0 +1,252 @@
+schema_version: 1
+model_path: ../models/scene.xml
+object_catalog_path: tless_objects.yaml
+# Original IDs remain stable. Inactive meshes stay parked for old-data compatibility.
+task:
+  id: nero_tless5_v1
+  active_category_ids: [0, 6, 9, 12, 14]
+  data_root: data/pi05_nero_5class_v1
+  repo_id: local/nero_conveyor_5class_v1
+  lora_config_name: pi05_nero_5class_lora
+units:
+  length: m
+  angle: rad
+  mass: kg
+  time: s
+
+model:
+  name: compact_conveyor_sorting
+  xml_path: ../models/scene.xml
+  placeholder_robot: false
+  robot_model: agilex_nero_7dof
+  expected_arm_dof: 7
+  expected_object_slots: 15
+  expected_bin_count: 3
+
+simulation:
+  timestep: 0.002
+  control_dt: 0.02
+  frame_skip: 10
+  gravity: [0.0, 0.0, -9.81]
+  integrator: implicitfast
+  solver: Newton
+  solver_iterations: 80
+  solver_tolerance: 1.0e-10
+  cone: elliptic
+  noslip_iterations: 10
+  contact_impratio: 5.0
+  max_contacts: 1200
+  max_joints: 4000
+
+conveyor:
+  frame_body: conveyor_frame
+  surface_geom: conveyor_surface
+  surface_site: conveyor_surface_site
+  rail_geoms:
+    far_side: conveyor_left_rail
+    robot_side_upstream: right_rail_upstream
+    robot_side_downstream: right_rail_downstream
+  robot_side_access_gap_x: [-0.30, 0.40]
+  direction: [1.0, 0.0, 0.0]
+  # The belt remains narrow but includes a long upstream perception section.
+  # At the default nominal jittered speed this provides >5.5 s from spawn to
+  # the hard grasp boundary, enough for background planning plus safe motion.
+  center: [-0.375, 0.0, 0.48]
+  length: 2.00
+  width: 0.30
+  deck_thickness: 0.04
+  surface_height: 0.50
+  default_speed: 0.20
+  min_speed: 0.0
+  max_speed: 1.0
+  speed_range: [0.0, 1.0]
+  speed_jitter_std: 0.008
+  velocity_time_constant: 0.06
+  max_force: 12.0
+  center_x: -0.375
+  center_y: 0.0
+  grasp_region: [-0.20, 0.38]
+  reachable_y: [-0.18, 0.18]
+  velocity_servo:
+    gain: 18.0
+    max_force_per_kg: 10.0
+    only_when_supported: true
+    support_normal_threshold: 0.15
+  friction: [1.10, 0.01, 0.001]
+  active_bounds:
+    x: [-1.355, 0.605]
+    y: [-0.140, 0.140]
+    z: [0.46, 0.66]
+  spawn:
+    x: -1.28
+    y_range: [-0.075, 0.075]
+    # Object body origins lie on their support plane; a 1 mm release gap
+    # avoids initial penetration without injecting a large drop/bounce.
+    z_clearance: 0.001
+    min_spacing: 0.10
+    max_spacing: 0.22
+  missed_x: 0.665
+
+episode:
+  # One active-category deck at the unchanged 10 s feed cadence, plus transfer tail.
+  max_time: 70.0
+  object_count: 5
+  initial_objects: 1
+
+spawning:
+  x: -1.28
+  interval_seconds: 10.0
+  spacing_range: [0.18, 0.32]
+  clearance: 0.12
+
+workspace:
+  robot_base_position: [0.0, -0.34, 0.60]
+  # Layout assumption until the real mounting plate is measured.
+  robot_platform_size: [0.22, 0.22, 0.60]
+  base_to_belt_centerline: 0.34
+  grasp_region:
+    x: [-0.20, 0.38]
+    y: [-0.140, 0.140]
+    z: [0.49, 0.66]
+  safety_region:
+    x: [-0.62, 0.62]
+    y: [-0.82, 0.20]
+    z: [0.0, 1.6]
+  # Recalculated vertical waiting pose for a base 0.10 m above the belt.
+  waiting_ee_position: [0.18, 0.0, 0.66]
+  waiting_ee_quaternion_wxyz: [0.0, 1.0, 0.0, 0.0]
+  # Prefer an upstream intercept so path-estimation error and the physical jaw
+  # confirmation horizon do not consume the downstream rail-gap margin.
+  # Start closure slightly farther upstream.  At 0.20 m/s this adds about
+  # 0.20 s for the widest T-LESS parts while remaining on the validated NERO
+  # IK branch (x >= 0.0) and inside the robot-side rail opening.
+  preferred_grasp_x: 0.08
+  pregrasp_clearance: 0.10
+  lift_clearance: 0.14
+  safe_transfer_height: 0.70
+  # The predicted intercept marks the start of jaw closure; allow the physical
+  # NERO fingers up to their configured close/confirmation horizon afterward.
+  grasp_deadline_tolerance: 1.20
+  # Only an already-started CLOSING action may cross grasp_region.x[1], and
+  # never beyond the robot-side rail opening at x=0.30 m.  Planning and arm
+  # execution keep the original x=0.28 m hard deadline.
+  closing_confirmation_exit_margin: 0.02
+  # After the jaws open, allow the part to fall and settle before declaring an
+  # out-of-bin drop.  This classification is independent of later jaw motion.
+  release_classification_timeout: 0.75
+
+bins:
+  - id: 0
+    label: left
+    body_name: bin_0
+    interior_site: bin_0_interior
+    center: [-0.26, -0.62, 0.415]
+    inner_size: [0.18, 0.20, 0.15]
+    # Recalculated release orientation for the raised layout. A reachable
+    # endpoint does not guarantee an executable carrying route from every grasp.
+    # Downward release with a -150 degree wrist yaw admits a short direct
+    # branch from the raised corridor, avoiding the old wrist wrap.
+    drop_quaternion_wxyz: [0, 0.25881904510252074, -0.9659258262890683, 0]
+    category_ids: [0]
+  - id: 1
+    label: middle
+    body_name: bin_1
+    interior_site: bin_1_interior
+    center: [0.0, -0.62, 0.415]
+    inner_size: [0.18, 0.20, 0.15]
+    drop_quaternion_wxyz: [0, 0.70710678, -0.70710678, 0]
+    category_ids: [6, 9]
+  - id: 2
+    label: right
+    body_name: bin_2
+    interior_site: bin_2_interior
+    center: [0.26, -0.62, 0.415]
+    inner_size: [0.18, 0.20, 0.15]
+    drop_quaternion_wxyz: [0, 1, 0, 0]
+    category_ids: [12, 14]
+
+object_pool:
+  count: 15
+  body_pattern: object_{index:02d}
+  freejoint_pattern: object_{index:02d}_freejoint
+  parking_weld_pattern: parking_weld_{index:02d}
+  grasp_assist_weld_pattern: grasp_assist_weld_{index:02d}
+  parking_region_origin: [3.0, -1.05, 0.50]
+  parking_spacing: [0.0, 0.15, 0.0]
+  parking_welds_active_on_load: true
+  grasp_assist_welds_active_on_load: false
+  grasp_assist_enabled: false
+  gripper_attach_body: gripper_base
+  runtime_update_grasp_weld_relpose_before_enable: true
+  activation_sequence:
+    - disable_parking_weld
+    - set_freejoint_pose_and_velocity
+    - forward_dynamics
+  deactivation_sequence:
+    - disable_grasp_assist_weld
+    - set_parking_pose
+    - enable_parking_weld
+
+debug:
+  enabled: true
+  show_camera_frusta: true
+  video_output_dir: recordings/viewer
+  ee_trajectory:
+    max_points: 120
+    line_width: 2.0
+    rgba: [0.12, 0.92, 0.92, 0.72]
+  mocap_bodies:
+    selected_target: debug_selected_target
+    observed_pose: debug_observed_pose
+    ground_truth_pose: debug_ground_truth_pose
+    predicted_grasp_pose: debug_predicted_grasp_pose
+    actual_grasp_pose: debug_actual_grasp_pose
+    grasp_window_start: debug_grasp_window_start
+    grasp_window_end: debug_grasp_window_end
+    pregrasp_pose: debug_pregrasp_pose
+  sites:
+    work_zone: grasp_region_site
+    spawn_line: spawn_line_site
+    missed_line: missed_line_site
+  hidden_position: [0.0, 0.0, -2.0]
+  marker_group: 5
+
+randomization:
+  enabled: true
+  seed: 0
+  belt_speed:
+    enabled: true
+    range: [0.15, 0.25]
+  belt_speed_jitter:
+    enabled: true
+    amplitude: 0.008
+  object_category:
+    enabled: true
+  object_spacing:
+    # Ignored while spawning.interval_seconds is set; retained as a fallback.
+    enabled: false
+    value: 0.25
+  object_lateral_position:
+    enabled: true
+    # Collision-checked dynamic grasp lane for the side-mounted NERO.
+    range: [-0.035, 0.035]
+  object_yaw:
+    enabled: true
+    range: [-3.14159265, 3.14159265]
+  object_mass_scale:
+    enabled: true
+    range: [0.90, 1.10]
+  object_friction_scale:
+    enabled: true
+    range: [0.90, 1.10]
+  object_color:
+    enabled: true
+  gripper_friction_scale:
+    enabled: true
+    range: [0.95, 1.05]
+  light_intensity_scale:
+    enabled: true
+    range: [0.85, 1.15]
+  light_direction:
+    enabled: true
+    std: [0.04, 0.04, 0.02]

@@ -1,0 +1,44 @@
+# 长度 m、角度 rad、时间 s；必须由现场标定填写。默认检查不会连接设备。
+strategy: two_second
+environment_collision_scope: observed_scene # 可显式选 measured_belt_surface_only；只覆盖可见带面
+recovery_allow_workpiece_contact: false # 现场可显式允许恢复时接触已取消抓取的轻质工件
+base_frame: null
+camera_calibration_file: null # 原 runtime.yaml 格式，native depth optical -> robot base
+tcp_calibration_file: null   # 见 docs/两秒策略真机接入.md
+joint_names: [joint1, joint2, joint3, joint4, joint5, joint6, joint7]
+belt_direction_base: null   # 实测单位运动方向；不等于带速
+maximum_target_height_m: null # 现场工件高度上限，同时用于检测和Nero7
+perception_detection_mode: rgb_depth # 原Nero7融合检测；legacy_depth仅作旧基准对照
+perception_plane_mode: ransac3d # 原多帧校核，保留实测带面倾角；未通过时不发布目标
+follow_interval_base_m: null # dot(p_base, belt_direction) 的允许区间
+workspace_base_m: null      # [[xmin,xmax],[ymin,ymax],[zmin,zmax]]，包括搬运和返回
+standby_joint_rad: null     # 真机预先到此位并张爪；程序不重置真实关节
+bins_base: null             # {料框名称: 4x4 的 T_base_drop_tcp}
+unknown_category_bin: null
+joint_velocity_limits_rad_s: null
+joint_acceleration_limits_rad_s2: null
+# 主机发送指令差分不是实测加速度；只记录，规划曲线限值仍生效。
+runtime_command_acceleration_check_enabled: false
+camera: null                # Orbbec 实际流分辨率/帧率配置
+hardware: null              # {can_channel: ..., firmware: ..., joint_command_mode: j或js}
+# 以下为请求策略参数，不是现场标定结果。
+command_advance_s: 0.1
+minimum_speed_span_s: 0.45
+planning_reserve_s: 1.5
+freeze_upstream_distance_m: 0.35 # 与两秒仿真一致：只在抓取入口上游35cm内冻结
+maximum_observation_age_s: 1.0 # 与两秒仿真的有效曝光年龄一致，预测仍包含全部处理耗时
+maximum_measured_speed_m_s: 0.30
+planning_budget_s: 8.0
+trajectory_profile: smooth
+planning_knot_hz: 50
+approach_duration_candidates_s: [2.0, 3.0, 4.0, 5.5, 6.5]
+brake_duration_s: 1.5
+candidate_planning_budget_s: 1.5
+pick_settings:
+  control_hz: 100
+  speed_percent: 3
+  lift_m: 0.03
+  force_n: 2.0
+  min_force_n: 0.2
+  open_width_m: 0.10
+  full_plan_close_window_s: 0.8

@@ -1,0 +1,16 @@
+# Model-driven self filtering, independent of the 8 mm path collision margin.
+# All distances are metres. Padding is an uncertain model band, not clearance.
+padding_m: 0.015
+link_padding_m:
+  # Reviewed 16:50 and all three 17:40 RGB-D frames: the same link2
+  # edge varies from 17.374 to 18.763 mm with 1–2 mm native-depth noise.
+  # Add 3 mm uncertainty to that observed envelope, rounded up to 22 mm.
+  # Fixed local tolerance, never auto-grown from a rejected trajectory.
+  link2: 0.022
+  # 2026-10-20 frame 247: 24 native samples at the wrist connector's
+  # black image edge survive 15 mm padding (face offsets 15.291–19.329 mm).
+  # Keep this fixed local envelope separate from path collision geometry.
+  # Offline comparison: reports/remaining_scene_points_20261020/.
+  gripper_flange: 0.020
+# Only label ray-occluded points; retain them in the obstacle cloud.
+shadow_threshold_m: 0.003

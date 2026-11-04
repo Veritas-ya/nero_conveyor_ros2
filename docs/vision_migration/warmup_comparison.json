@@ -1,0 +1,461 @@
+{
+  "note": "Different live rendered exposures and independent wall-clock runs; timings are not a controlled A/B.",
+  "runs": [
+    {
+      "directory": "runs/vision_network_migration_20261027",
+      "model_load_s": 8.212505478000821,
+      "warmup_s": null,
+      "warmup_source": null,
+      "timing": {
+        "mode": "wall_clock_paced",
+        "wall_seconds": 54.18382789300085,
+        "sim_seconds": 25.009999999997017,
+        "real_time_factor": 0.46157683893034185,
+        "maximum_wall_lag_s": 29.173827893003835,
+        "p95_wall_lag_s": 26.849843476402363,
+        "inference_asynchronous": true
+      },
+      "seed": 1543,
+      "input_pose": [
+        -1.28,
+        -0.014416530768266003,
+        0.501,
+        0.975603728969437,
+        0.0,
+        0.0,
+        0.21953898064109093
+      ],
+      "visual_track0_speed_median_m_s_6_3_to_9_2": 0.0987458701930561,
+      "visual_speed_count": 86,
+      "jobs": [
+        {
+          "capture_sim_s": 6.267999999999532,
+          "ready_sim_s": 9.229999999999752,
+          "input_points_sha256": "78300650c61dcdb2821fade0a7babc42e7b71163f3136904e279a1b4000ff38c",
+          "inference_s": 2.108557429999564,
+          "candidate_filter_s": 0.27266835699992953,
+          "accepted": 1,
+          "admission": {
+            "allowed": true,
+            "reasons": [],
+            "ready_sim_s": 9.229999999999752,
+            "result_age_s": 2.96200000000022,
+            "track_id": 0,
+            "scene_epoch": 2,
+            "live_visible": true,
+            "live_observed_timestamp_s": 9.199999999999742,
+            "live_publication_timestamp_s": 9.229999999999752,
+            "live_measurement_age_s": 0.03000000000001002,
+            "live_age_basis": "last_actual_measurement_timestamp",
+            "capture_to_live_translation_m": 0.2920318679763332,
+            "prediction_residual_m": 0.0013108038636609916,
+            "capture_to_live_rotation_deg": 0.0,
+            "live_track_generation": "1",
+            "live_position_world_m": [
+              -0.3577820013513477,
+              -0.013845311181714105,
+              0.536712110042572
+            ],
+            "predicted_live_position_world_m": [
+              -0.3577976986187089,
+              -0.014065691443952465,
+              0.5354200601577759
+            ]
+          }
+        }
+      ],
+      "events": [
+        {
+          "sim_s": 9.229999999999752,
+          "name": "target_selected",
+          "reason": "target_selected"
+        },
+        {
+          "sim_s": 9.229999999999752,
+          "name": "continuous_intercept_started",
+          "reason": "continuous_intercept"
+        },
+        {
+          "sim_s": 9.229999999999752,
+          "name": "continuous_intercept_requested",
+          "reason": "1"
+        },
+        {
+          "sim_s": 9.299999999999775,
+          "name": "continuous_intercept_rejected",
+          "reason": "fixed capture time violates joint velocity, acceleration or jerk"
+        },
+        {
+          "sim_s": 9.299999999999775,
+          "name": "continuous_intercept_requested",
+          "reason": "2"
+        },
+        {
+          "sim_s": 9.309999999999778,
+          "name": "motion_replan",
+          "reason": "attempt=2: motion planner returned no path"
+        },
+        {
+          "sim_s": 9.329999999999785,
+          "name": "continuous_intercept_prepared",
+          "reason": "2"
+        },
+        {
+          "sim_s": 10.310000000000112,
+          "name": "continuous_intercept_live_rejected",
+          "reason": "2"
+        },
+        {
+          "sim_s": 10.320000000000116,
+          "name": "motion_replan",
+          "reason": "attempt=2: continuous interception left current geometry or feedback envelope"
+        },
+        {
+          "sim_s": 10.320000000000116,
+          "name": "continuous_intercept_requested",
+          "reason": "3"
+        },
+        {
+          "sim_s": 10.330000000000119,
+          "name": "continuous_intercept_prepared",
+          "reason": "3"
+        },
+        {
+          "sim_s": 11.390000000000473,
+          "name": "continuous_intercept_live_rejected",
+          "reason": "3"
+        },
+        {
+          "sim_s": 11.400000000000476,
+          "name": "motion_replan",
+          "reason": "attempt=2: continuous interception left current geometry or feedback envelope"
+        },
+        {
+          "sim_s": 11.400000000000476,
+          "name": "continuous_intercept_requested",
+          "reason": "4"
+        },
+        {
+          "sim_s": 11.430000000000486,
+          "name": "continuous_intercept_prepared",
+          "reason": "4"
+        },
+        {
+          "sim_s": 12.52000000000085,
+          "name": "continuous_intercept_live_rejected",
+          "reason": "4"
+        },
+        {
+          "sim_s": 12.530000000000854,
+          "name": "motion_replan",
+          "reason": "attempt=2: continuous interception left current geometry or feedback envelope"
+        },
+        {
+          "sim_s": 12.540000000000857,
+          "name": "motion_replan",
+          "reason": "attempt=3: continuous capture lies beyond the existing grasp window"
+        },
+        {
+          "sim_s": 12.55000000000086,
+          "name": "attempt_failed",
+          "reason": "ik_unreachable"
+        },
+        {
+          "sim_s": 13.660000000001231,
+          "name": "recovery_complete",
+          "reason": "ik_unreachable"
+        }
+      ],
+      "evaluation": {
+        "metric": "released_in_correct_bin_and_stable",
+        "geometry_metric_version": "collision_hull_physical_bin_v1",
+        "containment_tolerance_m": 0.003,
+        "floor_tolerance_m": 0.006,
+        "bin_interiors": {},
+        "expected_objects": 1,
+        "spawned_objects": 1,
+        "not_spawned_objects": 0,
+        "successful_sorted_objects": 0,
+        "failed_or_incomplete_objects": 1,
+        "grasped_but_not_sorted": 0,
+        "ungrasped_objects": 1,
+        "classification_error_objects": 0,
+        "released_wrong_bin_objects": 0,
+        "success_rate": 0.0,
+        "one_sided_95_percent_lower_bound": 0.0,
+        "elapsed_sim_s": 25.009999999997017,
+        "throughput_sorted_per_minute": 0.0,
+        "mean_completion_interval_s": null,
+        "p95_completion_interval_s": null,
+        "settle_time_s": 0.5,
+        "maximum_speed_m_s": 0.08,
+        "maximum_angular_speed_rad_s": 1.0,
+        "terminal_retention_s": 15.0,
+        "retain_sorted_until_independently_evaluated": false,
+        "objects": [
+          {
+            "object_id": 0,
+            "category_id": 12,
+            "target_bin_id": 2,
+            "spawned_at_s": 0.0,
+            "grasped": false,
+            "released": false,
+            "success": false,
+            "placed_at_s": null,
+            "stable_at_s": null,
+            "lifecycle_state": "FAILED",
+            "failure_reason": "ik_unreachable",
+            "last_coarse_bin_id": null,
+            "last_position_world_m": [
+              0.07757887484935776,
+              -0.014436997727098118,
+              0.49990152773399166
+            ],
+            "placement_checks": {
+              "status": "pending_release",
+              "geometry_evaluated": false,
+              "instantaneously_stable": false
+            },
+            "visual_track_id": 0,
+            "physical_failure_reasons": [
+              "not_grasped"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "directory": "runs/vision_network_warm_20261027",
+      "model_load_s": 6.781513674999587,
+      "warmup_s": 0.8186450330031221,
+      "warmup_source": "synthetic_kernel_warmup",
+      "timing": {
+        "mode": "wall_clock_paced",
+        "wall_seconds": 58.11894332999873,
+        "sim_seconds": 25.009999999997017,
+        "real_time_factor": 0.43032441002911065,
+        "maximum_wall_lag_s": 33.10894333000171,
+        "p95_wall_lag_s": 30.79275023200171,
+        "inference_asynchronous": true
+      },
+      "seed": 1543,
+      "input_pose": [
+        -1.28,
+        -0.014416530768266003,
+        0.501,
+        0.975603728969437,
+        0.0,
+        0.0,
+        0.21953898064109093
+      ],
+      "visual_track0_speed_median_m_s_6_3_to_9_2": 0.09874656139112463,
+      "visual_speed_count": 87,
+      "jobs": [
+        {
+          "capture_sim_s": 6.267999999999532,
+          "ready_sim_s": 7.349999999999413,
+          "input_points_sha256": "78300650c61dcdb2821fade0a7babc42e7b71163f3136904e279a1b4000ff38c",
+          "inference_s": 0.6370084820009652,
+          "candidate_filter_s": 0.27023137099968153,
+          "accepted": 1,
+          "admission": {
+            "allowed": true,
+            "reasons": [],
+            "ready_sim_s": 7.349999999999413,
+            "result_age_s": 1.0819999999998808,
+            "track_id": 0,
+            "scene_epoch": 2,
+            "live_visible": true,
+            "live_observed_timestamp_s": 7.333999999999414,
+            "live_publication_timestamp_s": 7.349999999999413,
+            "live_measurement_age_s": 0.015999999999998238,
+            "live_age_basis": "last_actual_measurement_timestamp",
+            "capture_to_live_translation_m": 0.1068436977380425,
+            "prediction_residual_m": 0.00017334085577435184,
+            "capture_to_live_rotation_deg": 0.0,
+            "live_track_generation": "1",
+            "live_position_world_m": [
+              -0.542967049295372,
+              -0.014207574477368421,
+              0.5354225635528564
+            ],
+            "predicted_live_position_world_m": [
+              -0.5431366972947111,
+              -0.014172073187055604,
+              0.5354200601577759
+            ]
+          }
+        }
+      ],
+      "events": [
+        {
+          "sim_s": 7.349999999999413,
+          "name": "target_selected",
+          "reason": "target_selected"
+        },
+        {
+          "sim_s": 7.349999999999413,
+          "name": "continuous_intercept_started",
+          "reason": "continuous_intercept"
+        },
+        {
+          "sim_s": 7.349999999999413,
+          "name": "continuous_intercept_requested",
+          "reason": "1"
+        },
+        {
+          "sim_s": 7.429999999999404,
+          "name": "continuous_intercept_rejected",
+          "reason": "fixed capture time violates joint velocity, acceleration or jerk"
+        },
+        {
+          "sim_s": 7.429999999999404,
+          "name": "continuous_intercept_requested",
+          "reason": "2"
+        },
+        {
+          "sim_s": 7.439999999999403,
+          "name": "motion_replan",
+          "reason": "attempt=2: motion planner returned no path"
+        },
+        {
+          "sim_s": 7.469999999999399,
+          "name": "continuous_intercept_prepared",
+          "reason": "2"
+        },
+        {
+          "sim_s": 8.879999999999635,
+          "name": "continuous_intercept_live_rejected",
+          "reason": "2"
+        },
+        {
+          "sim_s": 8.889999999999638,
+          "name": "motion_replan",
+          "reason": "attempt=2: continuous interception left current geometry or feedback envelope"
+        },
+        {
+          "sim_s": 8.889999999999638,
+          "name": "continuous_intercept_requested",
+          "reason": "3"
+        },
+        {
+          "sim_s": 8.899999999999642,
+          "name": "continuous_intercept_prepared",
+          "reason": "3"
+        },
+        {
+          "sim_s": 9.509999999999845,
+          "name": "continuous_intercept_requested",
+          "reason": "4"
+        },
+        {
+          "sim_s": 9.529999999999852,
+          "name": "continuous_intercept_splice_prepared",
+          "reason": "4"
+        },
+        {
+          "sim_s": 10.580000000000203,
+          "name": "continuous_intercept_live_rejected",
+          "reason": "4"
+        },
+        {
+          "sim_s": 10.590000000000206,
+          "name": "motion_replan",
+          "reason": "attempt=2: continuous interception left current geometry or feedback envelope"
+        },
+        {
+          "sim_s": 10.590000000000206,
+          "name": "continuous_intercept_requested",
+          "reason": "5"
+        },
+        {
+          "sim_s": 10.60000000000021,
+          "name": "continuous_intercept_prepared",
+          "reason": "5"
+        },
+        {
+          "sim_s": 12.43000000000082,
+          "name": "continuous_intercept_live_rejected",
+          "reason": "5"
+        },
+        {
+          "sim_s": 12.440000000000824,
+          "name": "motion_replan",
+          "reason": "attempt=2: continuous interception left current geometry or feedback envelope"
+        },
+        {
+          "sim_s": 12.450000000000827,
+          "name": "motion_replan",
+          "reason": "attempt=3: continuous capture lies beyond the existing grasp window"
+        },
+        {
+          "sim_s": 12.46000000000083,
+          "name": "attempt_failed",
+          "reason": "ik_unreachable"
+        },
+        {
+          "sim_s": 13.930000000001321,
+          "name": "recovery_complete",
+          "reason": "ik_unreachable"
+        }
+      ],
+      "evaluation": {
+        "metric": "released_in_correct_bin_and_stable",
+        "geometry_metric_version": "collision_hull_physical_bin_v1",
+        "containment_tolerance_m": 0.003,
+        "floor_tolerance_m": 0.006,
+        "bin_interiors": {},
+        "expected_objects": 1,
+        "spawned_objects": 1,
+        "not_spawned_objects": 0,
+        "successful_sorted_objects": 0,
+        "failed_or_incomplete_objects": 1,
+        "grasped_but_not_sorted": 0,
+        "ungrasped_objects": 1,
+        "classification_error_objects": 0,
+        "released_wrong_bin_objects": 0,
+        "success_rate": 0.0,
+        "one_sided_95_percent_lower_bound": 0.0,
+        "elapsed_sim_s": 25.009999999997017,
+        "throughput_sorted_per_minute": 0.0,
+        "mean_completion_interval_s": null,
+        "p95_completion_interval_s": null,
+        "settle_time_s": 0.5,
+        "maximum_speed_m_s": 0.08,
+        "maximum_angular_speed_rad_s": 1.0,
+        "terminal_retention_s": 15.0,
+        "retain_sorted_until_independently_evaluated": false,
+        "objects": [
+          {
+            "object_id": 0,
+            "category_id": 12,
+            "target_bin_id": 2,
+            "spawned_at_s": 0.0,
+            "grasped": false,
+            "released": false,
+            "success": false,
+            "placed_at_s": null,
+            "stable_at_s": null,
+            "lifecycle_state": "FAILED",
+            "failure_reason": "ik_unreachable",
+            "last_coarse_bin_id": null,
+            "last_position_world_m": [
+              0.0685875195669122,
+              -0.014436998821450076,
+              0.4999015277339917
+            ],
+            "placement_checks": {
+              "status": "pending_release",
+              "geometry_evaluated": false,
+              "instantaneously_stable": false
+            },
+            "visual_track_id": 0,
+            "physical_failure_reasons": [
+              "not_grasped"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

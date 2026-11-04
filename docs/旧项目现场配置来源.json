@@ -1,0 +1,22 @@
+{
+  "source_project": "nero-agx-conveyor-sorting-main/traditional_pipeline_linux_20260928",
+  "files": {
+    "mujoco_conveyor_sorting/configs/runtime.yaml": "275d50834dc13410f1a518ac6c4779a05adac0a71365bbfb6ada7f2ca779ccb6",
+    "recordings/teach/20261017_181906_023053/result.json": "98ea39ef53c3ed3a1bca21b627623ef89b9a40877f1e80ca6a368eab3cc240bc",
+    "recordings/pick_test/full_policy_20261024_095601_097617/plan.json": "4091bd59652cb3c1b5aada002f972bf2e4ceb6afc64bad7145acfaaa7e5a8c0e",
+    "experiments/graspgenx_sim/gripper_agx/transforms.json": "8afc735238299efbfc66208692db058a1a3adc20e976034e66b3f6caa78d77a8"
+  },
+  "copied_runtime_sha256": "275d50834dc13410f1a518ac6c4779a05adac0a71365bbfb6ada7f2ca779ccb6",
+  "copied_reconstructed_result_sha256": "98ea39ef53c3ed3a1bca21b627623ef89b9a40877f1e80ca6a368eab3cc240bc",
+  "recorded_start_joints_rad": [
+    0.11417943966546903,
+    0.49240974186516023,
+    -0.029845130209103034,
+    1.5098843359002945,
+    -0.23991295897914056,
+    -0.22600268484074573,
+    0.712268867738886
+  ],
+  "belt_direction_source": "moving_belt.belt_direction, nero7_xy_kalman, 2026-10-24",
+  "warning": "重建的标定结果不是原始文件字节；TCP 是模型名义值。"
+}

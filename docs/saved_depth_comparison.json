@@ -1,0 +1,11 @@
+{
+  "frame_metadata_sha256": "a8fc6613838a7865624156f8d21f4855cb596512bcdae3aed3468467581c9f9a",
+  "depth_sha256": "b3cb0d8839ff180645d323f30325bebe63c8dbe970f015ce380b3df97db8bab3",
+  "shape": [
+    800,
+    1280,
+    3
+  ],
+  "array_equal_including_nan": true,
+  "finite_points": 1024000
+}

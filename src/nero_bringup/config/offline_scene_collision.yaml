@@ -1,0 +1,4 @@
+# Only nero_core.two_second.offline_scene_collision reads this policy.
+# This is not a two_second_pick hardware configuration.
+scope: offline_saved_state_only
+scene_collision_action: record_only

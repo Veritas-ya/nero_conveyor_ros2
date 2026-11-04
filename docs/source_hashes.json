@@ -1,0 +1,2725 @@
+{
+  "source_root": "/home/ubuntu22/\u684c\u9762/nero-agx-conveyor-sorting-main/traditional_pipeline_linux_20260928",
+  "source_git_commit": null,
+  "reason": "source checkout has no .git metadata",
+  "files": [
+    {
+      "path": "mujoco_conveyor_sorting/__init__.py",
+      "source_sha256": "a5c1d8df1c2036e07832d8b9d22d14f47a0075017552520ca3895f7dbdfcf7b4",
+      "migrated_sha256": "a5c1d8df1c2036e07832d8b9d22d14f47a0075017552520ca3895f7dbdfcf7b4",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/LICENSE",
+      "source_sha256": "247944c63de1573653722ba784f96123da267105b7b48577e0c8826a24b809f6",
+      "migrated_sha256": "247944c63de1573653722ba784f96123da267105b7b48577e0c8826a24b809f6",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/SOURCE.md",
+      "source_sha256": "ee55e6e377ce8a92585252110f2bb78c3f50ee3e632afb93cbd212431a8cf5ac",
+      "migrated_sha256": "ee55e6e377ce8a92585252110f2bb78c3f50ee3e632afb93cbd212431a8cf5ac",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/base_link.stl",
+      "source_sha256": "540462fb56e52091daa3cd1ad3acc3c19a43f120b2f11bae5a69b32b08c738b6",
+      "migrated_sha256": "540462fb56e52091daa3cd1ad3acc3c19a43f120b2f11bae5a69b32b08c738b6",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/gripper_base.stl",
+      "source_sha256": "041b1c8ffa29bff9a5e9350ec9d3e1a0129a5abcba1f347b29b5ad7367ba5f5a",
+      "migrated_sha256": "041b1c8ffa29bff9a5e9350ec9d3e1a0129a5abcba1f347b29b5ad7367ba5f5a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/gripper_base_drawing_20261012.stl",
+      "source_sha256": "4f3e873ca661cb24c3568156b8e3ad244ba2dff761f255731a8c5c444f1a84eb",
+      "migrated_sha256": "4f3e873ca661cb24c3568156b8e3ad244ba2dff761f255731a8c5c444f1a84eb",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/gripper_flange.stl",
+      "source_sha256": "1ae6d1c5af001582a3328564839e8eb5f2acec02e7e2b19e65fc3c43f8a9c95a",
+      "migrated_sha256": "1ae6d1c5af001582a3328564839e8eb5f2acec02e7e2b19e65fc3c43f8a9c95a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/gripper_link1.stl",
+      "source_sha256": "475a7d8db056524d7659fadf5a2c307d62791047b6214d733dfc7846ed1c613d",
+      "migrated_sha256": "475a7d8db056524d7659fadf5a2c307d62791047b6214d733dfc7846ed1c613d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/gripper_link2.stl",
+      "source_sha256": "3f88d534a85e28a33ef7d2061adacbd1d25214aa9325f9e464aad0f9e4b74606",
+      "migrated_sha256": "3f88d534a85e28a33ef7d2061adacbd1d25214aa9325f9e464aad0f9e4b74606",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link1.stl",
+      "source_sha256": "0e38bf33ce41f04d7e70e471768c00fa144ba4016a878b9a6d8303c319736e09",
+      "migrated_sha256": "0e38bf33ce41f04d7e70e471768c00fa144ba4016a878b9a6d8303c319736e09",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link2.stl",
+      "source_sha256": "fc9eb85db9fbd351c9f6e119f5fed33c6f0dd3bc3b11698a0f96aaeb2d36c721",
+      "migrated_sha256": "fc9eb85db9fbd351c9f6e119f5fed33c6f0dd3bc3b11698a0f96aaeb2d36c721",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link3.stl",
+      "source_sha256": "44c70f731ad5067d608ebebc9e59f3c231988f992dfac6cb01ee7a6bb4b053f1",
+      "migrated_sha256": "44c70f731ad5067d608ebebc9e59f3c231988f992dfac6cb01ee7a6bb4b053f1",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link4.stl",
+      "source_sha256": "47242e9b5d8b06c912261756f24dddb1e7f54ac6e718232a25889115298b966d",
+      "migrated_sha256": "47242e9b5d8b06c912261756f24dddb1e7f54ac6e718232a25889115298b966d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link5.stl",
+      "source_sha256": "dc497f5a9bab2d0d314250134d4ec86617abea7205d122db41b765acdb86ae7e",
+      "migrated_sha256": "dc497f5a9bab2d0d314250134d4ec86617abea7205d122db41b765acdb86ae7e",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link6.stl",
+      "source_sha256": "66417d30596e33c890f4f141781023bd3ea15709a502e7f59b30f6676f556022",
+      "migrated_sha256": "66417d30596e33c890f4f141781023bd3ea15709a502e7f59b30f6676f556022",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/robots/nero/link7.stl",
+      "source_sha256": "70a2f415358f9e46088673c92bfe78ca5b1072dd73b7ea24464ba3ebb4c3e647",
+      "migrated_sha256": "70a2f415358f9e46088673c92bfe78ca5b1072dd73b7ea24464ba3ebb4c3e647",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/SOURCE.md",
+      "source_sha256": "862c155f6560a729023a8c219bc93dc08ff2dda74a34c62181afb05162cc4f9a",
+      "migrated_sha256": "862c155f6560a729023a8c219bc93dc08ff2dda74a34c62181afb05162cc4f9a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000001.obj",
+      "source_sha256": "764deb03501c7db7b0520b9370dd870b21db199275e846eb42e9e83094ae9a6f",
+      "migrated_sha256": "764deb03501c7db7b0520b9370dd870b21db199275e846eb42e9e83094ae9a6f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000002.obj",
+      "source_sha256": "9245f7037797bb27137be0e69d5ca329388630b3b71660e61ca6155ac26d68f0",
+      "migrated_sha256": "9245f7037797bb27137be0e69d5ca329388630b3b71660e61ca6155ac26d68f0",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000003.obj",
+      "source_sha256": "00321f4ab6ec33cda48b9d5e11fad5bddcfa9876d39a15be43f4e12b4a029cc4",
+      "migrated_sha256": "00321f4ab6ec33cda48b9d5e11fad5bddcfa9876d39a15be43f4e12b4a029cc4",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000004.obj",
+      "source_sha256": "56c7c2334a700c6532f3370f8a8f43c661d2b460e807de663a6fef9a16dd9092",
+      "migrated_sha256": "56c7c2334a700c6532f3370f8a8f43c661d2b460e807de663a6fef9a16dd9092",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000005.obj",
+      "source_sha256": "db65b9c16e4590997471f617052775d56acf088252e364deeb5ea6243b932146",
+      "migrated_sha256": "db65b9c16e4590997471f617052775d56acf088252e364deeb5ea6243b932146",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000006.obj",
+      "source_sha256": "102ca65e2d05a3b3631925613eb98a26d91868831e52ca7448382987e564ab76",
+      "migrated_sha256": "102ca65e2d05a3b3631925613eb98a26d91868831e52ca7448382987e564ab76",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000010.obj",
+      "source_sha256": "01f9e8c9ab9a4f47d6154ec7478b2e73a97dcc7e37887bed2c6daa2ae3d187e5",
+      "migrated_sha256": "01f9e8c9ab9a4f47d6154ec7478b2e73a97dcc7e37887bed2c6daa2ae3d187e5",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000011.obj",
+      "source_sha256": "6e1e23661faa3a82940f3ae17a0ee9e8c04676abcba612b54c10e32fe23aab06",
+      "migrated_sha256": "6e1e23661faa3a82940f3ae17a0ee9e8c04676abcba612b54c10e32fe23aab06",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000012.obj",
+      "source_sha256": "67c0e96f37768b353cd3cd96983dfa6ea882ac4400c6d58411c4cdbcc17492b3",
+      "migrated_sha256": "67c0e96f37768b353cd3cd96983dfa6ea882ac4400c6d58411c4cdbcc17492b3",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000013.obj",
+      "source_sha256": "a24307fa0d9334c4877ff66a612821fc63715efce77e65fff0ac6ad34f6bb5e4",
+      "migrated_sha256": "a24307fa0d9334c4877ff66a612821fc63715efce77e65fff0ac6ad34f6bb5e4",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000014.obj",
+      "source_sha256": "77839c091cf9589fa95241837106b517f8c6164269a7246cdf0f7f5e2b868697",
+      "migrated_sha256": "77839c091cf9589fa95241837106b517f8c6164269a7246cdf0f7f5e2b868697",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000015.obj",
+      "source_sha256": "8ed29b6b8ccfea3166b4ed571b45eba8f13a29ce1ec8664c9a68b783f1afa4ea",
+      "migrated_sha256": "8ed29b6b8ccfea3166b4ed571b45eba8f13a29ce1ec8664c9a68b783f1afa4ea",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000016.obj",
+      "source_sha256": "2eeaaeb46d2940bbbe49a15a053244280d7a883054007f647d0b07eb31784677",
+      "migrated_sha256": "2eeaaeb46d2940bbbe49a15a053244280d7a883054007f647d0b07eb31784677",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000020.obj",
+      "source_sha256": "8e87fabe84122ffec74b923d938c838b35c564ccd055cb16c41ae0ec47774f20",
+      "migrated_sha256": "8e87fabe84122ffec74b923d938c838b35c564ccd055cb16c41ae0ec47774f20",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/assets/tless/mujoco/obj_000024.obj",
+      "source_sha256": "b7b1086d2375b89395c21790fe3a8653ce74e2e76a479d28c241b0e5dd3cbc83",
+      "migrated_sha256": "b7b1086d2375b89395c21790fe3a8653ce74e2e76a479d28c241b0e5dd3cbc83",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/__init__.py",
+      "source_sha256": "524e4c17b65aa3a40c996e475eed37b22434efef8b457f557732798d73d500b3",
+      "migrated_sha256": "524e4c17b65aa3a40c996e475eed37b22434efef8b457f557732798d73d500b3",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/eye_to_hand.py",
+      "source_sha256": "96ea78345558d098ef35d208e8c2196b2d591c4c5d69e07528cb6591bd91885c",
+      "migrated_sha256": "96ea78345558d098ef35d208e8c2196b2d591c4c5d69e07528cb6591bd91885c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/geometry.py",
+      "source_sha256": "e6874154889e4ff4ea58335ed88d1547b8c95888d16c48666964df90d4cccd5c",
+      "migrated_sha256": "e6874154889e4ff4ea58335ed88d1547b8c95888d16c48666964df90d4cccd5c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/pnp_audit.py",
+      "source_sha256": "a1ed1e478dc989d344a8a4ac2480b9632f2e336c609b2b695c9380afe5a417e1",
+      "migrated_sha256": "a1ed1e478dc989d344a8a4ac2480b9632f2e336c609b2b695c9380afe5a417e1",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/pose_validation.py",
+      "source_sha256": "a7f8ac1e687422fcf91fa01d87f4afbb96c1eb36186a4eb7080ff384e963492d",
+      "migrated_sha256": "a7f8ac1e687422fcf91fa01d87f4afbb96c1eb36186a4eb7080ff384e963492d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/session.py",
+      "source_sha256": "251e1cf9475a0def78d77ced2bc7d5d80684610126194812f7b18069cfa64519",
+      "migrated_sha256": "251e1cf9475a0def78d77ced2bc7d5d80684610126194812f7b18069cfa64519",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/sim_diagnostic.py",
+      "source_sha256": "38ed4aac809be32ec7e496e55598ef5d821b2151e68472ac6ebe2caf56e60ff3",
+      "migrated_sha256": "38ed4aac809be32ec7e496e55598ef5d821b2151e68472ac6ebe2caf56e60ff3",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/sim_rendering.py",
+      "source_sha256": "f28385cd5c1fea23f36eedfc7c10ccc087a0df62805bec5ce2650931e43022de",
+      "migrated_sha256": "f28385cd5c1fea23f36eedfc7c10ccc087a0df62805bec5ce2650931e43022de",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/sim_report.py",
+      "source_sha256": "7dfac6558def8e49a90430c8f15145d50690b48d0a3e69260782678663e9e2f8",
+      "migrated_sha256": "7dfac6558def8e49a90430c8f15145d50690b48d0a3e69260782678663e9e2f8",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/calibration/teach_recording.py",
+      "source_sha256": "f104601967041feb4531b0a3cf35035f0e889337dab0eed21ac7b63ba11ae1d2",
+      "migrated_sha256": "f104601967041feb4531b0a3cf35035f0e889337dab0eed21ac7b63ba11ae1d2",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/config.py",
+      "source_sha256": "be02cc4b4b78c6259d42f33309204eaee11e328d01f8cbef4db27f9cbc9a86b8",
+      "migrated_sha256": "be02cc4b4b78c6259d42f33309204eaee11e328d01f8cbef4db27f9cbc9a86b8",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/calibration_adoptions/20260929_150748_047791/adoption.json",
+      "source_sha256": "1fccabe2fcb15ce5c5be6665b8e50ffc3c711d38dfac346161e0c71c5d214375",
+      "migrated_sha256": "1fccabe2fcb15ce5c5be6665b8e50ffc3c711d38dfac346161e0c71c5d214375",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/calibration_adoptions/20260929_150748_047791/report_zh.md",
+      "source_sha256": "da328ae9ea90f676e46abc6db6d70bb6526f2ea1ba97290bdcf75e06669c27b5",
+      "migrated_sha256": "da328ae9ea90f676e46abc6db6d70bb6526f2ea1ba97290bdcf75e06669c27b5",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/calibration_adoptions/20260929_150748_047791/runtime.before.yaml",
+      "source_sha256": "78f809136c03311c4b7f1ff318fe9f0fcc9b9c4a350e723d7027f521d1941e87",
+      "migrated_sha256": "78f809136c03311c4b7f1ff318fe9f0fcc9b9c4a350e723d7027f521d1941e87",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/calibration_adoptions/20260929_150748_047791/runtime.selected.yaml",
+      "source_sha256": "d7f06b31ee2afa42d5e216d93fea05aae26b67dd8d22779f12f7de416c992b73",
+      "migrated_sha256": "d7f06b31ee2afa42d5e216d93fea05aae26b67dd8d22779f12f7de416c992b73",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/cameras.yaml",
+      "source_sha256": "f3b2b2a0458bb192ee6cb362f3939bcae4c92020a58e29b2dc741961655fbb55",
+      "migrated_sha256": "f3b2b2a0458bb192ee6cb362f3939bcae4c92020a58e29b2dc741961655fbb55",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/dynamic_expert.yaml",
+      "source_sha256": "1f65bcb08046d1eae9800852460aa91d6c2e92ace236e04b217d195367e1d41f",
+      "migrated_sha256": "1f65bcb08046d1eae9800852460aa91d6c2e92ace236e04b217d195367e1d41f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/eye_to_hand_sim.yaml",
+      "source_sha256": "514192d42c5bc4f66d571c6006e4fba94b87813add2932f57baf6fb523397141",
+      "migrated_sha256": "514192d42c5bc4f66d571c6006e4fba94b87813add2932f57baf6fb523397141",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/latency.yaml",
+      "source_sha256": "9f533f1deb6ba153d426596df08a5fb1e9f8792d8a959112fdbe296d0a43ac5d",
+      "migrated_sha256": "9f533f1deb6ba153d426596df08a5fb1e9f8792d8a959112fdbe296d0a43ac5d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/objects.yaml",
+      "source_sha256": "f10b6d5effa8227104ca358d18e4aae93111a3a12c95d2efccc47096f123383b",
+      "migrated_sha256": "f10b6d5effa8227104ca358d18e4aae93111a3a12c95d2efccc47096f123383b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/robot.yaml",
+      "source_sha256": "ab9755dcf859fd6279ba13c8f3c327f06015e5463fe4986af27ec562c11be075",
+      "migrated_sha256": "ab9755dcf859fd6279ba13c8f3c327f06015e5463fe4986af27ec562c11be075",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/runtime.yaml",
+      "source_sha256": "275d50834dc13410f1a518ac6c4779a05adac0a71365bbfb6ada7f2ca779ccb6",
+      "migrated_sha256": "275d50834dc13410f1a518ac6c4779a05adac0a71365bbfb6ada7f2ca779ccb6",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/scene.yaml",
+      "source_sha256": "79f37d2817cd05adf7c77d0d823ef0ecb9a7ad8cbbfe46bd92ed82916035cd25",
+      "migrated_sha256": "79f37d2817cd05adf7c77d0d823ef0ecb9a7ad8cbbfe46bd92ed82916035cd25",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/tless_objects.yaml",
+      "source_sha256": "743a600f54519fb4fd25f4b45fbaa04002ba5e62a491f453e3e10f84353c69fb",
+      "migrated_sha256": "743a600f54519fb4fd25f4b45fbaa04002ba5e62a491f453e3e10f84353c69fb",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/configs/tless_rgbd_prototypes.yaml",
+      "source_sha256": "8a428df1d25b65a244737ed32b187fb9e75c90e4ba98e510e3806c934b30e27d",
+      "migrated_sha256": "8a428df1d25b65a244737ed32b187fb9e75c90e4ba98e510e3806c934b30e27d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/contact_metrics.py",
+      "source_sha256": "68a311f205049fbb161d39037b9ea80296b3266831b3e2cddfb9ea803a676d8a",
+      "migrated_sha256": "68a311f205049fbb161d39037b9ea80296b3266831b3e2cddfb9ea803a676d8a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/__init__.py",
+      "source_sha256": "850818bb46bc4e5cce85669bc77db3667ccea18042b4a626aa01c0c962e1c161",
+      "migrated_sha256": "850818bb46bc4e5cce85669bc77db3667ccea18042b4a626aa01c0c962e1c161",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/_candidate_batch_ik_service.py",
+      "source_sha256": "971586b0dbf445dd3f30cc3047c58a6f2699d987c7534905a345f76e1fb95bed",
+      "migrated_sha256": "971586b0dbf445dd3f30cc3047c58a6f2699d987c7534905a345f76e1fb95bed",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/_math.py",
+      "source_sha256": "5b36d7cbfe08a646110604c909c810f2b159463e47f47bc52083e86c15979a66",
+      "migrated_sha256": "5b36d7cbfe08a646110604c909c810f2b159463e47f47bc52083e86c15979a66",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/baseline_sorting_policy.py",
+      "source_sha256": "ba37678e55235c3d41707df547287b50364aff02da2da03696f04f059a598c30",
+      "migrated_sha256": "ba37678e55235c3d41707df547287b50364aff02da2da03696f04f059a598c30",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/candidate_batch_ik.py",
+      "source_sha256": "e9f94cb456da3c720b40dc12e6695c9bba2108eece602d25a9a92ec8198e76e9",
+      "migrated_sha256": "e9f94cb456da3c720b40dc12e6695c9bba2108eece602d25a9a92ec8198e76e9",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/contact_approach_planning.py",
+      "source_sha256": "1a0da07f21359265c75448e249a0eca0d17e0f8f7cbeb78864414d79439d28ff",
+      "migrated_sha256": "1a0da07f21359265c75448e249a0eca0d17e0f8f7cbeb78864414d79439d28ff",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/continuous_intercept.py",
+      "source_sha256": "8c6bbab55744da47acd71c83063cfb0b35fa4ca76e433d00f033f1ea5ddaa8d3",
+      "migrated_sha256": "8c6bbab55744da47acd71c83063cfb0b35fa4ca76e433d00f033f1ea5ddaa8d3",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/continuous_intercept_trajectory.py",
+      "source_sha256": "faad8a8f48aee245c9ddd30b7b7e87095ae1073542c8a987d6c96f0a4d13f085",
+      "migrated_sha256": "faad8a8f48aee245c9ddd30b7b7e87095ae1073542c8a987d6c96f0a4d13f085",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/continuous_joint_trajectory.py",
+      "source_sha256": "91d32463455a94447fcc5dffa84bab89083de3683a68be3286bf58c58d54c81c",
+      "migrated_sha256": "91d32463455a94447fcc5dffa84bab89083de3683a68be3286bf58c58d54c81c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/curobo_planner.py",
+      "source_sha256": "ec9ba5ed5535dbb3df85b2e074c998e1fa8b644236cec5c3b578a17e349120cc",
+      "migrated_sha256": "ec9ba5ed5535dbb3df85b2e074c998e1fa8b644236cec5c3b578a17e349120cc",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/dynamic_intercept.py",
+      "source_sha256": "bd07414ee818221e255cd8ccc4abdc25144b5fbe146842735ccc2b5b78f98207",
+      "migrated_sha256": "bd07414ee818221e255cd8ccc4abdc25144b5fbe146842735ccc2b5b78f98207",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/full_pick_execution.py",
+      "source_sha256": "9391a7e7effd8970da3d208539c6a2022f1bbcdc43b078a62542864069a5af92",
+      "migrated_sha256": "9391a7e7effd8970da3d208539c6a2022f1bbcdc43b078a62542864069a5af92",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/full_pick_planning.py",
+      "source_sha256": "ae73ffe957016b6881ea143afc7c4f5500b3d5974616867eaff6c383095bfc40",
+      "migrated_sha256": "ae73ffe957016b6881ea143afc7c4f5500b3d5974616867eaff6c383095bfc40",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/full_pick_replanning.py",
+      "source_sha256": "928057079d12d3d78f317366220268c95b8b689ecc5fa06f1be5b1ede42a4a73",
+      "migrated_sha256": "928057079d12d3d78f317366220268c95b8b689ecc5fa06f1be5b1ede42a4a73",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/full_pick_response.py",
+      "source_sha256": "b36f871327a69a62e7a55615de0f0ee78654b8493712d8ba95803251d6511582",
+      "migrated_sha256": "b36f871327a69a62e7a55615de0f0ee78654b8493712d8ba95803251d6511582",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/gripper_controller.py",
+      "source_sha256": "802c3c436d4e14c829542e7e8fcdcc094fcb6bd230d71c6b04889b85a9768026",
+      "migrated_sha256": "802c3c436d4e14c829542e7e8fcdcc094fcb6bd230d71c6b04889b85a9768026",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/ik_solver.py",
+      "source_sha256": "7b642921b42d0404f0916982ff97f15f56651cd54f3066cf03e13216c28721bc",
+      "migrated_sha256": "7b642921b42d0404f0916982ff97f15f56651cd54f3066cf03e13216c28721bc",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/joint_response.py",
+      "source_sha256": "e5d966aafd9abdaef608cd575cce467f5c531eb7ae1057c8c0a0c4039df62106",
+      "migrated_sha256": "e5d966aafd9abdaef608cd575cce467f5c531eb7ae1057c8c0a0c4039df62106",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/joint_trajectory.py",
+      "source_sha256": "6f6b153745c1e00af05e80360e224ac339f8f757331fa130eeb6c9b93a1e4218",
+      "migrated_sha256": "6f6b153745c1e00af05e80360e224ac339f8f757331fa130eeb6c9b93a1e4218",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/orientation_approach.py",
+      "source_sha256": "089c32ec305dd896b2bcf7653ee069b14b5143024cecfeccf186bab7ccc6553a",
+      "migrated_sha256": "089c32ec305dd896b2bcf7653ee069b14b5143024cecfeccf186bab7ccc6553a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/pick_trajectory.py",
+      "source_sha256": "905eae1c15a41d2c6fbf991e62b86ef6231e0e9b1c1bf99cbeac577b788fc83f",
+      "migrated_sha256": "905eae1c15a41d2c6fbf991e62b86ef6231e0e9b1c1bf99cbeac577b788fc83f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/planning_segment_validation.py",
+      "source_sha256": "df323541e8ebc4a23afb89f1c3618315610ffdf9453e5c2f693d8985c388e7cf",
+      "migrated_sha256": "df323541e8ebc4a23afb89f1c3618315610ffdf9453e5c2f693d8985c388e7cf",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/planning_worker.py",
+      "source_sha256": "de939ddd97d837837cddfd4127399b7670a3449a76fdf2484695257819f2b725",
+      "migrated_sha256": "de939ddd97d837837cddfd4127399b7670a3449a76fdf2484695257819f2b725",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/robot_controller.py",
+      "source_sha256": "c53f429f7750537e2966485aa70b5e6b7694c0d71f05b6135dcb4eb815cadfd4",
+      "migrated_sha256": "c53f429f7750537e2966485aa70b5e6b7694c0d71f05b6135dcb4eb815cadfd4",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/safe_path_planner.py",
+      "source_sha256": "c9c28377a62fc9bfb8fd9247970f7a4d21d638324e90688493aa2e6b959250f0",
+      "migrated_sha256": "c9c28377a62fc9bfb8fd9247970f7a4d21d638324e90688493aa2e6b959250f0",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/segment_certificate.py",
+      "source_sha256": "0c003d3e2eafe078dab4f41e8768f240144800ddcc28c9eebdb4b538aede14e4",
+      "migrated_sha256": "0c003d3e2eafe078dab4f41e8768f240144800ddcc28c9eebdb4b538aede14e4",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/servo_response.py",
+      "source_sha256": "a9cba4c95f0707f6a8aa4193aa3e468327b76c2c5f4061223a75aaad2e3a73da",
+      "migrated_sha256": "a9cba4c95f0707f6a8aa4193aa3e468327b76c2c5f4061223a75aaad2e3a73da",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/state_evaluator.py",
+      "source_sha256": "2bfbf58de0b0944a4a0875f0ab30e30291646c5c819c37419ff11b50aaf89a0e",
+      "migrated_sha256": "2bfbf58de0b0944a4a0875f0ab30e30291646c5c819c37419ff11b50aaf89a0e",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/static_native_regions.py",
+      "source_sha256": "0c2bad9ed199710a5c1f0b5d432ccf5258038177ab9773dbee7fed489e9eab0f",
+      "migrated_sha256": "0c2bad9ed199710a5c1f0b5d432ccf5258038177ab9773dbee7fed489e9eab0f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/timed_descent.py",
+      "source_sha256": "8905ca892b90bd883c7fba0a30c2478500f6825d40710e6e705cc9c206f5d700",
+      "migrated_sha256": "8905ca892b90bd883c7fba0a30c2478500f6825d40710e6e705cc9c206f5d700",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/trajectory_splicing.py",
+      "source_sha256": "51ed1632f6f9010dd815ac10f71bc8be4b07ff88a610f9ee68f1409e953cd15a",
+      "migrated_sha256": "51ed1632f6f9010dd815ac10f71bc8be4b07ff88a610f9ee68f1409e953cd15a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/visual_acquisition.py",
+      "source_sha256": "5713df7c1e8d416d89d117417d0150e12f03a9821dc6c785616801f62290714a",
+      "migrated_sha256": "5713df7c1e8d416d89d117417d0150e12f03a9821dc6c785616801f62290714a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/controllers/warm_roadmap.py",
+      "source_sha256": "2c5badeabecd98b9da896fbb5432f56dae22774d4aef0bdd1c5ea70ad2d0e27f",
+      "migrated_sha256": "2c5badeabecd98b9da896fbb5432f56dae22774d4aef0bdd1c5ea70ad2d0e27f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/envs/__init__.py",
+      "source_sha256": "c70e23ac2a863c174521b733c9cd9f5111bcbf153c6ea3f2e04655f2c1e2976c",
+      "migrated_sha256": "c70e23ac2a863c174521b733c9cd9f5111bcbf153c6ea3f2e04655f2c1e2976c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/envs/conveyor_sorting_env.py",
+      "source_sha256": "ddb205deed137f36e71e8b3d34bfd1f493273307a2690466a476c49a08756385",
+      "migrated_sha256": "ddb205deed137f36e71e8b3d34bfd1f493273307a2690466a476c49a08756385",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/metrics.py",
+      "source_sha256": "d0ed60b7e0ad3c43bcf11aae39c80caae8935f8ebb22c512b9a4985ddc2d8421",
+      "migrated_sha256": "d0ed60b7e0ad3c43bcf11aae39c80caae8935f8ebb22c512b9a4985ddc2d8421",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/models/conveyor.xml",
+      "source_sha256": "adbef3dcd2606e5db8deedd019b4e013ef1de49412ab433b1e7ea0a6414ce598",
+      "migrated_sha256": "adbef3dcd2606e5db8deedd019b4e013ef1de49412ab433b1e7ea0a6414ce598",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/models/generic_robot.xml",
+      "source_sha256": "04168b165f0e62d5186ee9e6787f3870455cd3cc700bcf19966441979362ffd3",
+      "migrated_sha256": "04168b165f0e62d5186ee9e6787f3870455cd3cc700bcf19966441979362ffd3",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/models/objects.xml",
+      "source_sha256": "44c639c46eabab51911ee6a38a4dff9791c3e6a4e8e07c377615ec51a8684458",
+      "migrated_sha256": "44c639c46eabab51911ee6a38a4dff9791c3e6a4e8e07c377615ec51a8684458",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/models/objects_tless.xml",
+      "source_sha256": "a0747abb72889fe345f4fc218030cf167133c421bc2431dcefe346a3daaffaba",
+      "migrated_sha256": "a0747abb72889fe345f4fc218030cf167133c421bc2431dcefe346a3daaffaba",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/models/robot.xml",
+      "source_sha256": "6f33012d75b4f8f53500c9c210d0cea7a07d685e903263ab30e8c2e01a0183ab",
+      "migrated_sha256": "6f33012d75b4f8f53500c9c210d0cea7a07d685e903263ab30e8c2e01a0183ab",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/models/scene.xml",
+      "source_sha256": "182365f59c0d83f0a2ba8e1a7e36343157c1b5d9b2b85c892a46a39af7355139",
+      "migrated_sha256": "182365f59c0d83f0a2ba8e1a7e36343157c1b5d9b2b85c892a46a39af7355139",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/__init__.py",
+      "source_sha256": "77b8031c36d7c067f26c3331729da52acf01e97a9ae1e7e2cd6038c82b8c8447",
+      "migrated_sha256": "77b8031c36d7c067f26c3331729da52acf01e97a9ae1e7e2cd6038c82b8c8447",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/cad_matching.py",
+      "source_sha256": "08c25f5e0c01c788bc118db8a535d9064cf87db6fd9f70ee5550dfb98ee1dc9a",
+      "migrated_sha256": "08c25f5e0c01c788bc118db8a535d9064cf87db6fd9f70ee5550dfb98ee1dc9a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/cad_rendering.py",
+      "source_sha256": "884b119ca7438a0081e05e9215d1cfaf290809c69b46494c583c691f0767a27e",
+      "migrated_sha256": "884b119ca7438a0081e05e9215d1cfaf290809c69b46494c583c691f0767a27e",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/grasp_window.py",
+      "source_sha256": "dff95726abf794a9d5f72cd7b0f899c1ba48d34daca44ffc1e5ff7fd14e0df55",
+      "migrated_sha256": "dff95726abf794a9d5f72cd7b0f899c1ba48d34daca44ffc1e5ff7fd14e0df55",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/motion_predictor.py",
+      "source_sha256": "c2e16d6299dba4d2fa32375bf749b39a8955171d6d342d03e4dc029fa3c0004b",
+      "migrated_sha256": "c2e16d6299dba4d2fa32375bf749b39a8955171d6d342d03e4dc029fa3c0004b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/observation_buffer.py",
+      "source_sha256": "e9052f70c741db14a6ca24f547fe99239bd77d78c9137946da86d3ea8c8116bc",
+      "migrated_sha256": "e9052f70c741db14a6ca24f547fe99239bd77d78c9137946da86d3ea8c8116bc",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/rgbd_pose_provider.py",
+      "source_sha256": "f12f91e74e6cd6037cf424ea849893414d50e0335a8c6294da9c40a9c8343254",
+      "migrated_sha256": "f12f91e74e6cd6037cf424ea849893414d50e0335a8c6294da9c40a9c8343254",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/rgbd_vision_pipeline.py",
+      "source_sha256": "0a46c9fd318f40ca49d3721b906d7df8906c447f4d5146c267ba0a8f31ed6c75",
+      "migrated_sha256": "0a46c9fd318f40ca49d3721b906d7df8906c447f4d5146c267ba0a8f31ed6c75",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/perception/shape_similarity.py",
+      "source_sha256": "a14a1a9fa25610e715714cf54874ea53c23d7235db553df322489df3d51e791e",
+      "migrated_sha256": "a14a1a9fa25610e715714cf54874ea53c23d7235db553df322489df3d51e791e",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/recording/__init__.py",
+      "source_sha256": "effface0b7b7cb09096ddf07a227335eee32aff526bc2c608642ae83beaac14c",
+      "migrated_sha256": "effface0b7b7cb09096ddf07a227335eee32aff526bc2c608642ae83beaac14c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/recording/episode_recorder.py",
+      "source_sha256": "0bed82c87d66426e8707c747401cd10c7af4d4f3403f9f7c3e7ecba2a721bf40",
+      "migrated_sha256": "0bed82c87d66426e8707c747401cd10c7af4d4f3403f9f7c3e7ecba2a721bf40",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/recording/pi05_annotations.py",
+      "source_sha256": "7c589bb5971ee296c593e42492cbed33f7bc2b27d9b0fca586c8c419f2b1947c",
+      "migrated_sha256": "7c589bb5971ee296c593e42492cbed33f7bc2b27d9b0fca586c8c419f2b1947c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/__init__.py",
+      "source_sha256": "e0d8f19193ea7c2fa28f599210ce4d60a65baa42a19671634f961c7b35b9e2ad",
+      "migrated_sha256": "e0d8f19193ea7c2fa28f599210ce4d60a65baa42a19671634f961c7b35b9e2ad",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/_fast_stereo_worker.py",
+      "source_sha256": "4dda19ef998c8c4addce2ab4fa630ee628e7f4e5cf41160b9a99bd61a8b9d64e",
+      "migrated_sha256": "4dda19ef998c8c4addce2ab4fa630ee628e7f4e5cf41160b9a99bd61a8b9d64e",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/_gpu_scene_collision_kernel.py",
+      "source_sha256": "8abceeb889914e79a0144fe37d51143f4f9359a9ad24cd4bc077f881481df0fd",
+      "migrated_sha256": "8abceeb889914e79a0144fe37d51143f4f9359a9ad24cd4bc077f881481df0fd",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/_gpu_scene_collision_service.py",
+      "source_sha256": "be2f6af13b9d9ac12d5310eb081dd3d23c384fd5db3d12b27833fa9400a7044f",
+      "migrated_sha256": "be2f6af13b9d9ac12d5310eb081dd3d23c384fd5db3d12b27833fa9400a7044f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/_observed_convex_batch.c",
+      "source_sha256": "744f8f69fdb79fe609d03c163ff211ad1d3f319c0e2b9359bebf9ee22169812d",
+      "migrated_sha256": "744f8f69fdb79fe609d03c163ff211ad1d3f319c0e2b9359bebf9ee22169812d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/_official_capt.cc",
+      "source_sha256": "56c742bf0bf304e34712483ad8991df0e322db0eec2630a129628474acd83e90",
+      "migrated_sha256": "56c742bf0bf304e34712483ad8991df0e322db0eec2630a129628474acd83e90",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/_simd_broadphase.c",
+      "source_sha256": "2c8596351a2ea3ea203c1b6653bf470e968f337cc8298769bfe9bd8283b8ebf0",
+      "migrated_sha256": "2c8596351a2ea3ea203c1b6653bf470e968f337cc8298769bfe9bd8283b8ebf0",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/artifact_writer.py",
+      "source_sha256": "7146d8c4c741088bbd68b6a4a73679e5d2e1cfe5b36f33a8239e01489a750b6b",
+      "migrated_sha256": "7146d8c4c741088bbd68b6a4a73679e5d2e1cfe5b36f33a8239e01489a750b6b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/__init__.py",
+      "source_sha256": "26de0ceacdcf20037313242d1419fa500a43d31afa7985d5f4dfc25aebc3576c",
+      "migrated_sha256": "26de0ceacdcf20037313242d1419fa500a43d31afa7985d5f4dfc25aebc3576c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/camera_lease.py",
+      "source_sha256": "8c33e1d67b6b5d20ace8f0b796a5e5602522f954647a8f8d9efc02ee138a4dda",
+      "migrated_sha256": "8c33e1d67b6b5d20ace8f0b796a5e5602522f954647a8f8d9efc02ee138a4dda",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/dabai.py",
+      "source_sha256": "e4df80907d18a0717daeb737c8dcd241202483e30abd0f6f0c1c79536bb4bc29",
+      "migrated_sha256": "e4df80907d18a0717daeb737c8dcd241202483e30abd0f6f0c1c79536bb4bc29",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/dabai_uvc.py",
+      "source_sha256": "43e4cc89f5c53af6bac5309ecc52cf199c06935dc0a55f28d9371e47be6b1df0",
+      "migrated_sha256": "43e4cc89f5c53af6bac5309ecc52cf199c06935dc0a55f28d9371e47be6b1df0",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/fake.py",
+      "source_sha256": "d6b442dbf32caaea539c9ffd673c3e5a393912765cea8f521debb05b1f1fe384",
+      "migrated_sha256": "d6b442dbf32caaea539c9ffd673c3e5a393912765cea8f521debb05b1f1fe384",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/mujoco.py",
+      "source_sha256": "4e822fbb0e6421cda92bbac9a900bea0de2dd3d8839163cdf87d4aff77d6e0be",
+      "migrated_sha256": "4e822fbb0e6421cda92bbac9a900bea0de2dd3d8839163cdf87d4aff77d6e0be",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/orbbec.py",
+      "source_sha256": "cc4ffcbe605f5898a534e07845f858eaf74c5db88c91bcee30c0becc7dff6694",
+      "migrated_sha256": "cc4ffcbe605f5898a534e07845f858eaf74c5db88c91bcee30c0becc7dff6694",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/backends/orbbec_v1.py",
+      "source_sha256": "05a404e5bd93aa4813ddb62356868a7611cb8f11369ad983565eb395e41b85d8",
+      "migrated_sha256": "05a404e5bd93aa4813ddb62356868a7611cb8f11369ad983565eb395e41b85d8",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/belt_scene_config.py",
+      "source_sha256": "2a4e9e4033627c3594ed2ca60944e7fee959ccc61d969e471b8930b2f996eef7",
+      "migrated_sha256": "2a4e9e4033627c3594ed2ca60944e7fee959ccc61d969e471b8930b2f996eef7",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/belt_surface.py",
+      "source_sha256": "de3dfa713b81e994c8b8c577c7d0788be381de209cf7324013b9d08671f4663b",
+      "migrated_sha256": "de3dfa713b81e994c8b8c577c7d0788be381de209cf7324013b9d08671f4663b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/depth_calibration.py",
+      "source_sha256": "ba77525aecd73067c627f2f5c34569f46d5b40b9f79117e1f9fe967c9e6619d4",
+      "migrated_sha256": "ba77525aecd73067c627f2f5c34569f46d5b40b9f79117e1f9fe967c9e6619d4",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/depth_diagnostics.py",
+      "source_sha256": "82b501eb0abc73fa9233117c8c56403fc84133e079c57d43c644a86d6317d688",
+      "migrated_sha256": "82b501eb0abc73fa9233117c8c56403fc84133e079c57d43c644a86d6317d688",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/depth_shape.py",
+      "source_sha256": "d1a6eeb34eddb655214093f398f3fe5143e552235c99d80ee6ce1e66dbe38e9b",
+      "migrated_sha256": "d1a6eeb34eddb655214093f398f3fe5143e552235c99d80ee6ce1e66dbe38e9b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/execution_trace.py",
+      "source_sha256": "02ea2fb14738482a2a522fe961d59f44b20e9fb548899034bfdf0ba8987cd12f",
+      "migrated_sha256": "02ea2fb14738482a2a522fe961d59f44b20e9fb548899034bfdf0ba8987cd12f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/fast_stereo.py",
+      "source_sha256": "1cf630923e133f5db5dd21c3bb8f9824e74f5f957b527cb9f49b68c6e440011f",
+      "migrated_sha256": "1cf630923e133f5db5dd21c3bb8f9824e74f5f957b527cb9f49b68c6e440011f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/feedback_clock.py",
+      "source_sha256": "4f903a71572c125aa4d1ec4cdac827499a70ef959b658c695ac29fc6a4fc2d8f",
+      "migrated_sha256": "4f903a71572c125aa4d1ec4cdac827499a70ef959b658c695ac29fc6a4fc2d8f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/frame_products.py",
+      "source_sha256": "0aa36451151de5bf774118443d80edb628e20652ea90ed038ba2743a9eeff9ba",
+      "migrated_sha256": "0aa36451151de5bf774118443d80edb628e20652ea90ed038ba2743a9eeff9ba",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/full_plan_scene_monitor.py",
+      "source_sha256": "287bddcd87078eefaf497c3533b5a82207cd60c4a96e019f728d5e6e4689c2cb",
+      "migrated_sha256": "287bddcd87078eefaf497c3533b5a82207cd60c4a96e019f728d5e6e4689c2cb",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/full_policy_runner.py",
+      "source_sha256": "3ba27100d769089354f39dc27e2a8581bef420f5d9d974b2d9b65766866db213",
+      "migrated_sha256": "3ba27100d769089354f39dc27e2a8581bef420f5d9d974b2d9b65766866db213",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/gpu_scene_collision.py",
+      "source_sha256": "37f2d71d015c2b8f4b262df9a3f4cd86f3c1b83827ea37f94ccbbeb942ee65d8",
+      "migrated_sha256": "37f2d71d015c2b8f4b262df9a3f4cd86f3c1b83827ea37f94ccbbeb942ee65d8",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/grasp_depth.py",
+      "source_sha256": "3d31aca23c700d72f1df33659157e36661b949a5db96684f887d2b683d4fa86c",
+      "migrated_sha256": "3d31aca23c700d72f1df33659157e36661b949a5db96684f887d2b683d4fa86c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/grasp_pose_display.py",
+      "source_sha256": "0a2a47b94d416f12891ccd9fab81567a554aaf377f38ab3195bb7e943de8feee",
+      "migrated_sha256": "0a2a47b94d416f12891ccd9fab81567a554aaf377f38ab3195bb7e943de8feee",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/grasp_pose_preview.py",
+      "source_sha256": "7fc2f99a68eaba5d4e5b6f999fd81de10e0add302e28a46e1f9da4a6bec2e206",
+      "migrated_sha256": "7fc2f99a68eaba5d4e5b6f999fd81de10e0add302e28a46e1f9da4a6bec2e206",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/gripper_scene_ignore.py",
+      "source_sha256": "e549a047c1622e391f1b3197fc6be94d2da1d32660ef4dd0c49c57aff79f61a6",
+      "migrated_sha256": "e549a047c1622e391f1b3197fc6be94d2da1d32660ef4dd0c49c57aff79f61a6",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/high_joint_stream.py",
+      "source_sha256": "50b9f6376f508535eb84282f2ac89e5027c4574ad70c0a12640118b4b03db5a0",
+      "migrated_sha256": "50b9f6376f508535eb84282f2ac89e5027c4574ad70c0a12640118b4b03db5a0",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/interfaces.py",
+      "source_sha256": "2c04f479d33e963ec7760a3a6edd8dd1d84627b7f4bb0d2abe0c9c5b23488867",
+      "migrated_sha256": "2c04f479d33e963ec7760a3a6edd8dd1d84627b7f4bb0d2abe0c9c5b23488867",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/joint_stream_sender.py",
+      "source_sha256": "f327716dfc9e0c769046e25d298098c94a4d9f05e0f67122f81fc3df9d202975",
+      "migrated_sha256": "f327716dfc9e0c769046e25d298098c94a4d9f05e0f67122f81fc3df9d202975",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/motion_lease.py",
+      "source_sha256": "a3e5b1e693f5d9900f73951a0235b662c0561ce28a77bcb9f68228174c951fc9",
+      "migrated_sha256": "a3e5b1e693f5d9900f73951a0235b662c0561ce28a77bcb9f68228174c951fc9",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero7_belt_velocity.py",
+      "source_sha256": "5c7b8ab606f2da3dfe03b88305bc65b4a75d607114af7ff6f9b017a638ed2627",
+      "migrated_sha256": "5c7b8ab606f2da3dfe03b88305bc65b4a75d607114af7ff6f9b017a638ed2627",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero7_grasp_tracking.py",
+      "source_sha256": "38855f082e2f5abc37a7b2427165a471c5e084888198a7515da26cc781ac55e5",
+      "migrated_sha256": "38855f082e2f5abc37a7b2427165a471c5e084888198a7515da26cc781ac55e5",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero7_velocity_source.py",
+      "source_sha256": "9ad2c02fcd7d0725bc0fecf1ae9f8d78402919ca592c1786da8c770c6c69af7b",
+      "migrated_sha256": "9ad2c02fcd7d0725bc0fecf1ae9f8d78402919ca592c1786da8c770c6c69af7b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero_graspgenx.py",
+      "source_sha256": "7e6ea67c91a0b53cc08387dd9429346464d7ecbce7e0e164edf46e8649b634b7",
+      "migrated_sha256": "7e6ea67c91a0b53cc08387dd9429346464d7ecbce7e0e164edf46e8649b634b7",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero_moving_context.py",
+      "source_sha256": "fbdde25f098e7156244c2aef18e2693b694aab179bc0d33679a918313dd46609",
+      "migrated_sha256": "fbdde25f098e7156244c2aef18e2693b694aab179bc0d33679a918313dd46609",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero_moving_perception.py",
+      "source_sha256": "16c7160ae717527172f1258d3b4765eeea3a131ec52c128822253af4acbec765",
+      "migrated_sha256": "16c7160ae717527172f1258d3b4765eeea3a131ec52c128822253af4acbec765",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero_moving_source.py",
+      "source_sha256": "c13f05bb1590ce7c595e603b53ae4280d4ae1b7462121bb0c172f09efe7f4a8f",
+      "migrated_sha256": "c13f05bb1590ce7c595e603b53ae4280d4ae1b7462121bb0c172f09efe7f4a8f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero_pick_hardware.py",
+      "source_sha256": "94ea47d0d84f232544c9fe9839f3c2d4bd7fc9ab0892b8b5fa5867dea3d7a1b6",
+      "migrated_sha256": "94ea47d0d84f232544c9fe9839f3c2d4bd7fc9ab0892b8b5fa5867dea3d7a1b6",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/nero_policy_context.py",
+      "source_sha256": "b62d5bfbe068d54508bd89cf3b466a952c7bf0c0c823868fef1f3fc0ea03fe3b",
+      "migrated_sha256": "b62d5bfbe068d54508bd89cf3b466a952c7bf0c0c823868fef1f3fc0ea03fe3b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/observed_convex_batch.py",
+      "source_sha256": "c885336f2cecece37ca7def43f0aa6382d07d7790d75693b786f9b54e3286e0c",
+      "migrated_sha256": "c885336f2cecece37ca7def43f0aa6382d07d7790d75693b786f9b54e3286e0c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/official_capt.py",
+      "source_sha256": "2c274a3bc82073e1b64dec34b2226767a09a1ac408239b958d6c52c7a7741b8b",
+      "migrated_sha256": "2c274a3bc82073e1b64dec34b2226767a09a1ac408239b958d6c52c7a7741b8b",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/perception.py",
+      "source_sha256": "fac7f1617ad1957184af6f613523fc6855344706b0c676474a72f4542e64e896",
+      "migrated_sha256": "fac7f1617ad1957184af6f613523fc6855344706b0c676474a72f4542e64e896",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/pick_execution_evidence.py",
+      "source_sha256": "b1ab542d0c77c00e3e05d9d22ae767aba27813558963ab3bcf9ec6785f98f9eb",
+      "migrated_sha256": "b1ab542d0c77c00e3e05d9d22ae767aba27813558963ab3bcf9ec6785f98f9eb",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/pick_pause.py",
+      "source_sha256": "54a94a457b39603861d7be82b71ce99279f6f57d67c569ddac90e2bbd66a85b7",
+      "migrated_sha256": "54a94a457b39603861d7be82b71ce99279f6f57d67c569ddac90e2bbd66a85b7",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/pick_timing_analysis.py",
+      "source_sha256": "5e35d2d3c4c04b798792bf101c6724801029c93482b0248c9205792f090a64c3",
+      "migrated_sha256": "5e35d2d3c4c04b798792bf101c6724801029c93482b0248c9205792f090a64c3",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/platform.py",
+      "source_sha256": "ea4f040c1fd29c6a6236d18495ee6da1c7e686b174067797d79edb8c8da01c0c",
+      "migrated_sha256": "ea4f040c1fd29c6a6236d18495ee6da1c7e686b174067797d79edb8c8da01c0c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/run_progress.py",
+      "source_sha256": "bcf038995ef9ecfdedc0a78650eaa32b879c66ace17cd374b2e36034950bfa24",
+      "migrated_sha256": "bcf038995ef9ecfdedc0a78650eaa32b879c66ace17cd374b2e36034950bfa24",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/safety.py",
+      "source_sha256": "11572dda4acedc1f849043357cc3905f2c2172ce6b646bf7013252b87de50c9f",
+      "migrated_sha256": "11572dda4acedc1f849043357cc3905f2c2172ce6b646bf7013252b87de50c9f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_background_filter.py",
+      "source_sha256": "cb82c11c42557cef13d5091f18fd7fcf4f1b0469794df26ac11281a99ec98833",
+      "migrated_sha256": "cb82c11c42557cef13d5091f18fd7fcf4f1b0469794df26ac11281a99ec98833",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_depth_filter.py",
+      "source_sha256": "88c725a6942c8c812af86f2c17419505ccf034e04e7d60d9891d6f8d58e02c2e",
+      "migrated_sha256": "88c725a6942c8c812af86f2c17419505ccf034e04e7d60d9891d6f8d58e02c2e",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_filter_evidence.py",
+      "source_sha256": "edf020b5973784fa2e865cd4ce29205e57ce3c36a44f7daa1e39b46bba2bedac",
+      "migrated_sha256": "edf020b5973784fa2e865cd4ce29205e57ce3c36a44f7daa1e39b46bba2bedac",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_noise_filter.py",
+      "source_sha256": "cddea89e3b1e7ceb8dfcacc233f0f754b93256c43692647b7c08a385250b5ef5",
+      "migrated_sha256": "cddea89e3b1e7ceb8dfcacc233f0f754b93256c43692647b7c08a385250b5ef5",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_region_filter.py",
+      "source_sha256": "6d6b0d8d97d61c0479d5b83587b40e7374b3589124935587ee01962e9f475d9f",
+      "migrated_sha256": "6d6b0d8d97d61c0479d5b83587b40e7374b3589124935587ee01962e9f475d9f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_saturation_filter.py",
+      "source_sha256": "e7a636ef11a43c55d2ec411dc7f13560c0d07b4a447f8047d814c120fabeed46",
+      "migrated_sha256": "e7a636ef11a43c55d2ec411dc7f13560c0d07b4a447f8047d814c120fabeed46",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_stereo_filter.py",
+      "source_sha256": "eb6ee07d8441c59f1bf0eca03a26e4dc6a65b68ba2241ed5f6ab413d86bcc627",
+      "migrated_sha256": "eb6ee07d8441c59f1bf0eca03a26e4dc6a65b68ba2241ed5f6ab413d86bcc627",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/scene_workspace.py",
+      "source_sha256": "35e4574e9ed1b47756b0ceca5b0e72a0d699b8d320ee4afbd292a49e2a8f0718",
+      "migrated_sha256": "35e4574e9ed1b47756b0ceca5b0e72a0d699b8d320ee4afbd292a49e2a8f0718",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/self_filter.py",
+      "source_sha256": "e79c94d906d7c065e6dd99b8baaa39d7b116400cf399ba87e3df94aa67d353f0",
+      "migrated_sha256": "e79c94d906d7c065e6dd99b8baaa39d7b116400cf399ba87e3df94aa67d353f0",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/self_filter_diagnostics.py",
+      "source_sha256": "c4c5347d139ba3cfbd64c14cef8cf81b21df441b9b372c40c9b20bd130d6b35d",
+      "migrated_sha256": "c4c5347d139ba3cfbd64c14cef8cf81b21df441b9b372c40c9b20bd130d6b35d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/shape_pick.py",
+      "source_sha256": "a40fc0ceb4c4b334e3e8bcf81ad3909c6aa8a1d3c4ea26e4bf3d1fb55f03014d",
+      "migrated_sha256": "a40fc0ceb4c4b334e3e8bcf81ad3909c6aa8a1d3c4ea26e4bf3d1fb55f03014d",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/simd_broadphase.py",
+      "source_sha256": "45924e52908fd5881ef7d7b1c89b157813f38a17af032e6eecf48534ea4ca5ad",
+      "migrated_sha256": "45924e52908fd5881ef7d7b1c89b157813f38a17af032e6eecf48534ea4ca5ad",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/single_pick.py",
+      "source_sha256": "a6eccfe4c333718df324be16e50fe6356be3faa5a61249731a31ed72ded3beba",
+      "migrated_sha256": "a6eccfe4c333718df324be16e50fe6356be3faa5a61249731a31ed72ded3beba",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/types.py",
+      "source_sha256": "d4fb9220914973365c89b15fd978dd73203609c39129d9ecdddc432321a77d9f",
+      "migrated_sha256": "d4fb9220914973365c89b15fd978dd73203609c39129d9ecdddc432321a77d9f",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/runtime/visible_target.py",
+      "source_sha256": "278cc3cadd6a1d2f4043086522ff4069b4316524816a543bbc1f4561d9297c1a",
+      "migrated_sha256": "278cc3cadd6a1d2f4043086522ff4069b4316524816a543bbc1f4561d9297c1a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/tasks/__init__.py",
+      "source_sha256": "155b6b1bcf7e0126795f7a8309191055dc7f8f437f54a034a56a6786f9f89797",
+      "migrated_sha256": "155b6b1bcf7e0126795f7a8309191055dc7f8f437f54a034a56a6786f9f89797",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/tasks/object_manager.py",
+      "source_sha256": "9e59155f3f0782c7c1f73e75125db2cc2b570a3f2ab7a86f0ad6fda0d8dfdde2",
+      "migrated_sha256": "9e59155f3f0782c7c1f73e75125db2cc2b570a3f2ab7a86f0ad6fda0d8dfdde2",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/tasks/object_spawner.py",
+      "source_sha256": "a27a152d8ebe79ea5897eae54bc328bcd943e05ae4ce9b9e3d4c5cdc7123d1ec",
+      "migrated_sha256": "a27a152d8ebe79ea5897eae54bc328bcd943e05ae4ce9b9e3d4c5cdc7123d1ec",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/tasks/object_spec.py",
+      "source_sha256": "11affc79c71e061ca2d8fbde1e2c7e7373a8770e31e8289c807160cb30c9957c",
+      "migrated_sha256": "11affc79c71e061ca2d8fbde1e2c7e7373a8770e31e8289c807160cb30c9957c",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/tasks/sorting_task.py",
+      "source_sha256": "36a267553848d75c1ed246e5bc32fe830c596c309c0207af4f4b9ed0f912bd8a",
+      "migrated_sha256": "36a267553848d75c1ed246e5bc32fe830c596c309c0207af4f4b9ed0f912bd8a",
+      "same": true
+    },
+    {
+      "path": "mujoco_conveyor_sorting/tasks/task_config.py",
+      "source_sha256": "6497c6761e02712ca1c6a628457b7ad4bca467ee104b6acc557aeb5751b5d961",
+      "migrated_sha256": "6497c6761e02712ca1c6a628457b7ad4bca467ee104b6acc557aeb5751b5d961",
+      "same": true
+    },
+    {
+      "path": "configs/hardware_perception.example.yaml",
+      "source_sha256": "570e9fc66d45633ec580d6523b594683ae1630b3e4a8d8e7e52843cf4bd3607a",
+      "migrated_sha256": "570e9fc66d45633ec580d6523b594683ae1630b3e4a8d8e7e52843cf4bd3607a",
+      "same": true
+    },
+    {
+      "path": "configs/pick_belt_scene.yaml",
+      "source_sha256": "378cd6b1780fd06889aeb36dfb29b7b5c64f04e847500167e972d08277434528",
+      "migrated_sha256": "378cd6b1780fd06889aeb36dfb29b7b5c64f04e847500167e972d08277434528",
+      "same": true
+    },
+    {
+      "path": "configs/pick_scene_noise_filter.yaml",
+      "source_sha256": "6ab58c76610e783292a0e6b89f811d44e49f880bc6a356267b104ca0bcd7f8a6",
+      "migrated_sha256": "6ab58c76610e783292a0e6b89f811d44e49f880bc6a356267b104ca0bcd7f8a6",
+      "same": true
+    },
+    {
+      "path": "configs/pick_self_filter.yaml",
+      "source_sha256": "60319dcae2acddef14e37bcccc2775c9cb01ba86b4f265ccad7501f33bd8fded",
+      "migrated_sha256": "60319dcae2acddef14e37bcccc2775c9cb01ba86b4f265ccad7501f33bd8fded",
+      "same": true
+    },
+    {
+      "path": "configs/scene_background_reference.json",
+      "source_sha256": "593a5faee5afae717035454b875e9457d523f332db27400ceceedb98585974f4",
+      "migrated_sha256": "593a5faee5afae717035454b875e9457d523f332db27400ceceedb98585974f4",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/NOTICE.md",
+      "source_sha256": "4fdb37ba3499a537f77954551218683dc4756fd0bcc72ca50312fdafa6869224",
+      "migrated_sha256": "4fdb37ba3499a537f77954551218683dc4756fd0bcc72ca50312fdafa6869224",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/__init__.py",
+      "source_sha256": "580ac417da05641657a0e5db505f2cb67ed1a38ff88bc8c01b6590e1c91c1ae6",
+      "migrated_sha256": "580ac417da05641657a0e5db505f2cb67ed1a38ff88bc8c01b6590e1c91c1ae6",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/block_tracker.py",
+      "source_sha256": "b39ba43970bd3a6bdd9181dbb278b9d6c4e1a18adccc100a89ef92dab225396d",
+      "migrated_sha256": "b39ba43970bd3a6bdd9181dbb278b9d6c4e1a18adccc100a89ef92dab225396d",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/conveyor_model.py",
+      "source_sha256": "e4130eb707711364b7b0b1391563cb1348b11443c493702a0015809c1afe2b81",
+      "migrated_sha256": "e4130eb707711364b7b0b1391563cb1348b11443c493702a0015809c1afe2b81",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/detection.py",
+      "source_sha256": "bbd3a0a1f1260125216f1e545846e2302b8c824ef20123dbb591651907ef9e52",
+      "migrated_sha256": "bbd3a0a1f1260125216f1e545846e2302b8c824ef20123dbb591651907ef9e52",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/geometry.py",
+      "source_sha256": "72aa3c542a86045d5a7ee54ec35a0eb7a5e0572f1808250e10e415b567303c25",
+      "migrated_sha256": "72aa3c542a86045d5a7ee54ec35a0eb7a5e0572f1808250e10e415b567303c25",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/kalman_motion.py",
+      "source_sha256": "b87b5934b6b02325350ece0ee0c053adcb1b7c49dba4925050058e72a8843f03",
+      "migrated_sha256": "b87b5934b6b02325350ece0ee0c053adcb1b7c49dba4925050058e72a8843f03",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/projection.py",
+      "source_sha256": "d6dc3897fbc9417ed2ca0848b9e07914eccc8b0b8e76190799c6f4784470239f",
+      "migrated_sha256": "d6dc3897fbc9417ed2ca0848b9e07914eccc8b0b8e76190799c6f4784470239f",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/nero7_perception/speed_overlay.py",
+      "source_sha256": "99d565483c1ae67f130eb8bd86a21f4843eb1f4a17766e9e722c756fd4f3db16",
+      "migrated_sha256": "99d565483c1ae67f130eb8bd86a21f4843eb1f4a17766e9e722c756fd4f3db16",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/source_manifest.json",
+      "source_sha256": "93f7a20b10d374579c5e73f91837dae0f66e747006e2a05f9aac59aab65910af",
+      "migrated_sha256": "93f7a20b10d374579c5e73f91837dae0f66e747006e2a05f9aac59aab65910af",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/test/test_kalman_motion.py",
+      "source_sha256": "95d2d88d19be271bbcfeb532b6972cfd4a90a3b2a7477e5d38d7d07a40e902c4",
+      "migrated_sha256": "95d2d88d19be271bbcfeb532b6972cfd4a90a3b2a7477e5d38d7d07a40e902c4",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/test/test_speed_overlay.py",
+      "source_sha256": "4601ff05420e7be6ceef82fb946f38131efa9054711100de3676bdbdfd921234",
+      "migrated_sha256": "4601ff05420e7be6ceef82fb946f38131efa9054711100de3676bdbdfd921234",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/test/test_visual_speed.py",
+      "source_sha256": "943a20ff277668822b826da80f4bbca33a2fde1bb00a401335909795066c3ece",
+      "migrated_sha256": "943a20ff277668822b826da80f4bbca33a2fde1bb00a401335909795066c3ece",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/upstream_alignment.py",
+      "source_sha256": "181e5ccd224ae37e561f7b9b4df35c055e7d4d674d9761ff263fe38a838ec72c",
+      "migrated_sha256": "181e5ccd224ae37e561f7b9b4df35c055e7d4d674d9761ff263fe38a838ec72c",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/upstream_belt.yaml",
+      "source_sha256": "8169023ab7728add1704982a0390aed6c5ce7dc79f59dffe8acbdc8ee83aa328",
+      "migrated_sha256": "8169023ab7728add1704982a0390aed6c5ce7dc79f59dffe8acbdc8ee83aa328",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/upstream_block_detector.py",
+      "source_sha256": "6a0c25cc2e9e4c887ed59bf156070cbf7c3c52ce2162c3fe2a81110ceb770bea",
+      "migrated_sha256": "6a0c25cc2e9e4c887ed59bf156070cbf7c3c52ce2162c3fe2a81110ceb770bea",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/upstream_perception.yaml",
+      "source_sha256": "cf3501b52427270901f552611eb70c6608fe7ef0a6bce582cc10040ee897ea93",
+      "migrated_sha256": "cf3501b52427270901f552611eb70c6608fe7ef0a6bce582cc10040ee897ea93",
+      "same": true
+    },
+    {
+      "path": "vendor/nero7_speed_reference/upstream_setup.py",
+      "source_sha256": "ec781923576bd5a9bff68f516c66c06c0f6741e7eec47c9c39d4fcc42961b80d",
+      "migrated_sha256": "ec781923576bd5a9bff68f516c66c06c0f6741e7eec47c9c39d4fcc42961b80d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/LICENSE",
+      "source_sha256": "ea8af5e789cb2d4e9b10bce3874982ade163b749b6bfbdb32e2df21c4d106de1",
+      "migrated_sha256": "ea8af5e789cb2d4e9b10bce3874982ade163b749b6bfbdb32e2df21c4d106de1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/MANIFEST.in",
+      "source_sha256": "a1981e39fc1b555db391143319c745ee4ad82d51ba372a1c9a5617e52fc21e93",
+      "migrated_sha256": "a1981e39fc1b555db391143319c745ee4ad82d51ba372a1c9a5617e52fc21e93",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/README.md",
+      "source_sha256": "acf6bfcf438a8369c004a99cd02a0f12fddd7f57067dc21b9a6e8f8c4953fa6d",
+      "migrated_sha256": "acf6bfcf438a8369c004a99cd02a0f12fddd7f57067dc21b9a6e8f8c4953fa6d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/docs/can_user.md",
+      "source_sha256": "92241bd79855e44dfc6da962298574ae46dd52d4aef7a614cb4edbde54945951",
+      "migrated_sha256": "92241bd79855e44dfc6da962298574ae46dd52d4aef7a614cb4edbde54945951",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/docs/effector/agx_gripper/agx_gripper_api.md",
+      "source_sha256": "0470cc798bc8a1314418d79a9fae1e5d9398ba41a045df81cf89cb5d2de62fb2",
+      "migrated_sha256": "0470cc798bc8a1314418d79a9fae1e5d9398ba41a045df81cf89cb5d2de62fb2",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/docs/nero/firmware_reference.md",
+      "source_sha256": "f54797b6d2e7f5f7efdf40f19eca66b2ef98843293d97d3b6140852c78c615ea",
+      "migrated_sha256": "f54797b6d2e7f5f7efdf40f19eca66b2ef98843293d97d3b6140852c78c615ea",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/docs/nero/first_time_user_guide_can.md",
+      "source_sha256": "645252b13379a6b7aebf5d13f13974d24ba6a75f65648bc5e9be48d307df95df",
+      "migrated_sha256": "645252b13379a6b7aebf5d13f13974d24ba6a75f65648bc5e9be48d307df95df",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/docs/nero/nero_api.md",
+      "source_sha256": "df30ebc390aac9763bb5f6d1e09be44a7e3f90419cd7eeb91f190f6eefdb8438",
+      "migrated_sha256": "df30ebc390aac9763bb5f6d1e09be44a7e3f90419cd7eeb91f190f6eefdb8438",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/__init__.py",
+      "source_sha256": "6c922a14bfc09530458385c8edce9426486e84f03d04b619b8e480afa3e2e241",
+      "migrated_sha256": "6c922a14bfc09530458385c8edce9426486e84f03d04b619b8e480afa3e2e241",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/__init__.pyi",
+      "source_sha256": "b828c5e330365b649b81398407fb2bb80440588be4b528882ac2bed8e952ba17",
+      "migrated_sha256": "b828c5e330365b649b81398407fb2bb80440588be4b528882ac2bed8e952ba17",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/__init__.py",
+      "source_sha256": "fd5fe37aa63f3aa7cfacccd4438f1c5a54556df9954929b883831c6edf470164",
+      "migrated_sha256": "fd5fe37aa63f3aa7cfacccd4438f1c5a54556df9954929b883831c6edf470164",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/__init__.pyi",
+      "source_sha256": "4e3765f7a28c06e39865cdd3bac3db02b76cccbfbf8a28f6d896936cd0f461b1",
+      "migrated_sha256": "4e3765f7a28c06e39865cdd3bac3db02b76cccbfbf8a28f6d896936cd0f461b1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/agx_arm_factory.py",
+      "source_sha256": "58b6aefbb61513d70ec16a7e8ebd6991fec02cf239155e1b48ca992ebf3f5287",
+      "migrated_sha256": "58b6aefbb61513d70ec16a7e8ebd6991fec02cf239155e1b48ca992ebf3f5287",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/agx_arm_factory.pyi",
+      "source_sha256": "bdfda6f9c202e774f81dc1a0daafb3a9ee3128ea80cecd10c820593df498d4fa",
+      "migrated_sha256": "bdfda6f9c202e774f81dc1a0daafb3a9ee3128ea80cecd10c820593df498d4fa",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/arm_options.py",
+      "source_sha256": "5e46f7ee3462e6a749b5ce5f1e4e6a1434701f4a36b6d45146bf396996496427",
+      "migrated_sha256": "5e46f7ee3462e6a749b5ce5f1e4e6a1434701f4a36b6d45146bf396996496427",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/constants.py",
+      "source_sha256": "b72cd2a0e7499483e1313acf0e98781510cb151de592c3fe1291df712ab23c5b",
+      "migrated_sha256": "b72cd2a0e7499483e1313acf0e98781510cb151de592c3fe1291df712ab23c5b",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/firmware.py",
+      "source_sha256": "f33a450bcf801e4ec4247b5cfd565a20cb31eade575d2d8bc7cf5c88676c3014",
+      "migrated_sha256": "f33a450bcf801e4ec4247b5cfd565a20cb31eade575d2d8bc7cf5c88676c3014",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/api/firmware.pyi",
+      "source_sha256": "66bb20d7ddfcbb5e1b48f73ee275d65212828dd6be7ecf18161b63cca24a9dfc",
+      "migrated_sha256": "66bb20d7ddfcbb5e1b48f73ee275d65212828dd6be7ecf18161b63cca24a9dfc",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/extensions/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/__init__.py",
+      "source_sha256": "e19f1d3cda4a47c679b32ca7672b14f667904292137fd01de436e4e98749e187",
+      "migrated_sha256": "e19f1d3cda4a47c679b32ca7672b14f667904292137fd01de436e4e98749e187",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/can20_canfd.py",
+      "source_sha256": "3ce3551f27c4a34b3dbcec1f995f70c9bb26cd1292137e6363be29bc4bc8638d",
+      "migrated_sha256": "3ce3551f27c4a34b3dbcec1f995f70c9bb26cd1292137e6363be29bc4bc8638d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/can_comm.py",
+      "source_sha256": "22ed5541b48205f83b7724f201a86998ab512018214e8dd6d0c98fcdea7ad879",
+      "migrated_sha256": "22ed5541b48205f83b7724f201a86998ab512018214e8dd6d0c98fcdea7ad879",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/can_sys_utils/__init__.py",
+      "source_sha256": "e395469176ad0ac95124c3ffbc08c2a63a79e8773862d70e80f4ecb5b1e36afa",
+      "migrated_sha256": "e395469176ad0ac95124c3ffbc08c2a63a79e8773862d70e80f4ecb5b1e36afa",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/can_sys_utils/base_util.py",
+      "source_sha256": "f3d26fa6dc2b6a23abd77e63aa1822a9c71716311c57770fc0a0a447423fdfab",
+      "migrated_sha256": "f3d26fa6dc2b6a23abd77e63aa1822a9c71716311c57770fc0a0a447423fdfab",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/can_sys_utils/linux_util.py",
+      "source_sha256": "3a142e9604143a858c58f6fe34c41948673f4c9588e8cea8e615f84bf9b5ce08",
+      "migrated_sha256": "3a142e9604143a858c58f6fe34c41948673f4c9588e8cea8e615f84bf9b5ce08",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/comm_factory.py",
+      "source_sha256": "bbd02ce90dec12ad4e5b6c37c30b43882c9d10d06f7d79249447947dd3defd5e",
+      "migrated_sha256": "bbd02ce90dec12ad4e5b6c37c30b43882c9d10d06f7d79249447947dd3defd5e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/comm_factory.pyi",
+      "source_sha256": "1e1dcc6a9254825474e42aa1edf96f5d7b040815e2cfbb081c297619aa09258e",
+      "migrated_sha256": "1e1dcc6a9254825474e42aa1edf96f5d7b040815e2cfbb081c297619aa09258e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/core/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/core/can_comm_base.py",
+      "source_sha256": "05c671b94b3ce770355251b44a971b43a907c115386c17ec9544ea0cf63ca117",
+      "migrated_sha256": "05c671b94b3ce770355251b44a971b43a907c115386c17ec9544ea0cf63ca117",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/core/comm_abstract.py",
+      "source_sha256": "f82bee8e93837dc99e02360d28e800f2b8034e97a25402594b82ab6746e6e7e6",
+      "migrated_sha256": "f82bee8e93837dc99e02360d28e800f2b8034e97a25402594b82ab6746e6e7e6",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/comms/core/comm_interface.py",
+      "source_sha256": "fa022b773917459b9b23dd4021e565730ba583a34e6ce6dda92538596d967e96",
+      "migrated_sha256": "fa022b773917459b9b23dd4021e565730ba583a34e6ce6dda92538596d967e96",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/__init__.py",
+      "source_sha256": "84471430193a3d1a781f9e069004fdc417f1ad46fb274fdcf3e085cfac58ffd2",
+      "migrated_sha256": "84471430193a3d1a781f9e069004fdc417f1ad46fb274fdcf3e085cfac58ffd2",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/__init__.py",
+      "source_sha256": "223455ad81b7c110a480de362c2ed5522a1a460cb85ac72d85f36af6a13bbd41",
+      "migrated_sha256": "223455ad81b7c110a480de362c2ed5522a1a460cb85ac72d85f36af6a13bbd41",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/arm_driver_abstract.py",
+      "source_sha256": "9eeaa3e36cad1952d76a3ef21f6d5d202f217b5cb1d026e5afc6e4e07d8685cf",
+      "migrated_sha256": "9eeaa3e36cad1952d76a3ef21f6d5d202f217b5cb1d026e5afc6e4e07d8685cf",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/arm_driver_context.py",
+      "source_sha256": "5c97374df0ddcacccc8b9585fea63a0d9b4e7ac2f36d2243dc58e321607dd73e",
+      "migrated_sha256": "5c97374df0ddcacccc8b9585fea63a0d9b4e7ac2f36d2243dc58e321607dd73e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/arm_driver_interface.py",
+      "source_sha256": "b1f0c82f8161bcdcac8d1141a7917e5fcc86c6e44df1bca18dfe120b5cd8c2ce",
+      "migrated_sha256": "b1f0c82f8161bcdcac8d1141a7917e5fcc86c6e44df1bca18dfe120b5cd8c2ce",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/driver_context.py",
+      "source_sha256": "b44c271c1684e0f32e0fa2c54efeb4495449a0e829dd647344bd478092437d30",
+      "migrated_sha256": "b44c271c1684e0f32e0fa2c54efeb4495449a0e829dd647344bd478092437d30",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/effector_driver_context.py",
+      "source_sha256": "e6938b86c67e00dcc69fa305af636f0b2c09628f9b148f7d912ef9e2599a9044",
+      "migrated_sha256": "e6938b86c67e00dcc69fa305af636f0b2c09628f9b148f7d912ef9e2599a9044",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/protocol_parser_abstract.py",
+      "source_sha256": "205452f9f4dbbc7165092ba932fac379852bd253de639cb9bec1a3d1874e5aed",
+      "migrated_sha256": "205452f9f4dbbc7165092ba932fac379852bd253de639cb9bec1a3d1874e5aed",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/protocol_parser_interface.py",
+      "source_sha256": "5a33fb83071c226aa575c2dc2a08139999a08c94657440303f5ba9d3e7570445",
+      "migrated_sha256": "5a33fb83071c226aa575c2dc2a08139999a08c94657440303f5ba9d3e7570445",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/submodel_driver_context_abstract.py",
+      "source_sha256": "11a73bf20d0d980487ddb98e6afa4e4b65b6859be6bccc740d32509660513ba9",
+      "migrated_sha256": "11a73bf20d0d980487ddb98e6afa4e4b65b6859be6bccc740d32509660513ba9",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/submodel_driver_context_interface.py",
+      "source_sha256": "695607202a44702a631852589f39e7717cddaa410bc620198dc062564bd27479",
+      "migrated_sha256": "695607202a44702a631852589f39e7717cddaa410bc620198dc062564bd27479",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/core/table_driven.py",
+      "source_sha256": "40e6b46e2dc5e021e935cbb2e373a020f7fda0a52ebae7cb282104a1157b9893",
+      "migrated_sha256": "40e6b46e2dc5e021e935cbb2e373a020f7fda0a52ebae7cb282104a1157b9893",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/__init__.py",
+      "source_sha256": "b5fecef5ead9d7a553a6bb495abe9423d00020461a5421ae79f3525552dc5ff7",
+      "migrated_sha256": "b5fecef5ead9d7a553a6bb495abe9423d00020461a5421ae79f3525552dc5ff7",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/agx_gripper/__init__.py",
+      "source_sha256": "519d89d2b2e844c327837bfa404d74a0735173e49d050f125ed90ec36674d6ac",
+      "migrated_sha256": "519d89d2b2e844c327837bfa404d74a0735173e49d050f125ed90ec36674d6ac",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/agx_gripper/default/__init__.py",
+      "source_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "migrated_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/agx_gripper/default/driver.py",
+      "source_sha256": "8753761fd4d2a7a940b61262f0cca1bf53ce47ef06f1a2733860f7d5fa5916a8",
+      "migrated_sha256": "8753761fd4d2a7a940b61262f0cca1bf53ce47ef06f1a2733860f7d5fa5916a8",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/agx_gripper/default/parser.py",
+      "source_sha256": "34ff0be7ae0e315b4163331d32a608be8979db0576cdb0db86d6a3b6f84885a1",
+      "migrated_sha256": "34ff0be7ae0e315b4163331d32a608be8979db0576cdb0db86d6a3b6f84885a1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2/__init__.py",
+      "source_sha256": "a6f6276578bc8c7eb2fbd79e79b0e5bf76c227a15357a86e0406984a45155234",
+      "migrated_sha256": "a6f6276578bc8c7eb2fbd79e79b0e5bf76c227a15357a86e0406984a45155234",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2/default/__init__.py",
+      "source_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "migrated_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2/default/driver.py",
+      "source_sha256": "b22cb147e96b41be31c9dfe8b38730a54d825a94043af00dad0e639e07f04b3a",
+      "migrated_sha256": "b22cb147e96b41be31c9dfe8b38730a54d825a94043af00dad0e639e07f04b3a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2/default/parser.py",
+      "source_sha256": "b617af53213d5a95d2eaaff69646c9fe9f9166a4c57dab9cc968138a7bae8bc1",
+      "migrated_sha256": "b617af53213d5a95d2eaaff69646c9fe9f9166a4c57dab9cc968138a7bae8bc1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_pro/__init__.py",
+      "source_sha256": "3289bcc899c81102f2e6cb1eddd830e109444e35de37ce98e7f9d56e358f2115",
+      "migrated_sha256": "3289bcc899c81102f2e6cb1eddd830e109444e35de37ce98e7f9d56e358f2115",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_pro/default/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_pro/default/driver.py",
+      "source_sha256": "91af17099d1456305dc962d1a4b9c2327e41c1648c969b43925ba2df0ea20185",
+      "migrated_sha256": "91af17099d1456305dc962d1a4b9c2327e41c1648c969b43925ba2df0ea20185",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_pro/default/libstark_bridge.py",
+      "source_sha256": "e7c62109a2ebcc005c46d292fbe2aa13be046bcc81e35d666fc124ade4ef5483",
+      "migrated_sha256": "e7c62109a2ebcc005c46d292fbe2aa13be046bcc81e35d666fc124ade4ef5483",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_touch/__init__.py",
+      "source_sha256": "5578dd04af8fe2baf61b05bf3d72b348cd64548d0395fae9a9f4d05e860773de",
+      "migrated_sha256": "5578dd04af8fe2baf61b05bf3d72b348cd64548d0395fae9a9f4d05e860773de",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_touch/default/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/effector/revo2_touch/default/driver.py",
+      "source_sha256": "3c637db6bff54aff468823d61013d6ea983aa182f6eea160846144edc620eb64",
+      "migrated_sha256": "3c637db6bff54aff468823d61013d6ea983aa182f6eea160846144edc620eb64",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/__init__.py",
+      "source_sha256": "64b9606e3b125e7325b3e272b43772a88c85b9ec9a0e8a0289ed59317e136878",
+      "migrated_sha256": "64b9606e3b125e7325b3e272b43772a88c85b9ec9a0e8a0289ed59317e136878",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/default/__init__.py",
+      "source_sha256": "c7049775ada2f351fd1545cb345980f9805541daa2433509bc655eeab8d87fe7",
+      "migrated_sha256": "c7049775ada2f351fd1545cb345980f9805541daa2433509bc655eeab8d87fe7",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/default/driver.py",
+      "source_sha256": "67f4a60cdf4cbed685238483bbebc5d9317a785e67bb096d0bd232f5b080d472",
+      "migrated_sha256": "67f4a60cdf4cbed685238483bbebc5d9317a785e67bb096d0bd232f5b080d472",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/default/parser.py",
+      "source_sha256": "53d4a6ee0f08ef07d873246c30c00a7ee8a84836f351bf2881ce8723b9c260fd",
+      "migrated_sha256": "53d4a6ee0f08ef07d873246c30c00a7ee8a84836f351bf2881ce8723b9c260fd",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/driver_load.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v111/__init__.py",
+      "source_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "migrated_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v111/driver.py",
+      "source_sha256": "b015647c6e7d1d5fba7ae463172a6f48054fe0554544d31272b8278bf53694bb",
+      "migrated_sha256": "b015647c6e7d1d5fba7ae463172a6f48054fe0554544d31272b8278bf53694bb",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v111/parser.py",
+      "source_sha256": "b1c6e5e1f23e55bece80c9a07a16a5bf0b69846d383b07c96aa20f58d6691ded",
+      "migrated_sha256": "b1c6e5e1f23e55bece80c9a07a16a5bf0b69846d383b07c96aa20f58d6691ded",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v112/__init__.py",
+      "source_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "migrated_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v112/driver.py",
+      "source_sha256": "a75737d31190b6059fa13ffda55f25c5a68caa3d994b1e5ad7f3452c21fe6a6b",
+      "migrated_sha256": "a75737d31190b6059fa13ffda55f25c5a68caa3d994b1e5ad7f3452c21fe6a6b",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v112/parser.py",
+      "source_sha256": "bb01337cd242842e266b516222916cdf7483c4a3069a6c5f74c2bec8973ea5ca",
+      "migrated_sha256": "bb01337cd242842e266b516222916cdf7483c4a3069a6c5f74c2bec8973ea5ca",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v120/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v120/driver.py",
+      "source_sha256": "3d7906c2ee5285163ac01787a3b065e0453aba79b1894b2ef11823dda655e0b6",
+      "migrated_sha256": "3d7906c2ee5285163ac01787a3b065e0453aba79b1894b2ef11823dda655e0b6",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v121/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/v121/driver.py",
+      "source_sha256": "4eabb4432e20d2de7736d9286d7a19f75a0bcc3417f70ee32e7688b5544b6d10",
+      "migrated_sha256": "4eabb4432e20d2de7736d9286d7a19f75a0bcc3417f70ee32e7688b5544b6d10",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/nero/versions/version_load.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/__init__.py",
+      "source_sha256": "2ec1ad136e269f6d4682ef92a287fb4100380ecb57d4ceb49d42f8d1f88695c7",
+      "migrated_sha256": "2ec1ad136e269f6d4682ef92a287fb4100380ecb57d4ceb49d42f8d1f88695c7",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/default/__init__.py",
+      "source_sha256": "c7049775ada2f351fd1545cb345980f9805541daa2433509bc655eeab8d87fe7",
+      "migrated_sha256": "c7049775ada2f351fd1545cb345980f9805541daa2433509bc655eeab8d87fe7",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/default/driver.py",
+      "source_sha256": "0724cd21d5640be71b9f473c00530ccae46689a4a46d097e29cd5a4bdacc4829",
+      "migrated_sha256": "0724cd21d5640be71b9f473c00530ccae46689a4a46d097e29cd5a4bdacc4829",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/default/parser.py",
+      "source_sha256": "b1262c12c15aeb8d2e43cfb4685fc57403a22472bfe846a422fba29628521df0",
+      "migrated_sha256": "b1262c12c15aeb8d2e43cfb4685fc57403a22472bfe846a422fba29628521df0",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/driver_load.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/__init__.py",
+      "source_sha256": "34a2a38e30f55692da9def5cfd978124f7fda8c1d76b319df49561c5a56fb151",
+      "migrated_sha256": "34a2a38e30f55692da9def5cfd978124f7fda8c1d76b319df49561c5a56fb151",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v183/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v183/driver.py",
+      "source_sha256": "8e1d8617f4b6dd47d3bb9f8bf0173c3030b88dc1ad6119bba9567be9a9e698c3",
+      "migrated_sha256": "8e1d8617f4b6dd47d3bb9f8bf0173c3030b88dc1ad6119bba9567be9a9e698c3",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v188/__init__.py",
+      "source_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "migrated_sha256": "994b0fe12c31b8d5649f5480eb01324e8e3789cf18fad889e9334fd38c463f0d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v188/driver.py",
+      "source_sha256": "17300c517de90448875aae4a04cefa58026cb22859b401b891b5a0dc90b279e1",
+      "migrated_sha256": "17300c517de90448875aae4a04cefa58026cb22859b401b891b5a0dc90b279e1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v188/parser.py",
+      "source_sha256": "cbee6531ca00c4ad4a2afec0d8a006d5c3f11e65345219cdd30cc8049ef0833e",
+      "migrated_sha256": "cbee6531ca00c4ad4a2afec0d8a006d5c3f11e65345219cdd30cc8049ef0833e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v189/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/v189/driver.py",
+      "source_sha256": "dbcb0dea0953de94ce0bdb583f07b34b6c9394c0c7af957dbd8684db7f69abb9",
+      "migrated_sha256": "dbcb0dea0953de94ce0bdb583f07b34b6c9394c0c7af957dbd8684db7f69abb9",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper/versions/version_load.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/__init__.py",
+      "source_sha256": "4585ed7945530d98ae8f3d9913d2c2e39c52d496cdfdcd25023906cef9e91c94",
+      "migrated_sha256": "4585ed7945530d98ae8f3d9913d2c2e39c52d496cdfdcd25023906cef9e91c94",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/default/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/default/driver.py",
+      "source_sha256": "57f41612eb90cb999ef17576026e5cacd6108494a89e0623e2e28bc3687f6343",
+      "migrated_sha256": "57f41612eb90cb999ef17576026e5cacd6108494a89e0623e2e28bc3687f6343",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/__init__.py",
+      "source_sha256": "3b8091994b06eb5ad860a20fa0ccd315a34022d2979f51f81dfd291fa22afb67",
+      "migrated_sha256": "3b8091994b06eb5ad860a20fa0ccd315a34022d2979f51f81dfd291fa22afb67",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/v183/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/v183/driver.py",
+      "source_sha256": "9250f327dc05e4162d287c7e46d0cfe09c490ba9e52530212bc4b455626029e3",
+      "migrated_sha256": "9250f327dc05e4162d287c7e46d0cfe09c490ba9e52530212bc4b455626029e3",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/v188/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/v188/driver.py",
+      "source_sha256": "196b7e8366f0b005115e08e07ffef3c3fe0e8ee48edcee9ff89cc933ab71e958",
+      "migrated_sha256": "196b7e8366f0b005115e08e07ffef3c3fe0e8ee48edcee9ff89cc933ab71e958",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/v189/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_h/versions/v189/driver.py",
+      "source_sha256": "c088214379d2a7451d5ca5126d4f9bc8b186fdf18d30ec1b9ee6ee10c178768d",
+      "migrated_sha256": "c088214379d2a7451d5ca5126d4f9bc8b186fdf18d30ec1b9ee6ee10c178768d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/__init__.py",
+      "source_sha256": "482c10589968cef18afdf6d86535d65d3f0e95af86d71df8011273289a1ece90",
+      "migrated_sha256": "482c10589968cef18afdf6d86535d65d3f0e95af86d71df8011273289a1ece90",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/default/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/default/driver.py",
+      "source_sha256": "e883de6f1c29bdb34f767c55c1e1d7a9670f9118316c8a297578be81c2f5382d",
+      "migrated_sha256": "e883de6f1c29bdb34f767c55c1e1d7a9670f9118316c8a297578be81c2f5382d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/__init__.py",
+      "source_sha256": "4fddcd84a09d2d8fadc55bf722aa585ea23431e9e682d8d6b15e7cf1c7fa28fd",
+      "migrated_sha256": "4fddcd84a09d2d8fadc55bf722aa585ea23431e9e682d8d6b15e7cf1c7fa28fd",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/v183/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/v183/driver.py",
+      "source_sha256": "9fb7197db2f92946b31d842fc4946852cba4075a111ce3c11bdbe7890c8c8440",
+      "migrated_sha256": "9fb7197db2f92946b31d842fc4946852cba4075a111ce3c11bdbe7890c8c8440",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/v188/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/v188/driver.py",
+      "source_sha256": "88f8ef043dbed6c0ffc55d2eb1c48b84f4df35a64aa39c74f15e6d1f91b4c800",
+      "migrated_sha256": "88f8ef043dbed6c0ffc55d2eb1c48b84f4df35a64aa39c74f15e6d1f91b4c800",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/v189/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_l/versions/v189/driver.py",
+      "source_sha256": "d404c725571db531b3be38367114545d6450d90f9a0c3f65da24430cec7eaf6c",
+      "migrated_sha256": "d404c725571db531b3be38367114545d6450d90f9a0c3f65da24430cec7eaf6c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/__init__.py",
+      "source_sha256": "f05f42ded6e77ca9e435a7b97fc6dc2095a6675cf37580b5b7e4e2540a241c11",
+      "migrated_sha256": "f05f42ded6e77ca9e435a7b97fc6dc2095a6675cf37580b5b7e4e2540a241c11",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/default/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/default/driver.py",
+      "source_sha256": "46da8da6fcca5d94a2b5e0b5dc5603bb358f3ca443fb10ac8bd5b1f0a598382f",
+      "migrated_sha256": "46da8da6fcca5d94a2b5e0b5dc5603bb358f3ca443fb10ac8bd5b1f0a598382f",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/__init__.py",
+      "source_sha256": "beceb90d19fff1fb3ba2374eebcdd99746586eaf0938d16968f64c6ed75f5395",
+      "migrated_sha256": "beceb90d19fff1fb3ba2374eebcdd99746586eaf0938d16968f64c6ed75f5395",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/v183/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/v183/driver.py",
+      "source_sha256": "eed4cdd5338c444f4c3af5e7be11924b3b42a43b783608ca45a5030380650133",
+      "migrated_sha256": "eed4cdd5338c444f4c3af5e7be11924b3b42a43b783608ca45a5030380650133",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/v188/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/v188/driver.py",
+      "source_sha256": "0bfce3e4884292978452fc1348b643048774e435c0e082b1f3e9ce7a1ccd01c4",
+      "migrated_sha256": "0bfce3e4884292978452fc1348b643048774e435c0e082b1f3e9ce7a1ccd01c4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/v189/__init__.py",
+      "source_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "migrated_sha256": "0634d6e0fe65f1b0fd070aa1159256003d2779a0706bad38dcad9e04a596087e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/drivers/piper_x/versions/v189/driver.py",
+      "source_sha256": "ed70d0b16b191d33f8f7745e2a0effd734e7d7d20f264fe0f5188a57ee26cc22",
+      "migrated_sha256": "ed70d0b16b191d33f8f7745e2a0effd734e7d7d20f264fe0f5188a57ee26cc22",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/core/__init__.py",
+      "source_sha256": "03cfb078679c5846630ad6d8cf50f553771047c44f8b3cedc847a345c35742ca",
+      "migrated_sha256": "03cfb078679c5846630ad6d8cf50f553771047c44f8b3cedc847a345c35742ca",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/core/attritube_base.py",
+      "source_sha256": "bc0388e4fd355535edf6538acf25eb8361111b8bf5abb1f9fc525a96a4d688d4",
+      "migrated_sha256": "bc0388e4fd355535edf6538acf25eb8361111b8bf5abb1f9fc525a96a4d688d4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/core/enum_base.py",
+      "source_sha256": "290c0cbcdbc86bc0c0bfb7b39071f126d067313654d654eb04e6ea60f1a863a9",
+      "migrated_sha256": "290c0cbcdbc86bc0c0bfb7b39071f126d067313654d654eb04e6ea60f1a863a9",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/core/msg_abstract.py",
+      "source_sha256": "978fda3e52fbcb69c9233212f92563aa50f85f84916cd25006f8ac7d07ce7bf4",
+      "migrated_sha256": "978fda3e52fbcb69c9233212f92563aa50f85f84916cd25006f8ac7d07ce7bf4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/core/msg_interface.py",
+      "source_sha256": "334fe6213d0149091de15a760811bb7f9f82a8bb7a53226042d8cf318da43262",
+      "migrated_sha256": "334fe6213d0149091de15a760811bb7f9f82a8bb7a53226042d8cf318da43262",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/__init__.py",
+      "source_sha256": "f2185bf045beeae6a2502538a656795ab58c3746303ea6549fa049ea46ef7db7",
+      "migrated_sha256": "f2185bf045beeae6a2502538a656795ab58c3746303ea6549fa049ea46ef7db7",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/__init__.py",
+      "source_sha256": "b8d6a46c5f0b7fab15e9ba60065c7c0853c24f7d640c3f963d248fd4391e8fd7",
+      "migrated_sha256": "b8d6a46c5f0b7fab15e9ba60065c7c0853c24f7d640c3f963d248fd4391e8fd7",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/feedback/__init__.py",
+      "source_sha256": "d0e194e09ea2550e5ccf28d6499865e7348f64f88b3a717b272f54131d8ca984",
+      "migrated_sha256": "d0e194e09ea2550e5ccf28d6499865e7348f64f88b3a717b272f54131d8ca984",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/feedback/arm_feedback_gripper.py",
+      "source_sha256": "3d6e2259e5bd3a4a4583ab4252257a857ca085820253f9282874fbee138ee459",
+      "migrated_sha256": "3d6e2259e5bd3a4a4583ab4252257a857ca085820253f9282874fbee138ee459",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/feedback/arm_feedback_gripper_teaching_param.py",
+      "source_sha256": "dc1a924b469237b36a420aab68e491458d8ca2a53a2842ec2e871a83b3cc3684",
+      "migrated_sha256": "dc1a924b469237b36a420aab68e491458d8ca2a53a2842ec2e871a83b3cc3684",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/transmit/__init__.py",
+      "source_sha256": "d8cafd4148fab75821cd50f06affe309abe207fa11fad5ccd9185f9835e7b6ed",
+      "migrated_sha256": "d8cafd4148fab75821cd50f06affe309abe207fa11fad5ccd9185f9835e7b6ed",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/transmit/arm_gripper_ctrl.py",
+      "source_sha256": "4f55e4365634836ed4fa0354240d29d87ba433753655a49c53aefa0039e276f2",
+      "migrated_sha256": "4f55e4365634836ed4fa0354240d29d87ba433753655a49c53aefa0039e276f2",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/agx_gripper/default/transmit/arm_gripper_teaching_param_config.py",
+      "source_sha256": "5d66c88b78c615b79fa4793545327ef7bcceb17fb2df84105730da446a8f6e24",
+      "migrated_sha256": "5d66c88b78c615b79fa4793545327ef7bcceb17fb2df84105730da446a8f6e24",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/__init__.py",
+      "source_sha256": "cc2ab2c7089a8fa9e6c57de6f0110538f313170826c74d696904f2240e64a23e",
+      "migrated_sha256": "cc2ab2c7089a8fa9e6c57de6f0110538f313170826c74d696904f2240e64a23e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/feedback/__init__.py",
+      "source_sha256": "b79ed6546a42fa740b3f0214577114131a2353bff370d766d60f26c008069c5d",
+      "migrated_sha256": "b79ed6546a42fa740b3f0214577114131a2353bff370d766d60f26c008069c5d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/feedback/feedback_finger_current.py",
+      "source_sha256": "f820457f6f991adb67ff231e238ba3e1adbe287e108f403f190c766411ba5bd1",
+      "migrated_sha256": "f820457f6f991adb67ff231e238ba3e1adbe287e108f403f190c766411ba5bd1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/feedback/feedback_finger_pos.py",
+      "source_sha256": "3a4d1dee1b492ab11e4d941d6ae36cb8bcabe804f8e7bb2982e2b9ac5a57b56a",
+      "migrated_sha256": "3a4d1dee1b492ab11e4d941d6ae36cb8bcabe804f8e7bb2982e2b9ac5a57b56a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/feedback/feedback_finger_spd.py",
+      "source_sha256": "981944cae5ce70e9326ce6e18eb734a539d9922c1aa7e8da7766320c82d98bc4",
+      "migrated_sha256": "981944cae5ce70e9326ce6e18eb734a539d9922c1aa7e8da7766320c82d98bc4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/feedback/feedback_hand_status.py",
+      "source_sha256": "e9ab831e5a091b3ed374daf7ef3d6588460834b27f521a2865fb93aab96d354a",
+      "migrated_sha256": "e9ab831e5a091b3ed374daf7ef3d6588460834b27f521a2865fb93aab96d354a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/transmit/__init__.py",
+      "source_sha256": "973e9cf7657c267b12293576efb7c3286fc333ebb030ff355a04bd332c3d943d",
+      "migrated_sha256": "973e9cf7657c267b12293576efb7c3286fc333ebb030ff355a04bd332c3d943d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/transmit/finger_current_ctrl.py",
+      "source_sha256": "b5b68804c6e3157fc73657298389aa23810cd9b9c179e31b8568b9aebce8ce7c",
+      "migrated_sha256": "b5b68804c6e3157fc73657298389aa23810cd9b9c179e31b8568b9aebce8ce7c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/transmit/finger_pos_ctrl.py",
+      "source_sha256": "f205a68be06684839d4876b74b19709633224e7b20444ba835ded79d57552e28",
+      "migrated_sha256": "f205a68be06684839d4876b74b19709633224e7b20444ba835ded79d57552e28",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/transmit/finger_pos_time_ctrl.py",
+      "source_sha256": "2d91592e6e2ab774ed6d309413c2a45a60b60f0fc70ae1ab25f2df4f8f0034b0",
+      "migrated_sha256": "2d91592e6e2ab774ed6d309413c2a45a60b60f0fc70ae1ab25f2df4f8f0034b0",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/effector/revo2/default/transmit/finger_spd_ctrl.py",
+      "source_sha256": "ed7943079ef229dc14fe5bd0d419a835d5f2e22a299b69376af1341d3ce49e75",
+      "migrated_sha256": "ed7943079ef229dc14fe5bd0d419a835d5f2e22a299b69376af1341d3ce49e75",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/__init__.py",
+      "source_sha256": "eda37e30d5b2784e36c9c9719ba2f43e3e390205f859fbc905ef6ad3d5b28773",
+      "migrated_sha256": "eda37e30d5b2784e36c9c9719ba2f43e3e390205f859fbc905ef6ad3d5b28773",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/__init__.py",
+      "source_sha256": "b328589d85dea38d7fa7d44ce172678e6ee44909567c3c5ab81ee0006ad29364",
+      "migrated_sha256": "b328589d85dea38d7fa7d44ce172678e6ee44909567c3c5ab81ee0006ad29364",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_cpv_response.py",
+      "source_sha256": "719f62b0e201491b8d966f13d9317f8d7c04635c26d1c02c2007bc27895e968b",
+      "migrated_sha256": "719f62b0e201491b8d966f13d9317f8d7c04635c26d1c02c2007bc27895e968b",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_crash_protection_rating.py",
+      "source_sha256": "7ca5bb788b72f5e81f334e6242d8fbef640c5514976b3a146ba7468aa38461de",
+      "migrated_sha256": "7ca5bb788b72f5e81f334e6242d8fbef640c5514976b3a146ba7468aa38461de",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_current_motor_angle_limit_max_spd.py",
+      "source_sha256": "c417d405503486c34db26a0832e21e7a031bdaaacec55a8ed87095933e9bc3d0",
+      "migrated_sha256": "c417d405503486c34db26a0832e21e7a031bdaaacec55a8ed87095933e9bc3d0",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_current_motor_max_acc_limit.py",
+      "source_sha256": "1f28e41af4b8eb026bb65d41d8c5efe4b96a800aef7d8461537052bd28b8a6db",
+      "migrated_sha256": "1f28e41af4b8eb026bb65d41d8c5efe4b96a800aef7d8461537052bd28b8a6db",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_high_spd.py",
+      "source_sha256": "15829f17ea686b8dc22561a86f053cc06fb92d455b4b3de2f76daca734be8423",
+      "migrated_sha256": "15829f17ea686b8dc22561a86f053cc06fb92d455b4b3de2f76daca734be8423",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_joint_states.py",
+      "source_sha256": "fcd3f59b93712c83c90d7eaa6cc17e080b306778a35d6719c060fa75302337f8",
+      "migrated_sha256": "fcd3f59b93712c83c90d7eaa6cc17e080b306778a35d6719c060fa75302337f8",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_leader_joint_states.py",
+      "source_sha256": "55aac07262866a01f0ff322843c2fd1d865390e318de1f02d846ef5b037b92dc",
+      "migrated_sha256": "55aac07262866a01f0ff322843c2fd1d865390e318de1f02d846ef5b037b92dc",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_low_spd.py",
+      "source_sha256": "0a1c5c85201385cd663b3e77f9d4db7d1fa6301a9201eadd559e22b2f41d12bd",
+      "migrated_sha256": "0a1c5c85201385cd663b3e77f9d4db7d1fa6301a9201eadd559e22b2f41d12bd",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/feedback/arm_feedback_status.py",
+      "source_sha256": "fbd4e5f93ba6c5af6f131de870bea9c19c3bf247610c0a415a0e31b047fd1f56",
+      "migrated_sha256": "fbd4e5f93ba6c5af6f131de870bea9c19c3bf247610c0a415a0e31b047fd1f56",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/__init__.py",
+      "source_sha256": "143912149f3f60d10d099475dd92d700a7a41dbe06673ca9e5ae08796f3cc84d",
+      "migrated_sha256": "143912149f3f60d10d099475dd92d700a7a41dbe06673ca9e5ae08796f3cc84d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_cpv_settings_and_queries.py",
+      "source_sha256": "476272f70eb4e115f670b1e1ed4a745ccfc527d1fa0369aa5274aa94dcff9169",
+      "migrated_sha256": "476272f70eb4e115f670b1e1ed4a745ccfc527d1fa0369aa5274aa94dcff9169",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_crash_protection_rating_config.py",
+      "source_sha256": "c3ae67b0f2f27787b4aa0e4648eca294f60ce99e9f97e14bb9cad5fd1bf459f3",
+      "migrated_sha256": "c3ae67b0f2f27787b4aa0e4648eca294f60ce99e9f97e14bb9cad5fd1bf459f3",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_joint_config.py",
+      "source_sha256": "24ac997f431311e3936fdb4c1993fa306de31336f217b0527b95d31c567ddbe2",
+      "migrated_sha256": "24ac997f431311e3936fdb4c1993fa306de31336f217b0527b95d31c567ddbe2",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_joint_ctrl.py",
+      "source_sha256": "d8e0eb58aca36b35f6add7887e4f51411bdf22ff40dff5a3fbbfdf103f0b9f8b",
+      "migrated_sha256": "d8e0eb58aca36b35f6add7887e4f51411bdf22ff40dff5a3fbbfdf103f0b9f8b",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_joint_mit_ctrl.py",
+      "source_sha256": "9f359ee4aef72554fa0ef81cbb38ae52960ad8af76f4d0474c132cb52cf62f38",
+      "migrated_sha256": "9f359ee4aef72554fa0ef81cbb38ae52960ad8af76f4d0474c132cb52cf62f38",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_mode_ctrl.py",
+      "source_sha256": "a5d8c3e2b31d5b27502604ccca489a324bfdf243df0080b71505e4a7b070ff03",
+      "migrated_sha256": "a5d8c3e2b31d5b27502604ccca489a324bfdf243df0080b71505e4a7b070ff03",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_motor_angle_limit_max_spd_config.py",
+      "source_sha256": "284f202cf14b725c068b70dbfe6e6a74db95f1d55b026a2bcf484a389768ca5c",
+      "migrated_sha256": "284f202cf14b725c068b70dbfe6e6a74db95f1d55b026a2bcf484a389768ca5c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_motor_enable_disable.py",
+      "source_sha256": "5f07d222b6f531f69844739a327015a04131eaaea6fdc0c8af48d65499a92e5a",
+      "migrated_sha256": "5f07d222b6f531f69844739a327015a04131eaaea6fdc0c8af48d65499a92e5a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/default/transmit/arm_search_motor_max_angle_spd_acc_limit.py",
+      "source_sha256": "f464f75a04fdec57d3e4d42dff7c5ed4ef55c4485cf6879b35598e4da9c48562",
+      "migrated_sha256": "f464f75a04fdec57d3e4d42dff7c5ed4ef55c4485cf6879b35598e4da9c48562",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/versions/__init__.py",
+      "source_sha256": "4a4b9c81e37feff8c8c786c9bb4fd3ee4406ea52a2b90c6c3a77d729b81565ab",
+      "migrated_sha256": "4a4b9c81e37feff8c8c786c9bb4fd3ee4406ea52a2b90c6c3a77d729b81565ab",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/versions/v111/__init__.py",
+      "source_sha256": "201e7abeb5f8355b0b5e06ffbb3d27fa71126196e06e57f2c19ce229dadbee0c",
+      "migrated_sha256": "201e7abeb5f8355b0b5e06ffbb3d27fa71126196e06e57f2c19ce229dadbee0c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/versions/v111/arm_feedback_status.py",
+      "source_sha256": "489b6e952a0c44906ff21f870c28bf31c0e0c8f0c2c1b1ac3f8de9428a858002",
+      "migrated_sha256": "489b6e952a0c44906ff21f870c28bf31c0e0c8f0c2c1b1ac3f8de9428a858002",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/versions/v111/arm_mode_ctrl.py",
+      "source_sha256": "e31ab3250dbfce3fd0d2afc4581a4e3b20682fef021f4f23a1383aea3d2c55b3",
+      "migrated_sha256": "e31ab3250dbfce3fd0d2afc4581a4e3b20682fef021f4f23a1383aea3d2c55b3",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/versions/v112/__init__.py",
+      "source_sha256": "f585e32e6ecc1d6d7fc8b99c40fe4a5b28724e289069162c7f17f6fb8e09f488",
+      "migrated_sha256": "f585e32e6ecc1d6d7fc8b99c40fe4a5b28724e289069162c7f17f6fb8e09f488",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/nero/versions/v112/arm_feedback_ik.py",
+      "source_sha256": "768008621d5c78718cc95878f93e6d1ab1e4a49fe28a1956bb966cd4f2d08e68",
+      "migrated_sha256": "768008621d5c78718cc95878f93e6d1ab1e4a49fe28a1956bb966cd4f2d08e68",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/__init__.py",
+      "source_sha256": "82e4ae95100b7bea8e65e58eb28fdb421593b8035640b0b041ed5e85ebf44c02",
+      "migrated_sha256": "82e4ae95100b7bea8e65e58eb28fdb421593b8035640b0b041ed5e85ebf44c02",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/__init__.py",
+      "source_sha256": "d04239edeb12f689b023d50deb1d4b0e34d464b31f439c74992508e8eb37f3f6",
+      "migrated_sha256": "d04239edeb12f689b023d50deb1d4b0e34d464b31f439c74992508e8eb37f3f6",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_cpv_response.py",
+      "source_sha256": "a9a6050bad7828cd1d716d9c11f5daa41e3731f4ca714eb2aeaeaa21aafb7fdc",
+      "migrated_sha256": "a9a6050bad7828cd1d716d9c11f5daa41e3731f4ca714eb2aeaeaa21aafb7fdc",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_crash_protection_rating.py",
+      "source_sha256": "e79c2749dba2b29aae0e963d1cc1ecc7d0c86029726dbc7a6dfa5d60a5252687",
+      "migrated_sha256": "e79c2749dba2b29aae0e963d1cc1ecc7d0c86029726dbc7a6dfa5d60a5252687",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_current_end_vel_acc_param.py",
+      "source_sha256": "1d94cafa2a9d257a13cb689dc52fbdbf593e9bb53335fc8db942dd8ac9417783",
+      "migrated_sha256": "1d94cafa2a9d257a13cb689dc52fbdbf593e9bb53335fc8db942dd8ac9417783",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_current_motor_angle_limit_max_spd.py",
+      "source_sha256": "0d9f94d331f06bc90e6670c04200400bfd8dc6bc39618adf82567d46585b7932",
+      "migrated_sha256": "0d9f94d331f06bc90e6670c04200400bfd8dc6bc39618adf82567d46585b7932",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_current_motor_max_acc_limit.py",
+      "source_sha256": "f5311a9aa3a547a3bb94fe491e6a214a076938d6567dd25d9c5e5e0fc3997170",
+      "migrated_sha256": "f5311a9aa3a547a3bb94fe491e6a214a076938d6567dd25d9c5e5e0fc3997170",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_end_pose.py",
+      "source_sha256": "28edcd8351850a601478f48f9944b43674cc7dfd0c293f529f4316577cf16328",
+      "migrated_sha256": "28edcd8351850a601478f48f9944b43674cc7dfd0c293f529f4316577cf16328",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_firmware.py",
+      "source_sha256": "28c60addaf20e7aa4a65b44a523b96a13796cde0548deef5de707b7c854f2329",
+      "migrated_sha256": "28c60addaf20e7aa4a65b44a523b96a13796cde0548deef5de707b7c854f2329",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_high_spd.py",
+      "source_sha256": "0268f99c6c3816b0bca3eb5a0e31d6ba035ffeee53a71f202ce32b1b180ef426",
+      "migrated_sha256": "0268f99c6c3816b0bca3eb5a0e31d6ba035ffeee53a71f202ce32b1b180ef426",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_joint_assistance_rating.py",
+      "source_sha256": "74f28adfcecd6840a7ba14059bb04bce63c4bd19dd57b9cd420871a1116c753c",
+      "migrated_sha256": "74f28adfcecd6840a7ba14059bb04bce63c4bd19dd57b9cd420871a1116c753c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_joint_states.py",
+      "source_sha256": "ef646bc1db6a27f5395a64df19b88e12a850cd155f7464fc1bf0c4e11d1ffd38",
+      "migrated_sha256": "ef646bc1db6a27f5395a64df19b88e12a850cd155f7464fc1bf0c4e11d1ffd38",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_low_spd.py",
+      "source_sha256": "b6da124209e5de3e8ed1c27d9b0f803ebdcf5840eecde4d1e405f28c5f76fa2e",
+      "migrated_sha256": "b6da124209e5de3e8ed1c27d9b0f803ebdcf5840eecde4d1e405f28c5f76fa2e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_set_instruction_response.py",
+      "source_sha256": "d612388e61f3022360033d7dddef7680447c528f44540f3642e0acaae593ddc5",
+      "migrated_sha256": "d612388e61f3022360033d7dddef7680447c528f44540f3642e0acaae593ddc5",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/feedback/arm_feedback_status.py",
+      "source_sha256": "7645a91f4e9fed8500b770899704a76f57ceeab8c2c452c7dfba828191b5ba76",
+      "migrated_sha256": "7645a91f4e9fed8500b770899704a76f57ceeab8c2c452c7dfba828191b5ba76",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/__init__.py",
+      "source_sha256": "a0dac133c4d730b8d4ea9aea6d35724dbef253d2463bbb8bdd7c915917336bcc",
+      "migrated_sha256": "a0dac133c4d730b8d4ea9aea6d35724dbef253d2463bbb8bdd7c915917336bcc",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_circular_pattern.py",
+      "source_sha256": "642912a4427e2996fe9b4d79e31fc0f85dab65a867e9a03734dabb7a17ff0f98",
+      "migrated_sha256": "642912a4427e2996fe9b4d79e31fc0f85dab65a867e9a03734dabb7a17ff0f98",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_cpv_settings_and_queries.py",
+      "source_sha256": "4ada5f256dd3aec84acdf922a3ec887bd8aa94d43b1228098254302a206c0caa",
+      "migrated_sha256": "4ada5f256dd3aec84acdf922a3ec887bd8aa94d43b1228098254302a206c0caa",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_crash_protection_rating_config.py",
+      "source_sha256": "027f45fb4995298dc8c6363ba06f5789cfe24bf82ef47b0a866836530db2e3a9",
+      "migrated_sha256": "027f45fb4995298dc8c6363ba06f5789cfe24bf82ef47b0a866836530db2e3a9",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_end_pose_ctrl.py",
+      "source_sha256": "ee2829270e33ee4d549096e18236c778fc72d80894e7bcc6c3487ab3960d4bbe",
+      "migrated_sha256": "ee2829270e33ee4d549096e18236c778fc72d80894e7bcc6c3487ab3960d4bbe",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_end_vel_acc_param_config.py",
+      "source_sha256": "07afd2abcfe973baabfb769342e3873a5b12b96ad434ce374d7e124f854f22f8",
+      "migrated_sha256": "07afd2abcfe973baabfb769342e3873a5b12b96ad434ce374d7e124f854f22f8",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_joint_assistance_rating_config.py",
+      "source_sha256": "a625212383b73d12d937dc82962c030dc071d8fb49ac0057cf68c1d1a6a47f2d",
+      "migrated_sha256": "a625212383b73d12d937dc82962c030dc071d8fb49ac0057cf68c1d1a6a47f2d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_joint_config.py",
+      "source_sha256": "9374717df917dd6f853b8eb315b8bf7aebd2d8e41e2b330b179bac8241d2b851",
+      "migrated_sha256": "9374717df917dd6f853b8eb315b8bf7aebd2d8e41e2b330b179bac8241d2b851",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_joint_ctrl.py",
+      "source_sha256": "78d547ea63592df035bef746c219371c1c3f0b658a3d95248ea908afc5b62b3c",
+      "migrated_sha256": "78d547ea63592df035bef746c219371c1c3f0b658a3d95248ea908afc5b62b3c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_joint_mit_ctrl.py",
+      "source_sha256": "2ac51d4fa2a95e3d700268798d05e9d5864d368cb2d49392b92260ebd5562618",
+      "migrated_sha256": "2ac51d4fa2a95e3d700268798d05e9d5864d368cb2d49392b92260ebd5562618",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_leader_arm_move_to_home.py",
+      "source_sha256": "e31e7d467be7ab6ed60eb6d0a9dd920175286bde42cc08db747c3d9ba02b6f05",
+      "migrated_sha256": "e31e7d467be7ab6ed60eb6d0a9dd920175286bde42cc08db747c3d9ba02b6f05",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_leader_follower_config.py",
+      "source_sha256": "c1eadb171a031aaa4d067dc55b6290e6dcd8d7d11879edbddbaba2e21044d52d",
+      "migrated_sha256": "c1eadb171a031aaa4d067dc55b6290e6dcd8d7d11879edbddbaba2e21044d52d",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_mode_ctrl.py",
+      "source_sha256": "e17dec42d47fde42bd72c8fed55b20f4ce955d98b8a2429bd43b3fe1acd5d7a0",
+      "migrated_sha256": "e17dec42d47fde42bd72c8fed55b20f4ce955d98b8a2429bd43b3fe1acd5d7a0",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_motion_ctrl.py",
+      "source_sha256": "7db4ca7a4d3ce9ae16b69abcf4f08318db62bfaab770936a1a8cbccaeb525b58",
+      "migrated_sha256": "7db4ca7a4d3ce9ae16b69abcf4f08318db62bfaab770936a1a8cbccaeb525b58",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_motor_angle_limit_max_spd_config.py",
+      "source_sha256": "92c4296db8d728305406502db279b9e9cd301b1b0527c8905ae295ae2db3f2bd",
+      "migrated_sha256": "92c4296db8d728305406502db279b9e9cd301b1b0527c8905ae295ae2db3f2bd",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_motor_enable_disable.py",
+      "source_sha256": "0400e8e75735b5faa6c9ef7f89efe9197f0cf6bbf4ce099a0c58ecd2d1533b3c",
+      "migrated_sha256": "0400e8e75735b5faa6c9ef7f89efe9197f0cf6bbf4ce099a0c58ecd2d1533b3c",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_param_enquiry_and_config.py",
+      "source_sha256": "2ce493ed4d1fe3b121c544f83a389425ba295016493756e475eca187cacce0bc",
+      "migrated_sha256": "2ce493ed4d1fe3b121c544f83a389425ba295016493756e475eca187cacce0bc",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_req_firmware.py",
+      "source_sha256": "f133d5ce740c9ab254781d301d17bd2744486fc39774a90e05ac1e2ed5515731",
+      "migrated_sha256": "f133d5ce740c9ab254781d301d17bd2744486fc39774a90e05ac1e2ed5515731",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/default/transmit/arm_search_motor_max_angle_spd_acc_limit.py",
+      "source_sha256": "5ae4df62426c3db17edcff348f375a87be8e18fb4e6a8d5a47a5f610ce469bdf",
+      "migrated_sha256": "5ae4df62426c3db17edcff348f375a87be8e18fb4e6a8d5a47a5f610ce469bdf",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/msg_load.py",
+      "source_sha256": "49fac3e663478701ac05d3a64151d773b440047badda08c4e7c2601d16671a9b",
+      "migrated_sha256": "49fac3e663478701ac05d3a64151d773b440047badda08c4e7c2601d16671a9b",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/msg_load.pyi",
+      "source_sha256": "7c2e3584b6ff2cd0b180c065feddcd18e80e20e4c1d1e074f48b8548f15c5d71",
+      "migrated_sha256": "7c2e3584b6ff2cd0b180c065feddcd18e80e20e4c1d1e074f48b8548f15c5d71",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/versions/__init__.py",
+      "source_sha256": "d5ca03ace7143b0ebedb1472dd206ffc2101f5507321d1f7a1efdf305e8ee065",
+      "migrated_sha256": "d5ca03ace7143b0ebedb1472dd206ffc2101f5507321d1f7a1efdf305e8ee065",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/versions/v188/__init__.py",
+      "source_sha256": "db01c1becc2d765d6de5451751328c6102f0c0cd510c1023eb44790935dd1ee1",
+      "migrated_sha256": "db01c1becc2d765d6de5451751328c6102f0c0cd510c1023eb44790935dd1ee1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/versions/v188/arm_feedback_ik.py",
+      "source_sha256": "1c61fd73c5531f1734945c6637e846bb155bd12270e6d74fefe70e950f91897a",
+      "migrated_sha256": "1c61fd73c5531f1734945c6637e846bb155bd12270e6d74fefe70e950f91897a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/versions/v188/arm_feedback_status.py",
+      "source_sha256": "8868e59244aa32de927a6f54de19c1e5820429de44a24a6bf889e5c0c496d019",
+      "migrated_sha256": "8868e59244aa32de927a6f54de19c1e5820429de44a24a6bf889e5c0c496d019",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/protocols/can_protocol/msgs/piper/versions/v188/arm_mode_ctrl.py",
+      "source_sha256": "42823c15fe3d7fd0c4eb68056145315f937a1a01df2d78f27be2802480baef70",
+      "migrated_sha256": "42823c15fe3d7fd0c4eb68056145315f937a1a01df2d78f27be2802480baef70",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/py.typed",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/linux/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/linux/can_activate.sh",
+      "source_sha256": "145e376cd387ff070e9cfee587d54ccab850ce58a67cad9e83287b1b0068872a",
+      "migrated_sha256": "145e376cd387ff070e9cfee587d54ccab850ce58a67cad9e83287b1b0068872a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/linux/can_config.sh",
+      "source_sha256": "e1fd23c8842b65afff782e488fc10c9472e29174bf2a421c401c53cbc2a150e4",
+      "migrated_sha256": "e1fd23c8842b65afff782e488fc10c9472e29174bf2a421c401c53cbc2a150e4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/linux/can_find_and_config.sh",
+      "source_sha256": "58cc1cd38d0f362faace62b1b9bd140c2466ec9aeb40186ba37f078424e2ce29",
+      "migrated_sha256": "58cc1cd38d0f362faace62b1b9bd140c2466ec9aeb40186ba37f078424e2ce29",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/linux/can_muti_activate.sh",
+      "source_sha256": "51894b86b874ebf38efafa090b0872d300c283572a3d2274a06511b553414e41",
+      "migrated_sha256": "51894b86b874ebf38efafa090b0872d300c283572a3d2274a06511b553414e41",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/linux/find_all_can_port.sh",
+      "source_sha256": "e8da66f53fd09bf6526b4f7219ecbd44cc92dd0831d1be1c02087f32f385eb3f",
+      "migrated_sha256": "e8da66f53fd09bf6526b4f7219ecbd44cc92dd0831d1be1c02087f32f385eb3f",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/ubuntu/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "migrated_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/ubuntu/can_activate.sh",
+      "source_sha256": "145e376cd387ff070e9cfee587d54ccab850ce58a67cad9e83287b1b0068872a",
+      "migrated_sha256": "145e376cd387ff070e9cfee587d54ccab850ce58a67cad9e83287b1b0068872a",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/ubuntu/can_config.sh",
+      "source_sha256": "e1fd23c8842b65afff782e488fc10c9472e29174bf2a421c401c53cbc2a150e4",
+      "migrated_sha256": "e1fd23c8842b65afff782e488fc10c9472e29174bf2a421c401c53cbc2a150e4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/ubuntu/can_find_and_config.sh",
+      "source_sha256": "58cc1cd38d0f362faace62b1b9bd140c2466ec9aeb40186ba37f078424e2ce29",
+      "migrated_sha256": "58cc1cd38d0f362faace62b1b9bd140c2466ec9aeb40186ba37f078424e2ce29",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/ubuntu/can_muti_activate.sh",
+      "source_sha256": "51894b86b874ebf38efafa090b0872d300c283572a3d2274a06511b553414e41",
+      "migrated_sha256": "51894b86b874ebf38efafa090b0872d300c283572a3d2274a06511b553414e41",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/scripts/ubuntu/find_all_can_port.sh",
+      "source_sha256": "e8da66f53fd09bf6526b4f7219ecbd44cc92dd0831d1be1c02087f32f385eb3f",
+      "migrated_sha256": "e8da66f53fd09bf6526b4f7219ecbd44cc92dd0831d1be1c02087f32f385eb3f",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/__init__.py",
+      "source_sha256": "72c244662dc222072f4bdf628a5c5deafd6a01e9e58dd652a3fcb1fe1621fa89",
+      "migrated_sha256": "72c244662dc222072f4bdf628a5c5deafd6a01e9e58dd652a3fcb1fe1621fa89",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/fps.py",
+      "source_sha256": "06e69190c6fac340bb4b2d50a7d735a5c111f6f0d2b2ed870802f67ff6af733e",
+      "migrated_sha256": "06e69190c6fac340bb4b2d50a7d735a5c111f6f0d2b2ed870802f67ff6af733e",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/logger_mag.py",
+      "source_sha256": "8de2ac8b4203319d1234ac7470d2b2679d5ebc21f4cf6bb0fc4842bd0a7a69b5",
+      "migrated_sha256": "8de2ac8b4203319d1234ac7470d2b2679d5ebc21f4cf6bb0fc4842bd0a7a69b5",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/mdh_kinematics.py",
+      "source_sha256": "3e8e16fde12e7aef59a0ceefb431d07699e317ab746e5200ed09d440767e28b4",
+      "migrated_sha256": "3e8e16fde12e7aef59a0ceefb431d07699e317ab746e5200ed09d440767e28b4",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/numeric_codec.py",
+      "source_sha256": "177d2fcfa4ffbf4b01dda2759eb3a47ec92047f897b73cd3f2672cf4c402c777",
+      "migrated_sha256": "177d2fcfa4ffbf4b01dda2759eb3a47ec92047f897b73cd3f2672cf4c402c777",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/tf.py",
+      "source_sha256": "f170c3a6e83c6186dc36f16d3759cd12b55bd570cdaee8da6aadd51c8fff46b1",
+      "migrated_sha256": "f170c3a6e83c6186dc36f16d3759cd12b55bd570cdaee8da6aadd51c8fff46b1",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/utiles/validator.py",
+      "source_sha256": "acc3d3ad4fcbeee3b9fd29d49e30d24bc0cdc5940a9ede491e4568ebd2c9a254",
+      "migrated_sha256": "acc3d3ad4fcbeee3b9fd29d49e30d24bc0cdc5940a9ede491e4568ebd2c9a254",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyAgxArm/version.py",
+      "source_sha256": "64962e92eee16466bbf97f6b8aa51ea0b73321329a48a39f782cf0323c167ebf",
+      "migrated_sha256": "64962e92eee16466bbf97f6b8aa51ea0b73321329a48a39f782cf0323c167ebf",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/pyproject.toml",
+      "source_sha256": "1451ac2a66a6395bf38f2ce9ebda81f55724dbae368617f46c729d3eeffcad46",
+      "migrated_sha256": "1451ac2a66a6395bf38f2ce9ebda81f55724dbae368617f46c729d3eeffcad46",
+      "same": true
+    },
+    {
+      "path": "vendor/pyAgxArm/setup.py",
+      "source_sha256": "584baa70045a1c250144be9ae32a53a01b089707b16c0d98089fb46bfc4e2ace",
+      "migrated_sha256": "584baa70045a1c250144be9ae32a53a01b089707b16c0d98089fb46bfc4e2ace",
+      "same": true
+    }
+  ]
+}

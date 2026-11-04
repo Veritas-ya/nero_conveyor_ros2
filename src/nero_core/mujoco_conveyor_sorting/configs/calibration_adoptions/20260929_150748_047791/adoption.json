@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "status": "adopted_by_explicit_user_selection",
+  "created_at": "2026-09-29T07:07:48.150242+00:00",
+  "runtime_config": "/home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/mujoco_conveyor_sorting/configs/runtime.yaml",
+  "source_session": "/home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/recordings/teach/20260929_134016_545973/session.json",
+  "source_result": "/home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/recordings/teach/20260929_134016_545973/evaluation_20260929_135049_957715/result.json",
+  "calibration_id": "eye-to-hand-20260929T055050524867Z",
+  "serial_number": "CP28563000CT",
+  "sample_count": 18,
+  "solver_accepted": false,
+  "rejection_reasons": [
+    "target translation consistency: 0.00511979 exceeds 0.005",
+    "target rotation consistency: 1.00859 exceeds 1"
+  ],
+  "quality": {
+    "max_relative_rotation_deg": 84.50720271036006,
+    "rotation_vector_singular_values": [
+      6.019575524470869,
+      4.18719373371503,
+      2.8755287374194896
+    ],
+    "translation_system_singular_values": [
+      7.113081034572503,
+      6.466364478487243,
+      4.973392911926527
+    ],
+    "translation_rms_m": 0.002872122298721271,
+    "translation_max_m": 0.005119791162325147,
+    "rotation_rms_deg": 0.6218426970264105,
+    "rotation_max_deg": 1.008586560804452,
+    "reprojection_max_px": 0.2845432039773556
+  },
+  "thresholds": {
+    "max_reprojection_px": 1.5,
+    "max_translation_error_m": 0.005,
+    "max_rotation_error_deg": 1.0
+  },
+  "user_selection": "就用这次的数据作为外参的参数吧",
+  "user_coordinate_choice": "使用机械臂基座作为真机世界坐标",
+  "quality_override_scope": "Only this explicitly selected calibration; original result and automatic export quality gates unchanged.",
+  "world_frame": "nero_base",
+  "units": "metres",
+  "base_to_world": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "color_to_base_cv": [
+    [
+      0.051361842942463834,
+      -0.7741713396496891,
+      0.6308888158420295,
+      -0.7974167109532949
+    ],
+    [
+      -0.9981575236839767,
+      -0.0602284346586375,
+      0.00735483321640551,
+      -0.08287485775751186
+    ],
+    [
+      0.03230354473776234,
+      -0.6301041759293264,
+      -0.7758383906934484,
+      0.7792004071060064
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "depth_to_color_cv": [
+    [
+      0.9999870657920837,
+      -0.005083631724119186,
+      0.00028754249797202647,
+      -0.023961483001708986
+    ],
+    [
+      0.0050831083208322525,
+      0.9999854564666748,
+      0.001791644492186606,
+      -0.00017430560290813445
+    ],
+    [
+      -0.00029664637986570597,
+      -0.0017901596147567034,
+      0.9999983310699463,
+      8.671656250953674e-05
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "depth_to_base_cv": [
+    [
+      0.04723883095606777,
+      -0.7755505768367251,
+      0.6295154918286522,
+      -0.7984577659683498
+    ],
+    [
+      -0.9984529427490444,
+      -0.05516645979672009,
+      0.006959900290744483,
+      -0.05894638728126057
+    ],
+    [
+      0.029330388787300807,
+      -0.6288703567584786,
+      -0.7769567299078016,
+      0.778468918917854
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "runtime_transform_chain": "T_world_depth = I @ T_base_color @ T_color_depth",
+  "stream_config": {
+    "enable_frame_sync": true,
+    "depth_width": 1280,
+    "depth_height": 800,
+    "depth_fps": 30,
+    "depth_format": "Y16",
+    "color_width": 1280,
+    "color_height": 720,
+    "color_fps": 30,
+    "color_format": "RGB"
+  },
+  "pnp_calibration_reference": {
+    "source": "file",
+    "path": "/home/hzq/机械臂分拣/calibration_data/20260917_103856_404826/result_20260917_104144_040357/intrinsics.json",
+    "sha256": "b01e6f6b52f0a375d7053e66898e3a76c65f3752582c7669d14081720115ab06",
+    "K": [
+      [
+        603.524651024772,
+        0.0,
+        640.0588612240552
+      ],
+      [
+        0.0,
+        603.7189569944327,
+        361.76090351710087
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "D": [
+      -0.0234426103245599,
+      0.02431168424668755,
+      0.00010858316156443146,
+      -0.00033470062400687867,
+      -0.006382970240197211
+    ],
+    "image_size": [
+      1280,
+      720
+    ],
+    "serial_number": "CP28563000CT"
+  },
+  "backup": "/home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/mujoco_conveyor_sorting/configs/calibration_adoptions/20260929_150748_047791/runtime.before.yaml",
+  "runtime_before_sha256": "78f809136c03311c4b7f1ff318fe9f0fcc9b9c4a350e723d7027f521d1941e87",
+  "runtime_after_sha256": "d7f06b31ee2afa42d5e216d93fea05aae26b67dd8d22779f12f7de416c992b73",
+  "source_sha256": {
+    "/home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/recordings/teach/20260929_134016_545973/session.json": "2abc13f61d3f33bff72a3c9e8aa7f9539d16f0651f6c440c18e3c7536cf67817",
+    "/home/hzq/机械臂分拣/traditional_pipeline_linux_20260928/recordings/teach/20260929_134016_545973/evaluation_20260929_135049_957715/result.json": "93f74f4f76be4f7036f952c40a7216b5008b220fcc3d47684c80355aaece05d9",
+    "/home/hzq/机械臂分拣/calibration_data/20260917_103856_404826/result_20260917_104144_040357/intrinsics.json": "b01e6f6b52f0a375d7053e66898e3a76c65f3752582c7669d14081720115ab06"
+  },
+  "offline_validation": {
+    "project_loader_and_camera_config": "passed",
+    "rigid_transforms_and_composition": "passed",
+    "profile_and_serial_binding": "passed",
+    "sources_unchanged": true,
+    "point_composition_max_absolute_error_m": 1.1102230246251565e-16,
+    "runtime_mode": "simulation",
+    "production": false,
+    "safety_configuration_unchanged": true,
+    "hardware_opened": false,
+    "robot_motion_commanded": false
+  }
+}

@@ -1,0 +1,11 @@
+std_msgs/Header header
+string task_id
+string target_id
+uint64 version
+string state
+builtin_interfaces/Time actual_send_ros
+builtin_interfaces/Time feedback_ros
+float64 actual_send_monotonic_s
+float64 feedback_monotonic_s
+float64[] measured_joint_position_rad
+string reason

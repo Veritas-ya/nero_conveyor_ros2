@@ -1,0 +1,69 @@
+{
+  "sources": [
+    {
+      "source_file": "/home/ubuntu22/桌面/nero-agx-conveyor-sorting-main/traditional_pipeline_linux_20260928/tools/diagnose_real_perception.py",
+      "sha256": "1167569636c6ea22903bbba0d1c96c2f93653a7fd2d2d08f96b9910255e93f81",
+      "functions": [
+        "depth_rays",
+        "project_to_rgb",
+        "green_belt_points",
+        "_green_belt_points",
+        "fit_plane"
+      ],
+      "unchanged_after_read": true
+    },
+    {
+      "source_file": "/home/ubuntu22/桌面/nero-agx-conveyor-sorting-main/traditional_pipeline_linux_20260928/scripts/test_pick_and_place.py",
+      "sha256": "dfcfc06f9643439119b3bf566ef2308e4c7660ba835511da06100d1093d55ca5",
+      "functions": [
+        "depth_capture_timing"
+      ],
+      "unchanged_after_read": true
+    }
+  ],
+  "commit": "unknown: source directory has no .git",
+  "license": "Original project license not specified; inherited third-party notices remain applicable.",
+  "scope": "Source helpers copied without importing or changing the old project.",
+  "current_source_sha256": {
+    "src/nero_core/nero_core/two_second/__init__.py": "5d457961810b6b74c0723dbdea4437c53904296650f522a1faeac4fcfaf4883f",
+    "src/nero_core/nero_core/two_second/config.py": "998cf9ee45c12b74fc3c991f82b6d3b396b6a38cc99b8c18893dbb387a0dd9cd",
+    "src/nero_core/nero_core/two_second/execution.py": "eab73d2a90763103404e9f96cf5ccc9ea4a8ae4e7300efb2b94bac3718b41ff8",
+    "src/nero_core/nero_core/two_second/grasp.py": "52e80d7920383f16143c2c362aa311cb49fc7368821116a15d3bfdd50fab31a0",
+    "src/nero_core/nero_core/two_second/main.py": "fe4c2cd32864e56dfe24562269333ed55ea78beec8a3cbf01b77d87ae51195cb",
+    "src/nero_core/nero_core/two_second/measured_rgbd.py": "ae39c8d02f27a7ca94d9da1b50f40c61dc5e0d7e16a35efa06dee91b34eb2b0e",
+    "src/nero_core/nero_core/two_second/planning.py": "91f16a2e5b3636d1df2113f037e6b6e2fce3b64f5139f923da6a72fe21eb6572",
+    "src/nero_core/nero_core/two_second/reference.py": "d72824089258e13fa4e190fe0ee4c359670d6d8cf5a9facdaab7feeaaddca933",
+    "src/nero_core/nero_core/two_second/trajectory.py": "67b5a0a3b1329d01ef56e5e8400b2188f3c1a9f83e702d08ff4cf3e41b4e19dc",
+    "src/nero_core/nero_core/two_second/vision.py": "610daa816bd9a4b22a31b038a248125dcc6ad9dcff4f5f618e8a8970da195346",
+    "src/nero_core/mujoco_conveyor_sorting/runtime/single_pick.py": "5f3fa76049892f0e35be81175950c1e10e2bafa7cc9d345e466af6dd1459d041",
+    "src/nero_core/experiments/two_second_grasp/controller.py": "b3062fe57157b8f698ed14594afb58b71bcd7f0dac3f4b344cc14594b2a549d4",
+    "src/nero_core/experiments/graspgenx_sim/bbox_center_grasp.py": "f4e57a6be36c9e3b986328fbb01292ccef4d7a5dec2eb319d75c7ef2100909a6",
+    "src/nero_core/setup.py": "65e3d293b416391aaa29cd3cf2e3c67b88448465859dfa65e46b8e4a7dc7bc91",
+    "src/nero_bringup/config/two_second.hardware.template.yaml": "e7df9e3f2e4cb6a5b1a532dca18e72afd09f0ba99af52d36b9bf8f043d8c783e",
+    "src/nero_bringup/launch/two_second_hardware.launch.py": "781af00e97560275745cbcab31db974ac486f38f698c65033d7d6c6685562410",
+    "tools/replay_two_second_capture.py": "719c8e1f2aa89dd2a115a2890cf0f41657f1c953ced89e62c3ba1fabea22d577",
+    "tests/test_two_second_hardware.py": "ca3f8713a6817412f58437f6193ae6670cb71556a17a339de88a25b20fcc209f",
+    "requirements-hardware.txt": "429cd13a7af4335ea10334b30df03c812924a419267f9d69fec3ed9c8b9438d6"
+  },
+  "created_at": "2026-10-29T14:53:04.329575+08:00",
+  "derived_files_notes": {
+    "single_pick.py": "optional IK cancellation and maximum target height; original defaults retained",
+    "bbox_center_grasp.py": "pure OBB helper moved to core; all existing network-centering functions retained",
+    "experiments/two_second_grasp/controller.py": "compatibility import of the unchanged shared Intercept/reference algorithm"
+  },
+  "installed_python_sources_match": {
+    "src/nero_core/nero_core/two_second/__init__.py": true,
+    "src/nero_core/nero_core/two_second/config.py": true,
+    "src/nero_core/nero_core/two_second/execution.py": true,
+    "src/nero_core/nero_core/two_second/grasp.py": true,
+    "src/nero_core/nero_core/two_second/main.py": true,
+    "src/nero_core/nero_core/two_second/measured_rgbd.py": true,
+    "src/nero_core/nero_core/two_second/planning.py": true,
+    "src/nero_core/nero_core/two_second/reference.py": true,
+    "src/nero_core/nero_core/two_second/trajectory.py": true,
+    "src/nero_core/nero_core/two_second/vision.py": true,
+    "src/nero_core/mujoco_conveyor_sorting/runtime/single_pick.py": true,
+    "src/nero_core/experiments/two_second_grasp/controller.py": true,
+    "src/nero_core/experiments/graspgenx_sim/bbox_center_grasp.py": true
+  }
+}

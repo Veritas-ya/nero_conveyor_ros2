@@ -1,0 +1,130 @@
+schema_version: 1
+cameras:
+  capture_hz: 15.0
+  top:
+    name: top_camera
+    parent_body: top_camera_rig
+    resolution: [640, 480]
+    fovy_deg: 46.0
+    position_world: [-0.60, 0.0, 1.55]
+    quaternion_wxyz_world: [1.0, 0.0, 0.0, 0.0]
+    outputs:
+      rgb: true
+      depth: true
+      segmentation: false
+      visual_instance_labels: true
+    near: 0.01
+    far: 5.0
+    principal_point_pixels: [320.0, 240.0]
+    # fy = 0.5 * height / tan(0.5 * fovy); fx uses square pixels.
+    focal_length_pixels: [565.6, 565.6]
+    visible_region_hint:
+      x: [-1.36, 0.16]
+      y: [-0.42, 0.42]
+  wrist:
+    name: wrist_camera
+    parent_body: gripper_base
+    resolution: [640, 480]
+    fovy_deg: 75.0
+    position_local: [0.075, 0.0, 0.052]
+    quaternion_wxyz_local: [0.24439462, -0.66352940, 0.66352940, -0.24439462]
+    outputs:
+      rgb: true
+      depth: true
+      segmentation: false
+    near: 0.005
+    far: 2.0
+    principal_point_pixels: [320.0, 240.0]
+    focal_length_pixels: [312.8, 312.8]
+  # This view and wrist are the two policy inputs. Their capture API renders
+  # fresh 224x224 RGB at each data-collection tick, independently of the 15 Hz
+  # top depth stream. Positions/quaternions document the matching MJCF mounts.
+  policy_external:
+    name: policy_external_camera
+    parent_body: world
+    resolution: [224, 224]
+    framing_version: task_close_v1
+    fovy_deg: 53.0
+    position_world: [0.85, 0.20, 1.65]
+    quaternion_wxyz_world: [0.4834750123691945, 0.2065069361174782, 0.3341352415506829, 0.7822790027246326]
+    look_at_world: [-0.15, -0.30, 0.58]
+    # Framing contract at 224x224: incoming silhouettes before the expert
+    # selects them, local grasp/clearance, and all three complete bin openings.
+    # Empty belt beyond the downstream grasp region need not occupy pixels.
+    task_region_hint:
+      incoming_x: [-1.34, 0.35]
+      belt_y: [-0.15, 0.15]
+      grasp_clearance_z: [0.50, 0.82]
+    outputs:
+      rgb: true
+      depth: false
+
+# The default path is intentionally oracle-free at runtime.  It discovers
+# instances by subtracting the calibrated conveyor support plane from depth,
+# classifies CAD-derived geometry descriptors, and allocates visual track IDs.
+# MuJoCo segmentation remains available only to offline/evaluation scripts.
+perception:
+  mode: rendered_rgbd
+  estimator: depth_components_cad_geometry_pca
+  segmentation_source: depth_support_plane_components
+  category_source: synthetic_cad_geometry_prototypes
+  tracking_source: visual_constant_velocity_nearest_neighbor
+  prototype_catalog_path: tless_rgbd_prototypes.yaml
+  fallback_mode: none
+  min_mask_pixels: 24
+  support_plane_z: 0.50
+  retain_symmetric_yaw: true
+  detection_roi:
+    # Keep the full upstream belt footprint.  The widest T-LESS silhouette can
+    # extend about 56 mm from a body spawned at x=-1.28 m.
+    x: [-1.35, 0.24]
+    y: [-0.140, 0.140]
+    minimum_height_m: 0.004
+    maximum_height_m: 0.105
+    minimum_footprint_m: 0.012
+    maximum_footprint_m: 0.13
+  classifier:
+    minimum_confidence: 0.05
+    minimum_detection_confidence: 0.06
+    temperature: 1.0
+    # A tracked part keeps its shape class across camera viewpoints. Accumulate
+    # confidence-weighted observations so late ambiguous views cannot erase
+    # earlier evidence, while initial partial silhouettes can still correct.
+    category_evidence_mode: cumulative
+    category_ema: 0.65
+  tracker:
+    association_distance_m: 0.075
+    new_track_max_x: -0.20
+    # Only the upstream camera zone is trusted for geometry updates.  Inside
+    # the arm workspace, bounded belt-encoder propagation avoids mistaking a
+    # merged gripper/workpiece depth component for the workpiece itself.
+    trusted_measurement_max_x: -0.18
+    velocity_ema: 0.55
+  # From x=-0.18 m, the slowest configured belt needs about 1.73 s to reach
+  # the preferred x=0.08 m intercept.  Keep a bounded margin for closure, then
+  # expire the track before it can become an immortal ghost.
+  max_track_age_s: 2.40
+  coast_confidence_half_life_s: 1.00
+  # Apply the belt support prior both when coasting visual tracks and when
+  # predicting arm intercepts; already-integrated lateral drift is too late
+  # to correct in the prediction layer alone.
+  occlusion_filter:
+    max_supported_lateral_speed_m_s: 0.001
+
+rendering:
+  default_width: 640
+  default_height: 480
+  offscreen_device_id: 0
+  # Single-sample policy RGB avoids observed fixed-state MSAA color variation.
+  # Use 4 only when explicitly reproducing the older antialiasing profile.
+  # The expert depth and display contexts retain the MJCF's sample count.
+  policy_rgb_offscreen_samples: 0
+  shadows: true
+  camera_noise:
+    enabled: false
+    rgb_std_255: 1.0
+    depth_std_m: 0.001
+  extrinsic_randomization:
+    enabled: false
+    position_std_m: [0.002, 0.002, 0.002]
+    rotation_std_rad: [0.005, 0.005, 0.005]

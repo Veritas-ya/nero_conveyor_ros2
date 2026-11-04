@@ -1,0 +1,96 @@
+{
+  "source_run": "runs/vision_network_warm_20261027",
+  "network_input_exposure_s": 6.267999999999532,
+  "visual_observation_s": 7.333999999999414,
+  "decision_s": 7.349999999999413,
+  "observation_age_s": 0.015999999999998238,
+  "network_age_s": 1.0819999999998808,
+  "measured_velocity_m_s": [
+    0.09874835226878109,
+    3.0004457678995627e-05,
+    0.0
+  ],
+  "network_capture_tcp_pose": [
+    -0.6535680975019932,
+    -0.015236402004957204,
+    0.5212278705835343,
+    0.07802629263877828,
+    0.7268250189674617,
+    0.664560175034411,
+    -0.15490985513591365
+  ],
+  "visual_observed_object_pose": [
+    -0.5445470229316723,
+    -0.014208054548691285,
+    0.5354225635528564,
+    1.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "current_object_pose": [
+    -0.542967049295372,
+    -0.014207574477368421,
+    0.5354225635528564,
+    1.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "current_tcp_pose": [
+    -0.5467244053983314,
+    -0.01520179378145888,
+    0.5212303739786148,
+    0.07802629263877828,
+    0.7268250189674617,
+    0.664560175034411,
+    -0.15490985513591365
+  ],
+  "predicted_tcp_pose": [
+    0.0762426438970405,
+    -0.015012506689203255,
+    0.5212303739786148,
+    0.07802629263877828,
+    0.7268250189674617,
+    0.664560175034411,
+    -0.15490985513591365
+  ],
+  "actual_robot_feedback_q_rad": [
+    1.7418450354645751,
+    -0.8544110011280825,
+    2.078325848000008,
+    1.6461515954602004,
+    1.0149774446510025,
+    0.4180809936186523,
+    1.0993355521754669
+  ],
+  "admission": {
+    "allowed": true,
+    "reasons": [],
+    "ready_sim_s": 7.349999999999413,
+    "result_age_s": 1.0819999999998808,
+    "track_id": 0,
+    "scene_epoch": 2,
+    "live_visible": true,
+    "live_observed_timestamp_s": 7.333999999999414,
+    "live_publication_timestamp_s": 7.349999999999413,
+    "live_measurement_age_s": 0.015999999999998238,
+    "live_age_basis": "last_actual_measurement_timestamp",
+    "capture_to_live_translation_m": 0.1068436977380425,
+    "prediction_residual_m": 0.00017334085577435184,
+    "capture_to_live_rotation_deg": 0.0,
+    "live_track_generation": "1",
+    "live_position_world_m": [
+      -0.542967049295372,
+      -0.014207574477368421,
+      0.5354225635528564
+    ],
+    "predicted_live_position_world_m": [
+      -0.5431366972947111,
+      -0.014172073187055604,
+      0.5354200601577759
+    ]
+  },
+  "closing_width_m": 0.0,
+  "note": "reconstructed future estimate uses saved velocity; no plan or device execution"
+}

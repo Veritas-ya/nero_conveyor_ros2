@@ -1,0 +1,390 @@
+<mujoco model="preallocated_sorting_objects">
+  <!--
+    Fifteen free bodies are parked outside the camera view and held by active
+    parking welds.  Spawning disables one parking weld, writes only that
+    free-joint pose/velocity, then calls mj_forward.  Grasp-assist welds are
+    predeclared but inactive; normal operation relies on finger contact.
+  -->
+  <default>
+    <default class="object_geom">
+      <geom friction="0.85 0.01 0.001" condim="4"
+            solref="0.006 1" solimp="0.90 0.95 0.001"
+            margin="0.0005"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="object_00" pos="3.0 -1.05 0.50">
+      <freejoint name="object_00_freejoint"/>
+      <inertial pos="0 0 0.020" mass="0.10"
+                diaginertia="0.000045 0.000045 0.000045"/>
+      <geom name="object_00_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.020" size="0.025 0.020"
+            friction="0.90 0.01 0.001" rgba="0.90 0.22 0.18 1"/>
+      <site name="object_00_grasp_site" type="sphere" pos="0 0 0.045"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_01" pos="3.0 -0.90 0.50">
+      <freejoint name="object_01_freejoint"/>
+      <inertial pos="0 0 0.020" mass="0.12"
+                diaginertia="0.000055 0.000055 0.000055"/>
+      <geom name="object_01_geom" class="object_geom" type="box"
+            pos="0 0 0.020" size="0.025 0.025 0.020"
+            friction="0.82 0.01 0.001" rgba="0.18 0.48 0.92 1"/>
+      <site name="object_01_grasp_site" type="sphere" pos="0 0 0.045"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_02" pos="3.0 -0.75 0.50">
+      <freejoint name="object_02_freejoint"/>
+      <inertial pos="0 0 0.020" mass="0.14"
+                diaginertia="0.000075 0.000075 0.000090"/>
+      <geom name="object_02_base_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.008" size="0.032 0.008"
+            friction="0.88 0.01 0.001" rgba="0.90 0.55 0.12 1"/>
+      <geom name="object_02_hub_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.030" size="0.014 0.014"
+            friction="0.88 0.01 0.001" rgba="0.95 0.66 0.20 1"/>
+      <site name="object_02_grasp_site" type="sphere" pos="0 0 0.052"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_03" pos="3.0 -0.60 0.50">
+      <freejoint name="object_03_freejoint"/>
+      <inertial pos="0 0 0.008" mass="0.08"
+                diaginertia="0.000040 0.000040 0.000070"/>
+      <geom name="object_03_segment_0" class="object_geom" type="capsule"
+            fromto="0.024 0 0.008 0.017 0.017 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_1" class="object_geom" type="capsule"
+            fromto="0.017 0.017 0.008 0 0.024 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_2" class="object_geom" type="capsule"
+            fromto="0 0.024 0.008 -0.017 0.017 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_3" class="object_geom" type="capsule"
+            fromto="-0.017 0.017 0.008 -0.024 0 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_4" class="object_geom" type="capsule"
+            fromto="-0.024 0 0.008 -0.017 -0.017 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_5" class="object_geom" type="capsule"
+            fromto="-0.017 -0.017 0.008 0 -0.024 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_6" class="object_geom" type="capsule"
+            fromto="0 -0.024 0.008 0.017 -0.017 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <geom name="object_03_segment_7" class="object_geom" type="capsule"
+            fromto="0.017 -0.017 0.008 0.024 0 0.008" size="0.006"
+            friction="0.76 0.01 0.001" rgba="0.63 0.26 0.86 1"/>
+      <site name="object_03_grasp_site" type="sphere" pos="0 0 0.026"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_04" pos="3.0 -0.45 0.50">
+      <freejoint name="object_04_freejoint"/>
+      <inertial pos="0 0 0.029" mass="0.13"
+                diaginertia="0.000065 0.000065 0.000055"/>
+      <geom name="object_04_lower_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.012" size="0.026 0.012"
+            friction="0.92 0.01 0.001" rgba="0.10 0.72 0.61 1"/>
+      <geom name="object_04_upper_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.048" size="0.014 0.024"
+            friction="0.92 0.01 0.001" rgba="0.14 0.82 0.70 1"/>
+      <site name="object_04_grasp_site" type="sphere" pos="0 0 0.078"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_05" pos="3.0 -0.30 0.50">
+      <freejoint name="object_05_freejoint"/>
+      <inertial pos="0 0 0.008" mass="0.09"
+                diaginertia="0.000045 0.000065 0.000095"/>
+      <geom name="object_05_front" class="object_geom" type="box"
+            pos="0 -0.0185 0.008" size="0.015 0.0075 0.008"
+            friction="0.80 0.01 0.001" rgba="0.15 0.72 0.30 1"/>
+      <geom name="object_05_back" class="object_geom" type="box"
+            pos="0 0.0185 0.008" size="0.015 0.0075 0.008"
+            friction="0.80 0.01 0.001" rgba="0.15 0.72 0.30 1"/>
+      <geom name="object_05_left" class="object_geom" type="box"
+            pos="-0.0235 0 0.008" size="0.0085 0.026 0.008"
+            friction="0.80 0.01 0.001" rgba="0.15 0.72 0.30 1"/>
+      <geom name="object_05_right" class="object_geom" type="box"
+            pos="0.0235 0 0.008" size="0.0085 0.026 0.008"
+            friction="0.80 0.01 0.001" rgba="0.15 0.72 0.30 1"/>
+      <site name="object_05_grasp_site" type="sphere" pos="0 0 0.026"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_06" pos="3.0 -0.15 0.50">
+      <freejoint name="object_06_freejoint"/>
+      <inertial pos="0 0 0.012" mass="0.11"
+                diaginertia="0.000025 0.000100 0.000105"/>
+      <geom name="object_06_geom" class="object_geom" type="box"
+            pos="0 0 0.012" size="0.048 0.014 0.012"
+            friction="0.74 0.01 0.001" rgba="0.94 0.78 0.12 1"/>
+      <site name="object_06_grasp_site" type="sphere" pos="0 0 0.030"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_07" pos="3.0 0.00 0.50">
+      <freejoint name="object_07_freejoint"/>
+      <inertial pos="0 0 0.011" mass="0.12"
+                diaginertia="0.000075 0.000075 0.000120"/>
+      <geom name="object_07_x_geom" class="object_geom" type="box"
+            pos="0 0 0.011" size="0.040 0.012 0.011"
+            friction="0.86 0.01 0.001" rgba="0.94 0.34 0.56 1"/>
+      <geom name="object_07_y_geom" class="object_geom" type="box"
+            pos="0 0 0.011" size="0.012 0.040 0.011"
+            friction="0.86 0.01 0.001" rgba="0.94 0.34 0.56 1"/>
+      <site name="object_07_grasp_site" type="sphere" pos="0 0 0.032"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_08" pos="3.0 0.15 0.50">
+      <freejoint name="object_08_freejoint"/>
+      <inertial pos="-0.006 0.004 0.012" mass="0.12"
+                diaginertia="0.000050 0.000090 0.000120"/>
+      <geom name="object_08_long_geom" class="object_geom" type="box"
+            pos="0 0 0.012" size="0.040 0.012 0.012"
+            friction="0.84 0.01 0.001" rgba="0.28 0.78 0.84 1"/>
+      <geom name="object_08_short_geom" class="object_geom" type="box"
+            pos="-0.028 0.014 0.012" size="0.012 0.026 0.012"
+            friction="0.84 0.01 0.001" rgba="0.28 0.78 0.84 1"/>
+      <site name="object_08_grasp_site" type="sphere" pos="0.006 0.002 0.032"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_09" pos="3.0 0.30 0.50">
+      <freejoint name="object_09_freejoint"/>
+      <inertial pos="0 0 0.009" mass="0.10"
+                diaginertia="0.000040 0.000040 0.000075"/>
+      <geom name="object_09_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.009" size="0.036 0.009"
+            friction="0.96 0.01 0.001" rgba="0.70 0.70 0.74 1"/>
+      <site name="object_09_grasp_site" type="sphere" pos="0 0 0.028"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_10" pos="3.0 0.45 0.50">
+      <freejoint name="object_10_freejoint"/>
+      <inertial pos="0 0 0.014" mass="0.09"
+                diaginertia="0.000025 0.000090 0.000090"/>
+      <geom name="object_10_geom" class="object_geom" type="capsule"
+            fromto="-0.034 0 0.014 0.034 0 0.014" size="0.014"
+            friction="0.78 0.01 0.001" rgba="0.46 0.32 0.88 1"/>
+      <site name="object_10_grasp_site" type="sphere" pos="0 0 0.034"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_11" pos="3.0 0.60 0.50">
+      <freejoint name="object_11_freejoint"/>
+      <inertial pos="0 0 0.017" mass="0.15"
+                diaginertia="0.000055 0.000115 0.000130"/>
+      <geom name="object_11_base_geom" class="object_geom" type="box"
+            pos="0 0 0.008" size="0.040 0.022 0.008"
+            friction="0.90 0.01 0.001" rgba="0.96 0.52 0.24 1"/>
+      <geom name="object_11_left_geom" class="object_geom" type="cylinder"
+            pos="-0.022 0 0.030" size="0.012 0.014"
+            friction="0.90 0.01 0.001" rgba="1.0 0.62 0.30 1"/>
+      <geom name="object_11_right_geom" class="object_geom" type="cylinder"
+            pos="0.022 0 0.030" size="0.012 0.014"
+            friction="0.90 0.01 0.001" rgba="1.0 0.62 0.30 1"/>
+      <site name="object_11_grasp_site" type="sphere" pos="0 0 0.054"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_12" pos="3.0 0.75 0.50">
+      <freejoint name="object_12_freejoint"/>
+      <inertial pos="0.005 0 0.017" mass="0.13"
+                diaginertia="0.000055 0.000080 0.000105"/>
+      <geom name="object_12_base_geom" class="object_geom" type="box"
+            pos="0 0 0.010" size="0.034 0.025 0.010"
+            friction="0.81 0.01 0.001" rgba="0.22 0.62 0.94 1"/>
+      <geom name="object_12_top_geom" class="object_geom" type="box"
+            pos="0.012 0 0.032" size="0.020 0.018 0.012"
+            friction="0.81 0.01 0.001" rgba="0.30 0.72 1.0 1"/>
+      <site name="object_12_grasp_site" type="sphere" pos="0.008 0 0.054"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_13" pos="3.0 0.90 0.50">
+      <freejoint name="object_13_freejoint"/>
+      <inertial pos="0 0 0.019" mass="0.20"
+                diaginertia="0.000038 0.000060 0.000069"/>
+      <geom name="object_13_geom" class="object_geom" type="ellipsoid"
+            pos="0 0 0.019" size="0.034 0.024 0.019"
+            friction="1.00 0.012 0.001" rgba="0.30 0.34 0.38 1"/>
+      <site name="object_13_grasp_site" type="sphere" pos="0 0 0.045"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+
+    <body name="object_14" pos="3.0 1.05 0.50">
+      <freejoint name="object_14_freejoint"/>
+      <inertial pos="0.006 0 0.016" mass="0.14"
+                diaginertia="0.000060 0.000070 0.000090"/>
+      <geom name="object_14_disc_geom" class="object_geom" type="cylinder"
+            pos="0 0 0.010" size="0.030 0.010"
+            friction="0.87 0.01 0.001" rgba="0.86 0.24 0.72 1"/>
+      <geom name="object_14_boss_geom" class="object_geom" type="sphere"
+            pos="0.016 0 0.030" size="0.015"
+            friction="0.87 0.01 0.001" rgba="0.94 0.34 0.82 1"/>
+      <site name="object_14_grasp_site" type="sphere" pos="0.008 0 0.052"
+            size="0.004" rgba="1 1 1 0.25" group="4"/>
+    </body>
+  </worldbody>
+
+  <contact>
+    <!--
+      MuJoCo has no moving-surface velocity on a box geom.  These explicit
+      pairs decouple the belt's tangential transport constraint from each
+      object's configured gripper/bin friction.  Low belt-pair friction avoids
+      converting the repeatedly enforced world-X velocity into vertical bounce.
+    -->
+    <pair name="belt_object_00" geom1="conveyor_surface" geom2="object_00_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_01" geom1="conveyor_surface" geom2="object_01_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_02a" geom1="conveyor_surface" geom2="object_02_base_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_02b" geom1="conveyor_surface" geom2="object_02_hub_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03a" geom1="conveyor_surface" geom2="object_03_segment_0"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03b" geom1="conveyor_surface" geom2="object_03_segment_1"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03c" geom1="conveyor_surface" geom2="object_03_segment_2"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03d" geom1="conveyor_surface" geom2="object_03_segment_3"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03e" geom1="conveyor_surface" geom2="object_03_segment_4"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03f" geom1="conveyor_surface" geom2="object_03_segment_5"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03g" geom1="conveyor_surface" geom2="object_03_segment_6"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_03h" geom1="conveyor_surface" geom2="object_03_segment_7"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_04a" geom1="conveyor_surface" geom2="object_04_lower_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_04b" geom1="conveyor_surface" geom2="object_04_upper_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_05a" geom1="conveyor_surface" geom2="object_05_front"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_05b" geom1="conveyor_surface" geom2="object_05_back"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_05c" geom1="conveyor_surface" geom2="object_05_left"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_05d" geom1="conveyor_surface" geom2="object_05_right"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_06" geom1="conveyor_surface" geom2="object_06_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_07a" geom1="conveyor_surface" geom2="object_07_x_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_07b" geom1="conveyor_surface" geom2="object_07_y_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_08a" geom1="conveyor_surface" geom2="object_08_long_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_08b" geom1="conveyor_surface" geom2="object_08_short_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_09" geom1="conveyor_surface" geom2="object_09_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_10" geom1="conveyor_surface" geom2="object_10_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_11a" geom1="conveyor_surface" geom2="object_11_base_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_11b" geom1="conveyor_surface" geom2="object_11_left_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_11c" geom1="conveyor_surface" geom2="object_11_right_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_12a" geom1="conveyor_surface" geom2="object_12_base_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_12b" geom1="conveyor_surface" geom2="object_12_top_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_13" geom1="conveyor_surface" geom2="object_13_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_14a" geom1="conveyor_surface" geom2="object_14_disc_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+    <pair name="belt_object_14b" geom1="conveyor_surface" geom2="object_14_boss_geom"
+          condim="3" friction="0.05 0.005 0.0001 0.0001 0.0001"/>
+  </contact>
+
+  <equality>
+    <weld name="parking_weld_00" body1="object_00" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_01" body1="object_01" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_02" body1="object_02" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_03" body1="object_03" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_04" body1="object_04" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_05" body1="object_05" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_06" body1="object_06" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_07" body1="object_07" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_08" body1="object_08" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_09" body1="object_09" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_10" body1="object_10" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_11" body1="object_11" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_12" body1="object_12" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_13" body1="object_13" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+    <weld name="parking_weld_14" body1="object_14" active="true"
+          solref="0.003 1" solimp="0.95 0.99 0.001"/>
+
+    <weld name="grasp_assist_weld_00" body1="gripper_base" body2="object_00"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_01" body1="gripper_base" body2="object_01"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_02" body1="gripper_base" body2="object_02"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_03" body1="gripper_base" body2="object_03"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_04" body1="gripper_base" body2="object_04"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_05" body1="gripper_base" body2="object_05"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_06" body1="gripper_base" body2="object_06"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_07" body1="gripper_base" body2="object_07"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_08" body1="gripper_base" body2="object_08"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_09" body1="gripper_base" body2="object_09"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_10" body1="gripper_base" body2="object_10"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_11" body1="gripper_base" body2="object_11"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_12" body1="gripper_base" body2="object_12"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_13" body1="gripper_base" body2="object_13"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+    <weld name="grasp_assist_weld_14" body1="gripper_base" body2="object_14"
+          relpose="0 0 0.058 1 0 0 0" active="false"
+          solref="0.006 1" solimp="0.90 0.95 0.001"/>
+  </equality>
+</mujoco>

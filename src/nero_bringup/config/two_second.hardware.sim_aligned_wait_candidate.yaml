@@ -1,0 +1,127 @@
+# 离线候选，当前现场及实际回位轨迹未验证；抓取入口可能自动回位。
+# 旧项目历史现场数据候选，非已经确认的当前现场配置。缺失项为 null，不能直接执行。
+# 相机可能移动过；方向来自单次卡尔曼测速；CAN/固件/接口和上位机限速均需现场核对。
+# 用户确认夹爪与旧模型一致；TCP 仍标记为模型名义值。单位：m、rad、s。
+strategy: two_second
+# 用户2026-10-30确认非带面残留为噪声，环境只安装本帧实测带面原生点。
+# 不改自碰撞、工件接触、q/v/a与实际发送检查；不声明已建模传送带边框。
+environment_collision_scope: measured_belt_surface_only
+base_frame: robot_base
+camera_calibration_file: calibration/runtime_depth_20261017.yaml
+tcp_calibration_file: calibration/tcp_legacy_model_nominal.yaml
+confirmed_nominal_tcp_sha256: 4c0d2e9e1bb46bde0dc14f290bd80934401170707b4f636a887c8f39759f5324
+joint_names:
+- joint1
+- joint2
+- joint3
+- joint4
+- joint5
+- joint6
+- joint7
+belt_direction_base:
+- 0.07842607911448404
+- -0.9969199316468343
+- 0.0
+maximum_target_height_m: 0.12  # 用户给出的工件高度上限，单位 m
+# 沿用Nero7感知预览的RGB-D融合检测与原ID/卡尔曼；多帧绿色带面实测校核后才发布目标。
+# ransac3d保留实测带面倾角；12cm在此模式中表示基座垂直高度，不是光轴深度差。
+perception_detection_mode: rgb_depth
+perception_plane_mode: ransac3d
+# 沿现场带向相对机器人基座原点投影；仿真沿带 x 范围原样映射。
+follow_interval_base_m: [-0.20, 0.28]
+# 仿真 safety_region 从世界系平移到仿真机器人基座系；作为用户指定的初始工作区。
+workspace_base_m: [[-0.62, 0.62], [-0.48, 0.54], [-0.60, 1.00]]
+# 用户提供的等待位 J1..J7，原始数据与模型核对见 docs/旧项目现场配置核对.md。
+standby_joint_rad: [-0.6338867849364362, 1.1524431242473396, 1.5651019697492343, 1.6681090807824128, -1.208305101641952, -0.6239345222571834, 1.464730822257182]
+# 所有工件使用 common_bin；由用户提供的法兰位姿和旧模型 TCP 计算。
+bins_base:
+  common_bin:
+  - [-0.708201520610267, -0.703084722285293, -0.0642065377848714, -0.288635330163863]
+  - [-0.689689402092868, 0.708404384123609, -0.149972521467214, -0.282547855779792]
+  - [0.150927581462402, -0.0619281990975355, -0.986603143776893, -0.0168256493251217]
+  - [0, 0, 0, 1]
+unknown_category_bin: common_bin
+# 速度继承100%策略的每轴2 rad/s。用户于2026-10-30说明厂家加速度上限为8 rad/s²。
+# 下列为上位机规划/发送检查的边界；保留固件原设置，不把它写成CAN实测值。
+manufacturer_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
+manufacturer_acceleration_limit_source: user_reported_manufacturer_spec_20261030
+joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
+# 主机发送指令差分不是实测加速度；只记录，规划曲线限值仍生效。
+runtime_command_acceleration_check_enabled: false
+# 抬升与载物转运采用此前成功物理仿真的2 rad/s²时间参数化。
+# 这是夹持保持用的分阶段运动请求，厂家能力/空载边界仍为8；夹爪仍2N。
+loaded_joint_acceleration_limits_rad_s2: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+loaded_acceleration_limit_source: mujoco_loaded_transport_profile_2rad_s2_validated_20261030
+camera:
+  backend: orbbec
+  expected_product_id: 2052
+  serial_number: CP28563000CT
+  enable_color: true
+  require_color: false
+  enable_frame_sync: true
+  depth_width: 1280
+  depth_height: 800
+  depth_fps: 30
+  depth_format: Y16
+  color_width: 1280
+  color_height: 720
+  color_fps: 30
+  color_format: RGB
+  frame_timeout_ms: 200
+  startup_timeout_s: 5.0
+  max_frame_age_s: 0.25
+  max_consecutive_timeouts: 10
+  minimum_depth_m: 0.17
+  maximum_depth_m: 5.0
+  calibration_id: eye-to-hand-20261017T102127186585Z
+  camera_to_world_cv:
+  - - -0.03890396737726649
+    - -0.8295906201964232
+    - 0.5570151195791351
+    - -0.8749030555459123
+  - - -0.9985623450810638
+    - 0.01170562632122411
+    - -0.05230945190565077
+    - -0.15525995502984452
+  - - 0.03687522270104549
+    - -0.5582493549681508
+    - -0.8288533239451502
+    - 0.7536628945745366
+  - - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+hardware:
+  can_channel: can0
+  firmware: v121
+  joint_command_mode: js
+command_advance_s: 0.1
+minimum_speed_span_s: 0.45
+# 预转向开始前给规划保留时间；视觉准入另外计入 prealign_orientation_s。
+planning_reserve_s: 2.5
+freeze_upstream_distance_m: 0.35 # 与两秒仿真一致：只在抓取入口上游35cm内冻结
+maximum_observation_age_s: 1.0
+maximum_measured_speed_m_s: 0.3
+planning_budget_s: 8.0
+trajectory_profile: smooth
+# 到达已规划接触时刻即尝试闭爪；无夹持确认也完成已认证跟随及减速，结果单独报告。
+closure_policy: scheduled_attempt
+# 在同一完整认证轨迹内先固定 TCP 位置平滑转向，再执行原有两秒接近。
+prealign_orientation_s: 1.5
+planning_knot_hz: 10 # 优先以10Hz求逆解；控制发送目标频率100Hz
+planning_knot_hz_fallback: 50 # 稀疏节点造成逆解/曲线/TCP误差失败时，对同一候选加密重试
+geometry_check_hz: 50 # 规划阶段几何和TCP参考采样频率；关节跨度大的区间继续细分
+# 每个候选重新预测接触位置；不把原接触时刻固定后拉伸关节曲线。
+approach_duration_candidates_s: [2.0, 3.0, 4.0, 5.5, 6.5]
+brake_duration_s: 1.5
+# 2026-10-30保存输入中，优化后的第二候选用时约2.5s；给每个候选3s。
+# 公共场景准备单独计时；全局8s及入区前100ms发送截止均继续生效。
+candidate_planning_budget_s: 3.0
+pick_settings:
+  control_hz: 100
+  speed_percent: 100
+  lift_m: 0.05
+  force_n: 2.0
+  min_force_n: 0.2
+  open_width_m: 0.1
+  full_plan_close_window_s: 0.8 # 与已验证平滑仿真相同，包含原0.4秒夹持确认
