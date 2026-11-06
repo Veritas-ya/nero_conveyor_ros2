@@ -63,6 +63,46 @@ class TaughtSegment:
                 'samples': len(self.times), 'recorded_duration_s': float(self.times[-1])}
 
 
+def prepare_taught_timing(config, segment, model, *, payload, cancelled=lambda: False):
+    """Cache only scene-independent timing. Geometry always needs the current task."""
+    motion = select_motion_profile(config, payload=payload)
+    jerk = config.raw.get('taught_joint_jerk_limit_rad_s3')
+    maximum_duration = None
+    if segment.kind == 'transfer':
+        jerk = config.raw.get('taught_transfer_jerk_limit_rad_s3', jerk)
+        maximum_duration = config.raw.get('taught_transfer_max_duration_s')
+    key = (segment.sha256, payload, tuple(motion.velocity_limits), tuple(motion.acceleration_limits),
+           tuple(model.command_lower), tuple(model.command_upper), config.settings.control_hz,
+           config.raw.get('taught_transfer_timing_policy'), jerk, maximum_duration)
+    cache = config.raw.setdefault('_taught_timing_cache', {})
+    if key in cache:
+        if cancelled():
+            raise PickRejected('示教轨迹规划已取消')
+        return cache[key], True
+    arguments = dict(identity=None, version=0, stage='taught_'+segment.kind)
+    if segment.kind == 'transfer' and config.raw.get('taught_transfer_timing_policy') == 'path_preserving_variable_speed':
+        from .taught_timing import retime_taught_path
+        result = retime_taught_path(segment.times, segment.joints, motion,
+            model.command_lower, model.command_upper, **arguments, cancelled=cancelled, jerk_limit=jerk)
+    else:
+        result = retime_samples(segment.times, segment.joints, motion,
+            model.command_lower, model.command_upper, **arguments)
+        if jerk is not None:
+            from .taught_timing import limit_jerk
+            result = limit_jerk(result, jerk, config.settings.control_hz)
+    if cancelled():
+        raise PickRejected('示教轨迹规划已取消')
+    if maximum_duration is not None:
+        if result.duration > maximum_duration + 1e-9:
+            raise PickRejected('示教投放段无法在时长上限内满足运动约束', details={
+                'stage': result.stage, 'duration_s': result.duration,
+                'maximum_duration_s': maximum_duration, 'joint_jerk_limit_rad_s3': jerk})
+        result = replace(result, diagnostics={**result.diagnostics,
+            'maximum_duration_s': maximum_duration})
+    cache[key] = result
+    return result, False
+
+
 def certify_taught(planner, config, segment, state, start_joints, *, payload, cancelled, clock=time.monotonic):
     """Retime the measured samples, then certify the emitted curve in the current scene."""
     begun = clock()
@@ -78,13 +118,14 @@ def certify_taught(planner, config, segment, state, start_joints, *, payload, ca
         return cancelled() or clock()-begun > config.raw['planning_budget_s']
     motion = select_motion_profile(config, payload=payload)
     planner.version += 1
-    result = retime_samples(segment.times, segment.joints, motion,
-        planner.model.command_lower, planner.model.command_upper,
-        identity=planner.identity, version=planner.version, stage='taught_'+segment.kind)
+    template, cached = prepare_taught_timing(config, segment, planner.model, payload=payload, cancelled=aborted)
+    result = replace(template, identity=planner.identity, version=planner.version)
     planner.check_path(result, float(state['width_m']), payload=payload, cancelled=aborted)
     if aborted():
         raise PickRejected('示教轨迹认证已取消或超过规划预算')
     return replace(result, planning_s=clock()-begun,
         diagnostics={**result.diagnostics, **motion.diagnostics(), 'taught_segment': segment.summary(),
-                     'timing_policy': 'recorded_relative_time_uniformly_retimed_rest_to_rest',
+                     'timing_precomputed': cached,
+                     'timing_policy': result.diagnostics.get('timing_policy',
+                         'recorded_relative_time_uniformly_retimed_rest_to_rest'),
                      'scene_certificate': 'task_frozen_scene_and_current_payload_estimate'})

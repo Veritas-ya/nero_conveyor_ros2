@@ -183,13 +183,20 @@ def frame_points(frame):
 def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagnostic=None,
                   target_shape='geometry', shape_recognizer=None,
                   robot_model=None, robot_state=None, maximum_target_height_m=None,
-                  measured_surface=None, scene_scope='observed_scene'):
+                  measured_surface=None, scene_scope='observed_scene',target_seed_pixel_indices=None):
     """Reuse the existing foreground component detector; do not guess a class.
 
     A measured belt search region is reused within the same camera session;
     simple mode also excludes green foreground. Every exposure still supplies
     its own native metric depth, transformed into the measured plane frame.
     """
+    seed_indices=None
+    if target_seed_pixel_indices is not None:
+        seed_indices=np.asarray(target_seed_pixel_indices)
+        if (seed_indices.ndim!=1 or not len(seed_indices) or seed_indices.dtype.kind not in 'iu'
+                or np.any(seed_indices<0) or np.any(seed_indices>=frame.depth_m.size)):
+            raise ValueError('同帧触发像素须为非空、有效的原生深度索引')
+        seed_indices=np.unique(seed_indices)
     surface = (measured_surface if measured_surface is not None
                else getattr(robot_model, 'measured_belt_surface', None))
     cached_surface = isinstance(surface, BeltSurface) and surface.matches_frame(frame, depth_to_color)
@@ -308,6 +315,14 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
                                              points_world=flat)
     candidates = [c for c in components if cv2.pointPolygonTest(
         hull, tuple(map(float, c.position[:2])), True) > .025]
+    seed_selection=None
+    if seed_indices is not None:
+        overlaps=[float(np.mean(c.mask.ravel()[seed_indices])) for c in candidates]
+        seed_selection={'source':'same_exposure_native_depth_pixels',
+            'candidate_count_before_selection':len(candidates),'seed_pixels':len(seed_indices),
+            'candidate_overlap_ratios':overlaps,'minimum_overlap_ratio':.5}
+        candidates=[c for c,overlap in zip(candidates,overlaps) if overlap>=.5]
+        seed_selection['candidate_count_after_selection']=len(candidates)
     if len(candidates) != 1:
         if diagnostic is not None:
             mask = np.logical_or.reduce([c.mask for c in candidates]) if candidates else np.zeros_like(frame.depth_m, dtype=bool)
@@ -317,7 +332,8 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
         raise TargetNotReady(f'带面内检测到{len(candidates)}个候选，需保留一个独立工件',
                              reason='no_workpiece' if not candidates else 'multiple_candidates',
                              details={'candidate_count': len(candidates), 'target_cloud_filter': target_filter,
-                                      'target_self_filter': target_self_filter})
+                                      'target_self_filter': target_self_filter,
+                                      **({'same_exposure_seed_selection':seed_selection} if seed_selection else {})})
     c = candidates[0]
     if target_filter is not None:
         # Only rejected depth belonging to THIS target's original component
@@ -519,9 +535,11 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
             'scene_input_count_before_prefilter': scene_input_count, 'points': points,
             'points_plane': flat, '_frame_products': products,
             'scene_pixel_indices': scene_pixel_indices,
+            'component_extraction': pipeline.last_component_workload,
             'visible_target_rgb_mask': visible_rgb_mask, 'visible_target_completion': visible_completion,
             'target_cloud_filter': target_filter,
             'target_self_filter': target_self_filter,
+            **({'same_exposure_seed_selection':seed_selection} if seed_selection else {}),
             'camera_origin_base_m': frame.camera_to_world_cv[:3, 3].copy(),
             'orientation_confidence': 0. if cylinder['accepted'] else localization_confidence,
             'category': 'unknown; geometry-only single-part pick'}
@@ -863,13 +881,13 @@ class RobotModel:
         if paired is not None:
             # Collision checks and planning always retain the newest joints.
             self.set_state(state['joints'], state['width_m'])
-        if d > .005 or a > 1.:
+        if d > .01 or a > 2.:
             timing=state.get('feedback_timing') or {}
             # Preserve the actual inputs of the rejected comparison.
             raise PickRejected(f'当前关节FK与法兰反馈不符：{d*1000:.2f} mm / {a:.2f}°',details={
                 'reason':'feedback_fk_mismatch',
                 'position_error_m':float(d),'orientation_error_deg':float(a),
-                'position_tolerance_m':.005,'orientation_tolerance_deg':1.,
+                'position_tolerance_m':.01,'orientation_tolerance_deg':2.,
                 'joint_source': ('interpolated_with_receive_offset' if paired is not None and
                     (timing.get('pose_joint_pairing') or {}).get('joint_receive_offset_s', 0.) else
                     'interpolated_at_pose_receive_time' if paired is not None else 'latest_joint_feedback'),

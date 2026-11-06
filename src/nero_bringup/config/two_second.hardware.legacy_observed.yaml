@@ -2,6 +2,23 @@
 # 相机可能移动过；方向来自单次卡尔曼测速；CAN/固件/接口和上位机限速均需现场核对。
 # 用户确认夹爪与旧模型一致；TCP 仍标记为模型名义值。单位：m、rad、s。
 strategy: two_second
+# 投放从原录制第25点（1.194923s）接入，后续42个采样点保持原样；返回仍到当前等待位。
+# 截取依据：三次实测载物/带面离线复现及完整后段认证，见 runs/diagnostics/taught_trim_entry_20261105。
+taught_playback_enabled: true
+# 两个 180° 对称 OBB 抓姿优先选靠近已启用搬运示教轨迹起点 TCP 方向的候选。
+obb_grasp_orientation_reference: taught_transfer_start
+# 保留示教空间路径，按各段可用速度变速；最终按整条多项式极值复核q/v/a。
+taught_transfer_timing_policy: path_preserving_variable_speed
+# 执行前准备并检查整段搬运/返回；示教时序在启动时计算一次。
+prepared_taught_cycle_enabled: true
+# 上位机平滑请求，非厂家能力值；限制加速度变化率，保留8 rad/s²加速度边界。
+taught_joint_jerk_limit_rad_s3: 500.0
+# 用户2026-11-05要求投放示教段最多1.5秒；该段单独放宽软件平滑请求。
+# 仍验证原路径、关节速度及8 rad/s²加速度；抬升/接入/返回继续使用上方500。
+taught_transfer_jerk_limit_rad_s3: 10000.0
+taught_transfer_max_duration_s: 1.5
+taught_transfer_file: /home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_trimmed_start025_20261105.json
+taught_return_file: /home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/planned_return/return_generated.json
 # 用户2026-10-30确认非带面残留为噪声，环境只安装本帧实测带面原生点。
 # 不改自碰撞、工件接触、q/v/a与实际发送检查；不声明已建模传送带边框。
 environment_collision_scope: measured_belt_surface_only
@@ -44,9 +61,9 @@ perception_plane_mode: ransac3d
 follow_interval_base_m: [-0.20, 0.38]
 # 仿真 safety_region 从世界系平移到仿真机器人基座系；作为用户指定的初始工作区。
 workspace_base_m: [[-0.62, 0.62], [-0.48, 0.54], [-0.60, 1.00]]
-# 原始等待位先沿基座Z抬高50mm，再沿标定带向上游平移100mm。
-# 保持TCP高度和姿态；历史带面离线检查见 runs/diagnostics/wait_upstream10cm_brake0p4_20261104_171355。
-standby_joint_rad: [-0.15616595258058463, 0.6563590912851938, -0.08736010956498129, 1.6638224933253727, -0.08130801279383741, -0.293856030555404, 0.6642143667591787]
+# 原始等待位先沿基座Z抬高50mm，再沿标定带向上游平移150mm（2026-11-06在原配置基础上增加50mm）。
+# 保持TCP高度和姿态；新等待位端点通过模型自碰检查，实际带面与回位路径尚待验证。
+standby_joint_rad: [-0.2559425215746051, 0.6906592205925871, -0.12370435476428071, 1.5998599583834592, -0.1426169690024461, -0.4062875118068958, 0.6756284640316828]
 # 所有工件使用 common_bin；由用户提供的法兰位姿和旧模型 TCP 计算。
 bins_base:
   common_bin:
@@ -68,10 +85,10 @@ joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
 # 用户要求停止依据发送指令差分加速度触发上位机停机；规划曲线限值仍生效。
 # 厂家控制器在 JS 模式下的保护动作尚未独立验证。
 runtime_command_acceleration_check_enabled: false
-# 抬升与载物转运采用此前成功物理仿真的2 rad/s²时间参数化。
-# 这是夹持保持用的分阶段运动请求，厂家能力/空载边界仍为8；夹爪仍2N。
-loaded_joint_acceleration_limits_rad_s2: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
-loaded_acceleration_limit_source: mujoco_loaded_transport_profile_2rad_s2_validated_20261030
+# 用户2026-11-05最终指定抬升与载物转运的加速度上限为8 rad/s²。
+# 这是分阶段规划约束，厂家能力/空载边界仍为8；不改厂家固件限值，夹爪仍2N。
+loaded_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
+loaded_acceleration_limit_source: user_requested_loaded_limit_8rad_s2_20261105
 camera:
   backend: orbbec
   expected_product_id: 2052
@@ -120,9 +137,9 @@ hardware:
   can_channel: can0
   firmware: v121
   joint_command_mode: js
-  # 经验接收时刻偏移：法兰接收时刻前 2 ms 的实测关节插值；非设备采样时间。
-  joint_receive_offset_s: -0.002
-command_advance_s: 0.03
+  # 按法兰接收时刻对实测关节反馈插值；接收时间不等于设备采样时间。
+  joint_receive_offset_s: 0.0
+command_advance_s: 0.015
 # 使用同一目标实测点云的分位范围中心进行视觉卡尔曼测速。
 # 固定带速仅在显式传入 --fixed-belt-speed-m-s 时启用。
 velocity_source: pointcloud_xy_kalman
@@ -130,13 +147,17 @@ minimum_speed_span_s: 0.45
 # 根据本次实际规划耗时安排未来起点；预约错过时重新计算，不平移旧轨迹。
 planning_reserve_mode: measured
 planning_reserve_s: 0.0
-# 按测时调度时，在配置的最大45cm上游冻结；可达性和发送截止仍需要验证。
+# 按测时调度时，允许在抓取区入口上游60cm内冻结；可达性和发送截止仍需要验证。
 freeze_upstream_distance_m: 0.10
 synchronized_adaptive_freeze: true
-synchronized_max_freeze_upstream_distance_m: 0.45
+synchronized_max_freeze_upstream_distance_m: 0.60
+# 固定原始点云曝光位置：入口上游50cm处触发，过线后2cm内取有效帧；错过该件即跳过。
+# null恢复上面的允许窗口策略；处理完成后仍保留曝光时间，不能用新时间重标点云。
+freeze_position_upstream_m: 0.50
+freeze_position_tolerance_m: 0.02
 maximum_observation_age_s: 1.0
-# 2026-11-04：用户将传送带速度范围上限设为0.5m/s（50cm/s）；关节限值另行检查。
-maximum_measured_speed_m_s: 0.5
+# 2026-11-06：用户将真机传送带工作速度上限设为1m/s（100cm/s）；关节限值不变。
+maximum_measured_speed_m_s: 1.0
 planning_budget_s: 8.0
 trajectory_profile: smooth
 # 对齐仿真：接入末端尝试闭爪，不额外增加闭爪前同速段。
@@ -151,12 +172,12 @@ prealign_orientation_s: 1.2
 synchronized_join_candidates_s: [1.2]
 planning_knot_hz: 10 # 优先以10Hz求逆解；控制发送目标频率100Hz
 planning_knot_hz_fallback: 50 # 稀疏节点造成逆解/曲线/TCP误差失败时，对同一候选加密重试
-geometry_check_hz: 50 # 规划阶段几何和TCP参考采样频率；关节跨度大的区间继续细分
+geometry_check_hz: 25 # 规划阶段几何和TCP参考采样频率；关节跨度大的区间继续细分
 # 每个候选重新预测接触位置；不把原接触时刻固定后拉伸关节曲线。
 approach_duration_candidates_s: [2.0, 3.0, 4.0, 5.5, 6.5]
-brake_duration_s: 0.4
+brake_duration_s: 0.5
 # 2026-10-30保存输入中，优化后的第二候选用时约2.5s；给每个候选3s。
-# 公共场景准备单独计时；全局8s及预约起点前30ms发送截止均继续生效。
+# 公共场景准备单独计时；全局8s及预约起点前15ms发送截止均继续生效。
 candidate_planning_budget_s: 3.0
 pick_settings:
   control_hz: 100

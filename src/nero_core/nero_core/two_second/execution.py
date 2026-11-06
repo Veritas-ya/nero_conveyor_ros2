@@ -137,6 +137,48 @@ class TwoSecondExecutor:
                 payload=carrying, cancelled=self.cancelled.is_set, clock=self.clock)
             return self._prepare(future, self.owner, version, epoch, hold=hold)
 
+    def _prepared_taught_cycle(self, pool, state, target, *, recovery=False):
+        from .stationary_hold import StationaryHold
+        from .prepared_cycle import prepare_cycle
+        from .release import release_at_rest
+        prefix = 'prepared_taught_recovery' if recovery else 'prepared_taught'
+        self.stage = 'planning_'+prefix+'_cycle'
+        self._emit('taught_cycle_preparing', {'recovery': recovery,
+            'taught_transfer': self.config.raw['taught_segments']['transfer'].summary()})
+        owner_version = self.version
+        with StationaryHold(self, JointStreamSender, epoch=target.epoch, carrying=True) as hold:
+            future = pool.submit(prepare_cycle, self.planner, self.config, state,
+                self.rest_anchor.copy(), cancelled=self.cancelled.is_set, recovery=recovery)
+            bundle = self._prepare(future, self.owner, owner_version, target.epoch, hold=hold)
+        self._emit('taught_cycle_prepared', {'recovery': recovery,
+            'carry_duration_s': bundle.carry.duration, 'return_duration_s': bundle.returning.duration,
+            'carry_pieces': bundle.carry.diagnostics['pieces'],
+            'return_pieces': bundle.returning.diagnostics['pieces'],
+            'internal_planning_stops': 0})
+        def activate(path):
+            self._active(bundle.identity, owner_version, target.epoch)
+            if self.planner.scene_revision != bundle.scene_revision:
+                raise PickRejected('预计算示教链的场景已改变')
+            self.planner.version += 1
+            return replace(path, version=self.planner.version)
+        carry = activate(bundle.carry)
+        state = self._stream(carry, origin=self.clock()+self.config.raw['command_advance_s'],
+            epoch=target.epoch, carrying=True)
+        self.holding.check_holding(state)
+        self.stage = 'recovery_release' if recovery else 'release'
+        returning = None
+        def verify_actual_return():
+            nonlocal returning
+            returning = activate(bundle.returning)
+            return pool.submit(self.planner.check_path, returning, self.config.settings.open_width_m,
+                payload=False, cancelled=self.cancelled.is_set)
+        state = release_at_rest(self, state, epoch=target.epoch, sender_factory=JointStreamSender,
+            prepare_return=verify_actual_return)
+        # Opening was confirmed while the current released-cloud certificate
+        # ran in the worker. No timing or path search is performed here.
+        return self._stream(returning, origin=self.clock()+self.config.raw['command_advance_s'],
+            epoch=target.epoch, carrying=False)
+
     def run(self, target):
         from .recovery import recover_attempt, RecoveryFailed
         try:
@@ -325,22 +367,12 @@ class TwoSecondExecutor:
                     return self._stream(path, origin=self.clock()+self.config.raw['command_advance_s'],
                                         epoch=target.epoch, carrying=carrying)
 
-                state = do_route(state, 'lift', goal=lift, carrying=True)
                 taught = (self.config.raw.get('taught_segments')
                           if self.config.raw.get('taught_playback_enabled', True) else None)
-                if taught:
-                    state = do_route(state, 'transfer_connect', joints=taught['transfer'].joints[0], carrying=True)
-                    state = do_route(state, 'taught_transfer', carrying=True, taught=taught['transfer'])
+                if taught and self.config.raw.get('prepared_taught_cycle_enabled', False):
+                    state = self._prepared_taught_cycle(pool, state, target)
                 else:
-                    state = do_route(state, 'transfer', goal=self.config.bins[self.config.default_bin], carrying=True)
-                self.stage = 'release'
-                self.holding.check_holding(state)
-                from .release import release_at_rest
-                state = release_at_rest(self, state, epoch=target.epoch, sender_factory=JointStreamSender)
-                if taught:
-                    state = do_route(state, 'return_connect', joints=taught['return'].joints[0])
-                    state = do_route(state, 'taught_return', taught=taught['return'])
-                state = do_route(state, 'return', joints=self.config.standby)
+                    state = self._legacy_transport(pool, state, target, lift, taught, do_route)
                 validate_start_state(self.config,state,tolerance_rad=TRAJECTORY_ARRIVAL_TOLERANCE_RAD)
                 self.stage = 'waiting'
                 report = {'status': 'cycle_completed_from_feedback', 'target_identity': self.owner,
@@ -359,3 +391,19 @@ class TwoSecondExecutor:
                     self.sender.join()
                     self.sender = None
                 raise
+
+    def _legacy_transport(self, pool, state, target, lift, taught, do_route):
+        state = do_route(state, 'lift', goal=lift, carrying=True)
+        if taught:
+            state = do_route(state, 'transfer_connect', joints=taught['transfer'].joints[0], carrying=True)
+            state = do_route(state, 'taught_transfer', carrying=True, taught=taught['transfer'])
+        else:
+            state = do_route(state, 'transfer', goal=self.config.bins[self.config.default_bin], carrying=True)
+        self.stage = 'release'
+        self.holding.check_holding(state)
+        from .release import release_at_rest
+        state = release_at_rest(self, state, epoch=target.epoch, sender_factory=JointStreamSender)
+        if taught:
+            state = do_route(state, 'return_connect', joints=taught['return'].joints[0])
+            state = do_route(state, 'taught_return', taught=taught['return'])
+        return do_route(state, 'return', joints=self.config.standby)

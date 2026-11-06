@@ -33,7 +33,7 @@ def test_fk_failure_keeps_original_inputs_and_newest_model_state():
     paired = actual.copy(); paired[4] += .01
     model.set_state(paired, .1)
     flange = model.flange()
-    r = Rotation.from_matrix(flange[:3, :3])*Rotation.from_euler('z', 1.24, degrees=True)
+    r = Rotation.from_matrix(flange[:3, :3])*Rotation.from_euler('z', 2.24, degrees=True)
     pose = np.r_[flange[:3, 3], r.as_euler('xyz')]
     state = {'joints': actual, 'joints_at_pose_stamp': paired,
              'joints_at_pose_stamp_time': 1., 'width_m': .1, 'pose': pose,
@@ -43,12 +43,48 @@ def test_fk_failure_keeps_original_inputs_and_newest_model_state():
     with pytest.raises(PickRejected, match='法兰反馈不符') as info:
         model.check_feedback(state)
     details = info.value.details
-    assert details['orientation_error_deg'] == pytest.approx(1.24)
+    assert details['orientation_error_deg'] == pytest.approx(2.24)
     np.testing.assert_allclose(details['compared_joints_rad'], paired)
     np.testing.assert_allclose(details['feedback_flange_xyz_rpy_m_rad'], pose)
     np.testing.assert_allclose(details['fk_flange_transform'], flange)
     assert details['pose_packet_stamps_monotonic_s'] == [1., 1.01, 1.02]
     np.testing.assert_allclose(model.data.qpos[model.indices], actual)
+
+
+@pytest.mark.parametrize('angle_deg,rejected', [(1.36, False), (1.99, False), (2.01, True)])
+def test_fk_orientation_limit_is_two_degrees(angle_deg, rejected):
+    model = RobotModel()
+    joints = np.array([.0476, .7563, -.0046, 1.7246, .0568, -.0726, .5109])
+    model.set_state(joints, .1)
+    flange = model.flange()
+    rotation = Rotation.from_matrix(flange[:3, :3])*Rotation.from_euler('z', angle_deg, degrees=True)
+    state = {'joints': joints, 'width_m': .1,
+             'pose': np.r_[flange[:3, 3], rotation.as_euler('xyz')]}
+    if rejected:
+        with pytest.raises(PickRejected) as failure:
+            model.check_feedback(state)
+        assert failure.value.details['orientation_tolerance_deg'] == 2.
+        assert failure.value.details['position_tolerance_m'] == .01
+    else:
+        model.check_feedback(state)
+
+
+@pytest.mark.parametrize('distance_m,rejected', [(.005, False), (.00999, False), (.01001, True)])
+def test_fk_position_limit_is_one_centimeter(distance_m, rejected):
+    model = RobotModel()
+    joints = np.array([.0476, .7563, -.0046, 1.7246, .0568, -.0726, .5109])
+    model.set_state(joints, .1)
+    flange = model.flange()
+    pose = np.r_[flange[:3, 3], Rotation.from_matrix(flange[:3, :3]).as_euler('xyz')]
+    pose[0] += distance_m
+    state = {'joints': joints, 'width_m': .1, 'pose': pose}
+    if rejected:
+        with pytest.raises(PickRejected) as failure:
+            model.check_feedback(state)
+        assert failure.value.details['position_tolerance_m'] == .01
+        assert failure.value.details['orientation_tolerance_deg'] == 2.
+    else:
+        model.check_feedback(state)
 
 
 def test_empirical_offset_pairs_only_measured_samples_and_keeps_pose_timestamp():
@@ -69,7 +105,7 @@ def test_empirical_offset_pairs_only_measured_samples_and_keeps_pose_timestamp()
                         joint_receive_offset_s=-.002)[0] is None
 
 
-@pytest.mark.parametrize('position_error_m', [0., .006])
+@pytest.mark.parametrize('position_error_m', [0., .011])
 def test_offset_fk_check_keeps_current_state_and_same_tolerances(position_error_m):
     from mujoco_conveyor_sorting.runtime.feedback_pairing import JointFeedbackHistory
     model = RobotModel()
@@ -88,8 +124,8 @@ def test_offset_fk_check_keeps_current_state_and_same_tolerances(position_error_
              'feedback_timing': {'pose_joint_pairing': report}}
     if position_error_m:
         with pytest.raises(PickRejected) as failure: model.check_feedback(state)
-        assert failure.value.details['position_tolerance_m'] == .005
-        assert failure.value.details['orientation_tolerance_deg'] == 1.
+        assert failure.value.details['position_tolerance_m'] == .01
+        assert failure.value.details['orientation_tolerance_deg'] == 2.
         assert failure.value.details['joint_source'] == 'interpolated_with_receive_offset'
     else:
         model.check_feedback(state)

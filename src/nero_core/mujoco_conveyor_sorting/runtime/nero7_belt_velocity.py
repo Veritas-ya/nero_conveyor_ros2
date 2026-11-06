@@ -222,6 +222,7 @@ class Nero7BeltVelocityMeter:
         self._sequence = self._stamp = self._epoch = None
         self._selected_id = None
         self._detections = []
+        self._candidate_depth_diagnostics = {}
         self._mask = None
         self._latest_snapshot = None
         self._point_speed = None
@@ -476,10 +477,15 @@ class Nero7BeltVelocityMeter:
         else:
             if parameters.get('isolate_boundary_depth_gaps', False):
                 from .nero7_boundary_depth import isolate_boundary_depth_gaps
-                color, skipped = isolate_boundary_depth_gaps(color, depth[crop], parameters)
-                self._candidate_depth_diagnostics['skipped_boundary_components'] = [
+                color, skipped = isolate_boundary_depth_gaps(color, depth[crop], parameters,
+                    camera=camera, color_to_base=color_to_base, surface=self.surface)
+                skipped = [
                     {**item, 'bbox_px':[item['bbox_px'][0]+x0, item['bbox_px'][1]+y0,
                                         *item['bbox_px'][2:]]} for item in skipped]
+                self._candidate_depth_diagnostics['skipped_boundary_components'] = [
+                    item for item in skipped if item['reason']=='roi_boundary']
+                self._candidate_depth_diagnostics['skipped_measured_background_components'] = [
+                    item for item in skipped if item['reason']=='measured_outside_belt']
             detections,mask=detect_blocks(color,depth[crop],camera,color_to_base,
                                          self._fused.plane,parameters)
         for detection in detections:

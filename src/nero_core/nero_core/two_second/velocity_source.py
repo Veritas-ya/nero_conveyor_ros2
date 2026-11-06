@@ -37,7 +37,7 @@ def is_fixed(config):
 
 def policy(config):
     fixed = is_fixed(config)
-    return {'source':FIXED if fixed else config.raw.get('velocity_source',KALMAN),
+    report = {'source':FIXED if fixed else config.raw.get('velocity_source',KALMAN),
         'fixed_belt_speed_m_s':config.raw.get('fixed_belt_speed_m_s') if fixed else None,
         'fixed_belt_speed_cm_s':config.raw['fixed_belt_speed_m_s']*100. if fixed else None,
         'origin':config.raw.get('velocity_override_origin','configuration' if fixed else 'camera'),
@@ -45,6 +45,11 @@ def policy(config):
         'tracking_source':'nero7_position_identity_tracking',
         'internal_tracking_kalman_still_runs':True,
         'speed_semantics':'surface_speed_along_configured_belt_direction' if fixed else 'measured_XY_velocity'}
+    if config.raw.get('freeze_source')=='single_exposure_native_depth':
+        report.update(tracking_source='none_single_exposure_native_depth',
+            internal_tracking_kalman_still_runs=False,
+            identity_source='capture_epoch_generation_sequence')
+    return report
 
 
 def prediction_velocity(config, measured_velocity, normal):
@@ -61,7 +66,7 @@ def prediction_velocity(config, measured_velocity, normal):
 
 def speed_report(config, track, velocity):
     if is_fixed(config):
-        return {'source':FIXED,'configured_speed_m_s':config.raw['fixed_belt_speed_m_s'],
+        report = {'source':FIXED,'configured_speed_m_s':config.raw['fixed_belt_speed_m_s'],
             'prediction_velocity_base_m_s':np.asarray(velocity).tolist(),
             'measured_velocity_base_m_s':None,'visual_velocity_used':False,
             'sample_count':None,'span_s':None,'speed_std_m_s':None,
@@ -69,6 +74,11 @@ def speed_report(config, track, velocity):
             'tracking_source':'nero7_position_identity_tracking',
             'tracking_sample_count':track.sample_count,
             'internal_tracking_kalman_still_runs':True}
+        if getattr(track, 'observation_source', None) == 'single_exposure_native_depth':
+            report.update(tracking_source='none_single_exposure_native_depth',
+                tracking_sample_count=0, internal_tracking_kalman_still_runs=False,
+                observation_sample_count=1, identity_source=getattr(track,'identity_source','manually_armed_exposure_event'))
+        return report
     return {'source':config.raw.get('velocity_source',KALMAN),'sample_count':track.sample_count,
         'measured_velocity_base_m_s':list(track.velocity_base_m_s),
         'legacy_velocity_base_m_s':getattr(track,'legacy_velocity_base_m_s',None),

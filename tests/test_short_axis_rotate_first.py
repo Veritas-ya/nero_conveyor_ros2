@@ -76,6 +76,47 @@ def test_production_planner_actually_passes_rotation_lead_to_synchronized_refere
     assert abs(ref.sample(2.)[1]@ref.target_quaternion_wxyz)==pytest.approx(1.)
 
 
+@pytest.mark.parametrize('reject_preferred', [False, True])
+def test_planner_prefers_taught_tcp_orientation_and_restores_measured_state(monkeypatch, reject_preferred):
+    from test_two_second_smoothing import fixture
+    p,model,target=fixture(monkeypatch)
+    p.config.raw.update(trajectory_profile='smooth',intercept_strategy='synchronized',
+        synchronized_duration_s=.2,prealign_orientation_s=2.,rotate_first_s=0.,
+        approach_duration_candidates_s=[2.],brake_duration_s=1.5,candidate_planning_budget_s=2.,
+        planning_knot_hz=10., planning_knot_hz_fallback=50.,
+        obb_grasp_orientation_reference='taught_transfer_start',taught_playback_enabled=True,
+        taught_segments={'transfer':NS(joints=np.array([np.ones(7)*.2]),
+                                      path='transfer.json',sha256='test-transfer')})
+    state_q=np.zeros(7); model.state=state_q.copy()
+    def set_state(q,width): model.state=np.asarray(q).copy()
+    def tcp():
+        frame=np.eye(4)
+        if model.state[0]>.1: frame[:3,:3]=Rotation.from_euler('z',180,degrees=True).as_matrix()
+        return frame
+    model.set_state=set_state;model.tcp=tcp
+    target.grasps=tuple(np.eye(4) for _ in range(2))
+    for g in target.grasps:g[:3,3]=target.center
+    target.grasps[1][:3,:3]=Rotation.from_euler('z',180,degrees=True).as_matrix()
+    calls=[]
+    class Solver:
+        def __init__(self,model):pass
+        def solve(self,*a,**kw):
+            calls.append(1)
+            if reject_preferred and len(calls)<=2:
+                return NS(success=False,position_error=.01,orientation_error=.01,message='offline rejection')
+            return NS(success=True,joint_positions=np.zeros(7))
+    monkeypatch.setattr('nero_core.two_second.smooth_planning.PrecisePoseSolver',Solver)
+    monkeypatch.setattr(p,'install',lambda *a:None)
+    monkeypatch.setattr(p,'check_smooth_intercept',lambda *a,**kw:{'offline_test':True})
+    plan=p.intercept(target,{'joints':state_q,'width_m':.1})
+    np.testing.assert_allclose(plan.selected_grasp,target.grasps[0 if reject_preferred else 1],atol=1e-12)
+    np.testing.assert_allclose(model.state,state_q,atol=1e-12)
+    diag=plan.path.diagnostics['grasp_orientation_reference']
+    assert diag['policy']=='taught_transfer_start' and diag['taught_segment_sha256']=='test-transfer'
+    assert diag['candidate_angle_deg'][0]['input_grasp_index']==1
+    assert diag['candidate_angle_deg'][0]['angle_deg']==pytest.approx(0.,abs=1e-10)
+
+
 def test_rgb_and_cloud_grasps_use_the_selected_pose_from_the_same_exposure():
     from nero_core.two_second.camera_view import display_grasp,collision_predicted_box
     first=np.eye(4);selected=np.eye(4);selected[:3,:3]=Rotation.from_euler('z',np.pi).as_matrix()

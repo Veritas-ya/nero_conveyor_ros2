@@ -26,6 +26,16 @@ class DispatchWindowExpired(RuntimeError):
         self.details = {} if details is None else details
 
 
+class FeedbackRecheckRequired(RuntimeError):
+    """Read fresh feedback without dispatching a target, with a fixed deadline."""
+    def __init__(self, original_error, deadline_s, *, details=None):
+        super().__init__(str(original_error))
+        if not np.isfinite(deadline_s):
+            raise ValueError('feedback recheck deadline must be finite')
+        self.original_error, self.deadline_s = original_error, float(deadline_s)
+        self.details = {} if details is None else details
+
+
 @dataclass(frozen=True)
 class JointStreamSnapshot:
     """Detached copies of the sender ledger; device stamps are not rewritten."""
@@ -206,7 +216,23 @@ class JointStreamSender:
                 # The predicted send clock is not a new feedback timestamp.
                 motion_time = max(scheduled, sampled + previous_step)
                 dt = self._period if last_send is None else motion_time - last_send
-                result = self._step(state, motion_time, dt)
+                try:
+                    result = self._step(state, motion_time, dt)
+                except FeedbackRecheckRequired as error:
+                    now = self._clock()
+                    if now >= error.deadline_s:
+                        raise error.original_error
+                    with self._lock:
+                        self._events.append({'event': 'joint_stream_feedback_recheck',
+                            'time': now, 'details': deepcopy(error.details)})
+                    # No target is sent from this rejected snapshot. The next
+                    # iteration reads and fully validates a new sample, then
+                    # samples the trajectory at its current dispatch time.
+                    previous_receive = max(0., sampled-receive_started)
+                    previous_step = 0.
+                    if not self._wait(min(error.deadline_s, now+.001)):
+                        break
+                    continue
                 if result is None:
                     break
                 target, metadata = result

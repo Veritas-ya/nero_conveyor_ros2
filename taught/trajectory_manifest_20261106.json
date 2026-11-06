@@ -1,0 +1,123 @@
+{
+  "snapshot_date": "2026-11-06",
+  "schema": "nero_taught_archive_manifest_v1",
+  "active_segments": {
+    "transfer": {
+      "path": "taught/session_20261104_223416/transfer_trimmed_start025_20261105.json",
+      "sha256": "3e30e72152a56f8ebd2f9d897e2da8f4a7a9728467a0d111a7af40fb20e893ee",
+      "samples": 42,
+      "recorded_duration_s": 2.0499274730682373,
+      "prepared_duration_s": 1.48,
+      "origin": "trimmed_human_recording",
+      "first_joints_rad": [
+        0.8287172354319475,
+        1.148391741227229,
+        -0.004101523742186675,
+        1.023775232634834,
+        -0.36735690095976653,
+        -0.37475709698822246,
+        0.9962862969159231
+      ],
+      "last_joints_rad": [
+        1.732239282604372,
+        0.4202927371727545,
+        0.07422885308731884,
+        1.3014047567495717,
+        -0.07407177345463935,
+        0.0037524578917878084,
+        1.2427791471750824
+      ],
+      "provenance": {
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6",
+          "joint7"
+        ],
+        "unit": "rad",
+        "base_frame": "robot_base",
+        "tcp_sha256": "4c0d2e9e1bb46bde0dc14f290bd80934401170707b4f636a887c8f39759f5324",
+        "robot_model_sha256": "5d3fe32782f9bbbe86b480f78df9ad208a19f4d30078b02f4ce0e7402b5d47e0",
+        "bin_id": "common_bin",
+        "can_channel": "can0",
+        "firmware": "v121"
+      }
+    },
+    "return": {
+      "path": "taught/session_20261104_223416/planned_return/return_generated.json",
+      "sha256": "2d06bafa6c8e7557c3b030a72ed2c7fa8a695a4d7e87240c1774c8d7d5d2dc88",
+      "samples": 61,
+      "recorded_duration_s": 1.2,
+      "prepared_duration_s": 1.23,
+      "origin": "offline_planned_not_human_recorded",
+      "first_joints_rad": [
+        1.7322392826043722,
+        0.4202927371727545,
+        0.07422885308731886,
+        1.3014047567495715,
+        -0.07407177345463933,
+        0.0037524578917878084,
+        1.2427791471750826
+      ],
+      "last_joints_rad": [
+        -0.15616595258058452,
+        0.6563590912851939,
+        -0.08736010956498128,
+        1.6638224933253727,
+        -0.08130801279383741,
+        -0.29385603055540405,
+        0.6642143667591788
+      ],
+      "provenance": {
+        "joint_names": [
+          "joint1",
+          "joint2",
+          "joint3",
+          "joint4",
+          "joint5",
+          "joint6",
+          "joint7"
+        ],
+        "unit": "rad",
+        "base_frame": "robot_base",
+        "tcp_sha256": "4c0d2e9e1bb46bde0dc14f290bd80934401170707b4f636a887c8f39759f5324",
+        "robot_model_sha256": "5d3fe32782f9bbbe86b480f78df9ad208a19f4d30078b02f4ce0e7402b5d47e0",
+        "bin_id": "common_bin",
+        "can_channel": "can0",
+        "firmware": "v121"
+      }
+    }
+  },
+  "configuration_path": "src/nero_bringup/config/two_second.hardware.legacy_observed.yaml",
+  "configuration_sha256": "5258206d5b8745aabc14684b42c22e0580891b278dc84da336a77c08c5589b10",
+  "current_standby_joints_rad": [
+    -0.2559425215746051,
+    0.6906592205925871,
+    -0.12370435476428071,
+    1.5998599583834592,
+    -0.1426169690024461,
+    -0.4062875118068958,
+    0.6756284640316828
+  ],
+  "return_endpoint_equals_current_standby": false,
+  "execution_note": "The executor connects the saved return endpoint to the current configured standby. This archive does not recalculate or alter any recorded joint samples.",
+  "taught_transfer_timing_policy": "path_preserving_variable_speed",
+  "prepared_taught_cycle_enabled": true,
+  "taught_transfer_max_duration_s": 1.5,
+  "loaded_joint_acceleration_limits_rad_s2": [
+    8.0,
+    8.0,
+    8.0,
+    8.0,
+    8.0,
+    8.0,
+    8.0
+  ],
+  "validation_scope": "Offline provenance, file hashes and scene-independent timing; not a new live robot validation.",
+  "robot_commands_sent": 0,
+  "can_connections": 0,
+  "camera_connections": 0
+}

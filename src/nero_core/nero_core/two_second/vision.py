@@ -144,6 +144,7 @@ class LiveVision:
         self.progress_entry = None
         self.clock_epoch = None
         self.consumed = set()
+        self.freeze_position_missed = set()
         self.active_task = None
         self.minimum_capture_s = float('-inf')
         self.reset_tracking = False
@@ -191,6 +192,7 @@ class LiveVision:
             peer, entry = self.progress_snapshot, self.progress_entry
             consumed = set(self.consumed)
             active_task = self.active_task
+            missed_count = len(self.freeze_position_missed)
         tracks = [] if peer is None else [{
             'id': t.track_id, 'confirmed': t.confirmed, 'speed_valid': t.speed_valid,
             'samples': t.sample_count, 'span_s': round(float(t.span_s), 3),
@@ -210,6 +212,7 @@ class LiveVision:
                 'velocity_policy':velocity_policy(self.config),
                 'active_task': active_task,
                 'target_processing_paused': active_task is not None,
+                'freeze_position_missed_targets': missed_count,
                 'meter_current': None if peer is None else peer.current,
                 'meter_frame_sequence': None if peer is None else peer.sequence,
                 'meter_reason': None if peer is None else peer.reason, 'tracks': tracks,
@@ -219,17 +222,21 @@ class LiveVision:
                 'camera_consumption':dict(self.camera_consumption),
                 'thresholds': {key: self.config.raw.get(key) for key in (
                     'minimum_speed_span_s', 'maximum_observation_age_s',
-                    'freeze_upstream_distance_m', 'planning_reserve_s', 'maximum_measured_speed_m_s')}}
+                    'freeze_upstream_distance_m', 'freeze_position_upstream_m',
+                    'freeze_position_tolerance_m', 'planning_reserve_s', 'maximum_measured_speed_m_s')}}
 
     def _track_rejections(self, track, peer, consumed):
         reasons = []
         fixed = is_fixed(self.config)
+        identity = (peer.clock_epoch, peer.track_generation, track.track_id)
+        consumed_reason = ('past_fixed_freeze_position' if identity in self.freeze_position_missed
+                           else 'already_consumed')
         for rejected, reason in (
             (not track.confirmed, 'track_unconfirmed'),
             (not fixed and not track.speed_valid, 'speed_invalid'),
             (bool(track.misses), 'track_missed'),
             (not fixed and track.velocity_base_m_s is None, 'velocity_missing'),
-            ((peer.clock_epoch, peer.track_generation, track.track_id) in consumed, 'already_consumed'),
+            (identity in consumed, consumed_reason),
             (not fixed and not track.span_s >= self.config.raw['minimum_speed_span_s'], 'speed_span_too_short')):
             if rejected:
                 reasons.append(reason)
@@ -256,9 +263,13 @@ class LiveVision:
                 freeze_window = freeze_window_for_speed(self.config, along)
                 detail['freeze_window'] = freeze_window
                 detail['maximum_upstream_distance_m'] = freeze_window['distance_m']
+                detail['minimum_upstream_distance_m'] = freeze_window.get('minimum_distance_m')
                 scheduled = admit_synchronized_observation(capture_s, coordinate, along,
-                    self.config.follow_bounds, now_s, freeze_window['distance_m'])
-                detail['admission_rule'] = 'synchronized_follow_window; exact_schedule_after_obb'
+                    self.config.follow_bounds, now_s, freeze_window['distance_m'],
+                    minimum_upstream_distance_m=freeze_window.get('minimum_distance_m'))
+                detail['admission_rule'] = ('fixed_capture_position_band; exact_schedule_after_obb'
+                    if freeze_window['policy'] == 'fixed_capture_position' else
+                    'synchronized_follow_window; exact_schedule_after_obb')
             else:
                 scheduled = predict_entry_time(capture_s, coordinate,
                     along, entry_coordinate,
@@ -338,6 +349,7 @@ class LiveVision:
             raise
         with self.lock:
             if self.stop.is_set() or generation!=self.geometry_generation:return
+        progress.annotate_frame(component_extraction=detection.get('component_extraction'))
         center=np.median(detection['object_points'],axis=0)
         observed=np.asarray(track.observed_position_base,dtype=float)
         distance=float(np.linalg.norm(center[:2]-observed[:2]))
@@ -499,6 +511,7 @@ class LiveVision:
                             for t in peer.tracks])
                     continue
                 track = valid[0]
+                identity = (peer.clock_epoch, peer.track_generation, track.track_id)
                 # Eye-to-hand speed is independent of arm feedback. Only a
                 # geometry job needs this fresh encoder sample for self filtering.
                 self.progress.enter('pairing_feedback')
@@ -529,9 +542,12 @@ class LiveVision:
                     continue
                 try:
                     self.entry_time(captured, entry_position, velocity, time.monotonic())
-                except EntryNotReady:
-                    continue  # keep this track alive; do not consume/freeze a distant target
-                identity = (peer.clock_epoch, peer.track_generation, track.track_id)
+                except EntryNotReady as error:
+                    if error.reason == 'past_fixed_freeze_position':
+                        with self.lock:
+                            self.freeze_position_missed.add(identity)
+                            self.consumed.add(identity)
+                    continue  # Upstream observations keep tracking; missed IDs stay skipped.
                 with self.lock:
                     if identity in self.consumed:
                         self.progress.block('waiting_new_target', 'already_consumed')

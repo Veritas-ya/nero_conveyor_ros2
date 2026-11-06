@@ -1,0 +1,29 @@
+{
+  "configuration_source": "/home/ubuntu22/nero_conveyor_ros2/install/nero_bringup/share/nero_bringup/config/two_second.hardware.legacy_observed.yaml",
+  "transfer": {
+    "segment": "transfer",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_retake_20261104_223900.json",
+    "sha256": "1fb83cdb1eb968abd6db92d3644cae1c32429b0d23e1996080aec197019de924",
+    "samples": 66,
+    "recorded_duration_s": 3.2448508739471436
+  },
+  "return": {
+    "segment": "return",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/planned_return/return_generated.json",
+    "sha256": "2d06bafa6c8e7557c3b030a72ed2c7fa8a695a4d7e87240c1774c8d7d5d2dc88",
+    "samples": 61,
+    "recorded_duration_s": 1.2
+  },
+  "return_origin": "offline_planned",
+  "standby_joints_rad": [
+    -0.15616595258058463,
+    0.6563590912851938,
+    -0.08736010956498129,
+    1.6638224933253727,
+    -0.08130801279383741,
+    -0.293856030555404,
+    0.6642143667591787
+  ],
+  "status": "prepared_pending_installed_validation",
+  "motion_executed": false
+}

@@ -35,8 +35,10 @@ def sampling_times(duration, dt, *boundaries):
 
 def extrema(curve, derivative):
     polynomial = curve.derivative(derivative)
-    candidates = list(polynomial.x)
-    if derivative < 3:
+    # Include both limits at knots, also for a piecewise time parameterization.
+    candidates = list(np.r_[polynomial.x,
+                           np.nextafter(polynomial.x[1:], polynomial.x[:-1])])
+    if polynomial.c.shape[0] > 1:
         for roots in polynomial.derivative().roots(extrapolate=False):
             candidates.extend(np.asarray(roots)[np.isfinite(roots)].tolist())
     values = polynomial(np.asarray(candidates))

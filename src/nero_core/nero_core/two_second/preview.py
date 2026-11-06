@@ -2,7 +2,8 @@
 import time
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
-from .reference import predict_entry_time
+from .reference import predict_entry_time, EntryNotReady
+from .synchronized_reference import freeze_window_for_speed, admit_synchronized_observation
 from .vision import obb_grasps
 from .velocity_source import is_fixed, prediction_velocity, FIXED
 
@@ -35,10 +36,16 @@ def freeze_candidate(config, track, peer, detection, capture_s, now_s, gate_radi
     center = np.median(points, axis=0)
     if np.linalg.norm(center[:2]-observed[:2]) > gate_radius:
         raise ValueError('OBB 点云与测速轨迹未关联')
-    entry = predict_entry_time(capture_s, observed@config.direction,
-        velocity@config.direction, config.follow_bounds[0], now_s,
-        config.raw['planning_reserve_s'] + config.raw.get('prealign_orientation_s', 0.),
-        maximum_upstream_distance_m=config.raw['freeze_upstream_distance_m'])
+    if config.raw.get('intercept_strategy', 'classic') == 'synchronized':
+        window = freeze_window_for_speed(config, velocity@config.direction)
+        entry = admit_synchronized_observation(capture_s, observed@config.direction,
+            velocity@config.direction, config.follow_bounds, now_s, window['distance_m'],
+            minimum_upstream_distance_m=window.get('minimum_distance_m'))
+    else:
+        entry = predict_entry_time(capture_s, observed@config.direction,
+            velocity@config.direction, config.follow_bounds[0], now_s,
+            config.raw['planning_reserve_s'] + config.raw.get('prealign_orientation_s', 0.),
+            maximum_upstream_distance_m=config.raw['freeze_upstream_distance_m'])
     grasps, box = obb_grasps(points, detection['belt_region']['plane_to_base'], config.canonical_tcp)
     box = box_in_base(box,np.asarray(detection['belt_region']['plane_to_base']))
     candidates = []
@@ -263,7 +270,27 @@ class CameraPreview:
             self.finish_scene()
             # Geometry has a separate single worker. Its full-resolution
             # extraction must not reduce the rate of independent speed samples.
-            if self.future is None and self.clock()-self.last_geometry_s >= .20:
+            fixed_position = self.config.raw.get('freeze_position_upstream_m') is not None
+            geometry_eligible = True
+            if fixed_position:
+                tracks = qualified_tracks(self.config, peer)
+                geometry_eligible = capture is not None and len(tracks) == 1
+                if geometry_eligible:
+                    velocity = prediction_velocity(self.config, tracks[0].velocity_base_m_s,
+                                                   self.surface.normal_base)
+                    window = freeze_window_for_speed(self.config, velocity@self.config.direction)
+                    try:
+                        admit_synchronized_observation(capture,
+                            np.asarray(tracks[0].observed_position_base)@self.config.direction,
+                            velocity@self.config.direction, self.config.follow_bounds, self.clock(),
+                            window['distance_m'], minimum_upstream_distance_m=window['minimum_distance_m'])
+                    except EntryNotReady as error:
+                        geometry_eligible = False
+                        self.last_reason = f'固定位置冻结未触发：{error}'
+            # A 2 cm capture band can last less than the normal 200 ms preview
+            # cadence. In fixed mode submit the eligible exposure immediately.
+            if (self.future is None and geometry_eligible and
+                    (fixed_position or self.clock()-self.last_geometry_s >= .20)):
                 self.future = self.pool.submit(self.geometry_job, frame, np.array(d2c,copy=True),
                     self.surface, peer, capture, self.generation, robot_state)
                 self.last_geometry_s = self.clock()

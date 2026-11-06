@@ -555,21 +555,21 @@ def test_legacy_site_camera_and_provenance_are_self_contained():
     np.testing.assert_allclose(np.asarray(simulation['conveyor']['grasp_region'])-base[0],
                                [-.20, .38], atol=1e-12)
     expected_joints_deg = [2.728, 43.334, -0.263, 98.814, 3.253, -4.163, 29.269]
-    # The user retained the original 50mm height increase and moved the wait
-    # TCP upstream by 100mm on 2026-11-04.
+    # The current cell retains the original 50mm height increase and moves
+    # the wait TCP upstream by 150mm (the additional 50mm is dated 2026-11-06).
     # Verify the Cartesian change, rather than fixing the old joint angles.
     from nero_core.two_second.planning import calibrated_model
     cfg=CellConfig.load(config/'two_second.hardware.legacy_observed.yaml')
     model=calibrated_model(cfg);raised=model.tcp().copy()
     model.set_state(np.deg2rad(expected_joints_deg),cfg.settings.open_width_m)
     expected=model.tcp().copy();expected[2,3]+=.05
-    expected[:3,3] -= .1*cfg.direction
+    expected[:3,3] -= .15*cfg.direction
     np.testing.assert_allclose(raised,expected,atol=1e-8)
     from mujoco_conveyor_sorting.runtime.single_pick import RobotModel
     model = RobotModel()
     model.set_state(site['standby_joint_rad'], .1)
     flange = model.flange()
-    np.testing.assert_allclose(flange[:3, 3], np.array([-377.009, -40.174, 202.380])/1000-.1*cfg.direction, atol=.00005)
+    np.testing.assert_allclose(flange[:3, 3], np.array([-377.009, -40.174, 202.380])/1000-.15*cfg.direction, atol=.00005)
     reported_rotation = Rotation.from_euler('xyz', [-59.456, 79.925, -147.315], degrees=True)
     assert (reported_rotation.inv() * Rotation.from_matrix(flange[:3, :3])).magnitude() < np.deg2rad(.01)
     cfg = CellConfig.load(config/'two_second.hardware.legacy_observed.yaml')

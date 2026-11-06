@@ -225,7 +225,7 @@ class RecordingTrajectoryPreview(TrajectoryPreview):
             admit_synchronized_observation(done['capture'],
                 np.asarray(track.observed_position_base)@self.config.direction,
                 velocity@self.config.direction, self.config.follow_bounds, now,
-                window['distance_m'])
+                window['distance_m'], minimum_upstream_distance_m=window.get('minimum_distance_m'))
         except EntryNotReady:
             return
         identity = (self.session, done['peer'].clock_epoch,

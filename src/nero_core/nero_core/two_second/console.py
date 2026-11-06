@@ -20,6 +20,12 @@ def step_name(stage):
         'lift': '抬升', 'transfer': '搬运', 'release': '张爪投放',
         'transfer_connect': '接入搬运示教起点', 'taught_transfer': '示教搬运至投放位',
         'return_connect': '接入返回示教起点', 'taught_return': '示教返回',
+        'prepared_taught_carry': '预计算抬升、接入和示教投放',
+        'prepared_taught_return': '预计算示教返回等待位',
+        'prepared_taught_recovery_carry': '恢复示教投放',
+        'prepared_taught_recovery_return': '恢复示教返回等待位',
+        'planning_prepared_taught_cycle': '准备整段示教搬运及返回',
+        'planning_prepared_taught_recovery_cycle': '准备整段恢复示教搬运及返回',
         'return': '返回等待位', 'waiting': '等待下一件',
         'recovery_checking': '恢复状态检查', 'recovery_settling': '恢复前位置保持',
         'planning_recovery_lift': '恢复抬升规划', 'recovery_lift': '恢复抬升',
@@ -86,6 +92,8 @@ class ConsoleProgress:
                 self.grip_reported = False
                 action = '开始检测与定位' if self.fixed_speed is not None else '开始检测与视觉测速'
                 self.write(f'[等待] 第 {self.cycle} 次抓取尝试，{action}')
+        elif event == 'taught_timing_prepared':
+            self.write('[示教] 投放和返回时序已预计算，后续按本次工件检查路径')
         elif event == 'startup_return_wait_started':
             self.write(f"[回位] 平滑移动到等待位，速度 {data['speed_percent']}%")
         elif event in ('startup_return_wait_passed', 'startup_return_wait_skipped'):
@@ -212,8 +220,15 @@ class ConsoleProgress:
             self.write('[恢复] 等待新反馈与最后目标到位，暂不发送回位指令')
         elif event == 'recovery_feedback_rechecked':
             self.write(f'[恢复] 新反馈复核通过，等待 {data["waited_s"]:.3f}s')
+        elif event == 'return_feedback_rechecked':
+            self.write(f'[反馈] 空爪返回新反馈复核通过，等待 {data["waited_s"]*1000:.1f} ms')
         elif event == 'recovery_started':
-            self.write('[恢复] 先放入配置料框，再回等待位' if data['carrying'] else '[恢复] 规划空爪返回等待位')
+            self.write('[恢复] 按示教投放后回等待位' if data.get('payload_policy') == 'taught_drop_then_wait' else
+                '[恢复] 先放入配置料框，再回等待位' if data['carrying'] else '[恢复] 规划空爪返回等待位')
+        elif event == 'taught_cycle_preparing':
+            self.write('[轨迹] 一次准备本次抬升、示教投放和返回路径')
+        elif event == 'taught_cycle_prepared':
+            self.write('[轨迹] 示教投放及返回均已准备，执行期间不再逐段求解')
         elif event == 'recovery_finished':
             self.write('[恢复] 已回等待位并张爪')
         elif event == 'planning_submitted':

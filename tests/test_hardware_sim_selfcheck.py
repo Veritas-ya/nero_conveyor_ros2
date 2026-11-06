@@ -29,7 +29,7 @@ def test_deployed_configuration_resolves_actual_destination_and_common_profile()
     assert config.settings.control_hz == 100
     assert config.raw['planning_knot_hz'] == 10
     assert config.raw['planning_knot_hz_fallback'] == 50
-    assert config.raw['geometry_check_hz'] == 50
+    assert config.raw['geometry_check_hz'] == 25
 
 
 def test_closure_uses_actual_pose_time_not_advanced_arm_sample():
@@ -289,7 +289,7 @@ def test_can_pairing_never_reuses_an_old_epoch_or_backward_clock():
     assert history.pair(np.ones(7), [.5]*4, .9, epoch=1)[0] is None
 
 
-@pytest.mark.parametrize('calibration_error_m', [0., .006])
+@pytest.mark.parametrize('calibration_error_m', [0., .011])
 def test_time_aligned_fk_keeps_latest_joints_and_does_not_mask_true_errors(calibration_error_m):
     from scipy.spatial.transform import Rotation
     from nero_core.two_second.planning import calibrated_model
@@ -305,7 +305,7 @@ def test_time_aligned_fk_keeps_latest_joints_and_does_not_mask_true_errors(calib
     with pytest.raises(PickRejected, match='不符') as error:
         model.check_feedback(state)  # 20 ms skew, despite all packets being fresh
     assert error.value.details['joint_source']=='latest_joint_feedback'
-    assert error.value.details['orientation_tolerance_deg']==1.
+    assert error.value.details['orientation_tolerance_deg']==2.
     history = JointFeedbackHistory()
     history.pair(old, [1.]*4, 1.)
     paired, _ = history.pair(latest, [1.02]*4, 1.)

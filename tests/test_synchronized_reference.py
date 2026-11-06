@@ -177,3 +177,16 @@ def test_hardware_planner_never_falls_back_to_closer_long_axis():
     classic=order_obb_grasps(poses,np.eye(3),synchronized=False)
     assert {index for index,_ in synchronized} == {0,1}
     assert {index for index,_ in classic} == {0,1}
+
+
+def test_obb_symmetric_candidates_can_use_distinct_reference_rotation():
+    from scipy.spatial.transform import Rotation
+    from nero_core.two_second.smooth_planning import order_obb_grasps
+    poses=[]
+    for angle in (20., 200., 110., 290.):
+        pose=np.eye(4);pose[:3,:3]=Rotation.from_euler('z',angle,degrees=True).as_matrix()
+        poses.append(pose)
+    taught=Rotation.from_euler('z',190.,degrees=True).as_matrix()
+    assert [i for i,_ in order_obb_grasps(poses,np.eye(3),synchronized=True)] == [0,1]
+    assert [i for i,_ in order_obb_grasps(poses,np.eye(3),synchronized=True,
+                                           reference_rotation=taught)] == [1,0]

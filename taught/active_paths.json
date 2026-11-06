@@ -1,0 +1,62 @@
+{
+  "configuration_source": "/home/ubuntu22/nero_conveyor_ros2/install/nero_bringup/share/nero_bringup/config/two_second.hardware.legacy_observed.yaml",
+  "transfer": {
+    "segment": "transfer",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_trimmed_start025_20261105.json",
+    "sha256": "3e30e72152a56f8ebd2f9d897e2da8f4a7a9728467a0d111a7af40fb20e893ee",
+    "samples": 42,
+    "recorded_duration_s": 2.0499274730682373
+  },
+  "return": {
+    "segment": "return",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/planned_return/return_generated.json",
+    "sha256": "2d06bafa6c8e7557c3b030a72ed2c7fa8a695a4d7e87240c1774c8d7d5d2dc88",
+    "samples": 61,
+    "recorded_duration_s": 1.2
+  },
+  "return_origin": "offline_planned",
+  "standby_joints_rad": [
+    -0.15616595258058463,
+    0.6563590912851938,
+    -0.08736010956498129,
+    1.6638224933253727,
+    -0.08130801279383741,
+    -0.293856030555404,
+    0.6642143667591787
+  ],
+  "status": "offline_saved_payload_replays_validated",
+  "motion_executed": false,
+  "launcher": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/run_taught_pick.sh",
+  "validation": "/home/ubuntu22/nero_conveyor_ros2/runs/diagnostics/taught_transfer_1p5_20261105/verification.json",
+  "original_transfer": {
+    "segment": "transfer",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_retake_20261104_223900.json",
+    "sha256": "1fb83cdb1eb968abd6db92d3644cae1c32429b0d23e1996080aec197019de924",
+    "samples": 66,
+    "recorded_duration_s": 3.2448508739471436
+  },
+  "return_validation": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/planned_return/validation.json",
+  "transfer_derivation": {
+    "start_point_one_based": 25,
+    "removed_prefix_s": 1.1949234008789062,
+    "joint_samples_preserved_exactly": true,
+    "remaining_time_intervals_preserved_exactly": true,
+    "report": "/home/ubuntu22/nero_conveyor_ros2/runs/diagnostics/taught_trim_entry_20261105/trim_report.json"
+  },
+  "previous_validation": "/home/ubuntu22/nero_conveyor_ros2/runs/diagnostics/taught_prepared_chain_20261105/verification.json",
+  "taught_transfer_timing_policy": "path_preserving_variable_speed",
+  "loaded_acceleration_limits_rad_s2": [
+    8.0,
+    8.0,
+    8.0,
+    8.0,
+    8.0,
+    8.0,
+    8.0
+  ],
+  "prepared_taught_cycle_enabled": true,
+  "taught_joint_jerk_limit_rad_s3": 500.0,
+  "taught_transfer_max_duration_s": 1.5,
+  "taught_transfer_jerk_limit_rad_s3": 10000.0,
+  "taught_transfer_planned_duration_s": 1.48
+}

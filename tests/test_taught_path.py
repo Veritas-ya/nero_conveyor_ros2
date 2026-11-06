@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 import numpy as np
 import pytest
+import yaml
 
 from nero_core.two_second.config import CellConfig
 from nero_core.two_second.taught import TaughtSegment, certify_taught, provenance
@@ -37,6 +38,65 @@ def test_recorded_segment_checks_provenance_and_time(site, tmp_path):
     taught_path.write_text(json.dumps(raw))
     with pytest.raises(ValueError, match='时间递增'):
         TaughtSegment.load(taught_path, cfg, 'transfer')
+
+
+def test_configured_taught_pair_is_loaded_without_cli_flags(site, tmp_path, capsys):
+    from nero_core.two_second.main import main
+    path, data = site
+    cfg = CellConfig.load(path)
+    transfer = make_segment(tmp_path, cfg, 'transfer')
+    returning = make_segment(tmp_path, cfg, 'return')
+    data.update(trajectory_profile='smooth', taught_transfer_file=transfer.name,
+                taught_return_file=returning.name)
+    path.write_text(yaml.safe_dump(data))
+    assert main(['--config', str(path), '--check-config']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['taught_segments_source'] == 'configuration'
+    assert result['taught_segments']['transfer']['path'] == str(transfer)
+    assert result['taught_segments']['return']['path'] == str(returning)
+    assert not result['taught_arguments_ignored']
+    assert result['hardware_connections'] == result['commands_sent'] == 0
+
+
+def test_cli_pair_overrides_missing_configured_defaults(site, tmp_path, capsys):
+    from nero_core.two_second.main import main
+    path, data = site
+    cfg = CellConfig.load(path)
+    transfer = make_segment(tmp_path, cfg, 'transfer')
+    returning = make_segment(tmp_path, cfg, 'return')
+    data.update(trajectory_profile='smooth', taught_transfer_file='missing_transfer.json',
+                taught_return_file='missing_return.json')
+    path.write_text(yaml.safe_dump(data))
+    assert main(['--config', str(path), '--check-config',
+                 '--taught-transfer', str(transfer), '--taught-return', str(returning)]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['taught_segments_source'] == 'cli'
+    assert result['taught_segments']['transfer']['path'] == str(transfer)
+
+
+@pytest.mark.parametrize('enabled', [True, False])
+def test_missing_default_taught_files_do_not_silently_fall_back(site, capsys, enabled):
+    from nero_core.two_second.main import main
+    path, data = site
+    data.update(trajectory_profile='smooth', taught_playback_enabled=enabled,
+                taught_transfer_file='missing_transfer.json', taught_return_file='missing_return.json')
+    path.write_text(yaml.safe_dump(data))
+    assert main(['--config', str(path), '--check-config']) == (2 if enabled else 0)
+    result = json.loads(capsys.readouterr().out)
+    assert result['hardware_connections'] == result['commands_sent'] == 0
+    if enabled:
+        assert result['status'] == 'configuration_incomplete'
+    else:
+        assert result['taught_segments'] == {} and result['taught_arguments_ignored']
+
+
+@pytest.mark.parametrize('key', ['taught_transfer_file', 'taught_return_file'])
+def test_default_taught_files_must_be_a_pair(site, key):
+    path, data = site
+    data[key] = 'one_segment.json'
+    path.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match='须同时配置'):
+        CellConfig.load(path)
 
 
 def test_certify_retimes_and_checks_actual_emitted_curve(site, tmp_path):

@@ -1,0 +1,88 @@
+{
+  "status": "offline_validated",
+  "transfer": {
+    "segment": "transfer",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_retake_20261104_223900.json",
+    "sha256": "1fb83cdb1eb968abd6db92d3644cae1c32429b0d23e1996080aec197019de924",
+    "samples": 66,
+    "recorded_duration_s": 3.2448508739471436
+  },
+  "return": {
+    "segment": "return",
+    "path": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/planned_return/return_generated.json",
+    "sha256": "2d06bafa6c8e7557c3b030a72ed2c7fa8a695a4d7e87240c1774c8d7d5d2dc88",
+    "samples": 61,
+    "recorded_duration_s": 1.2
+  },
+  "transfer_retimed_duration_s": 9.450000000000001,
+  "transfer_robot_geometry_validated": true,
+  "transfer_current_payload_certified": false,
+  "return_runtime_retimed_duration_s": 1.2300000000000002,
+  "return_certification_wall_s": 0.044712216997140786,
+  "return_peak_velocity_rad_s": [
+    2.8786665170502728,
+    0.3598572471226219,
+    0.2463246381894826,
+    0.5524660618533382,
+    0.011030852651217254,
+    0.4536714762914568,
+    0.8819585067315465
+  ],
+  "return_peak_acceleration_rad_s2": [
+    7.2064992456469845,
+    0.9008723186838717,
+    0.6166529915092873,
+    1.3830522689594063,
+    0.027614810829657794,
+    1.1357283423771876,
+    2.2079088619013185
+  ],
+  "return_endpoint_matches_wait": true,
+  "return_start_matches_transfer_end": true,
+  "rest_qva_endpoints": true,
+  "scene": {
+    "source": "offline_saved_native_belt_surface",
+    "source_file": "/home/ubuntu22/nero_conveyor_ros2/runs/two_second_hardware/continuous_20261104_220320/preview/latest.npz",
+    "collision_points": 26943,
+    "plane_to_base": [
+      [
+        0.9998903815255711,
+        0.0,
+        0.014806246406427068,
+        0.0
+      ],
+      [
+        -0.000602029661900586,
+        0.9991730191525822,
+        0.040656061759595484,
+        0.0
+      ],
+      [
+        -0.014794001924226804,
+        -0.040660518903647185,
+        0.9990634913305322,
+        -0.12647760181642154
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "bounds_xy_m": [
+      [
+        -0.510624468431504,
+        -0.21307127380918567
+      ],
+      [
+        -1.1111760458788096,
+        0.8330742116125596
+      ]
+    ]
+  },
+  "hardware_connections": 0,
+  "commands_sent": 0,
+  "motion_executed": false,
+  "scope": "model and saved native belt only; payload and current live scene certified during actual task"
+}

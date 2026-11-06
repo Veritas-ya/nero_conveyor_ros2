@@ -1,0 +1,193 @@
+{
+  "transfer_source": "/home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_retake_20261104_223900.json",
+  "scene": {
+    "source": "offline_saved_native_belt_surface",
+    "source_file": "/home/ubuntu22/nero_conveyor_ros2/runs/two_second_hardware/continuous_20261104_220320/preview/latest.npz",
+    "collision_points": 26943,
+    "plane_to_base": [
+      [
+        0.9998903815255711,
+        0.0,
+        0.014806246406427068,
+        0.0
+      ],
+      [
+        -0.000602029661900586,
+        0.9991730191525822,
+        0.040656061759595484,
+        0.0
+      ],
+      [
+        -0.014794001924226804,
+        -0.040660518903647185,
+        0.9990634913305322,
+        -0.12647760181642154
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "bounds_xy_m": [
+      [
+        -0.510624468431504,
+        -0.21307127380918567
+      ],
+      [
+        -1.1111760458788096,
+        0.8330742116125596
+      ]
+    ]
+  },
+  "transfer_robot_geometry_passed": true,
+  "transfer_payload_certified": false,
+  "transfer_retimed_duration_s": 9.450000000000001,
+  "return_duration_s": 1.2,
+  "return_diagnostics": {
+    "time_scale": 1.0273412408263232,
+    "rest_qva_endpoints": true,
+    "original_waypoints": 25,
+    "waypoints": 2,
+    "motion_profile": "unloaded",
+    "motion_profile_source": "global",
+    "joint_velocity_limits_rad_s": [
+      3.141592653589793,
+      3.141592653589793,
+      3.141592653589793,
+      3.9269908169872414,
+      3.9269908169872414,
+      3.9269908169872414,
+      3.9269908169872414
+    ],
+    "joint_acceleration_limits_rad_s2": [
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0
+    ],
+    "route_diagnostics": {
+      "stage": "offline_planned_taught_return",
+      "target_identity": [
+        0,
+        0,
+        0
+      ],
+      "payload": false,
+      "start_joints_rad": [
+        1.732239282604372,
+        0.4202927371727545,
+        0.07422885308731884,
+        1.3014047567495717,
+        -0.07407177345463935,
+        0.0037524578917878084,
+        1.2427791471750824
+      ],
+      "measured_joints_rad": [
+        1.732239282604372,
+        0.4202927371727545,
+        0.07422885308731884,
+        1.3014047567495717,
+        -0.07407177345463935,
+        0.0037524578917878084,
+        1.2427791471750824
+      ],
+      "gripper_width_m": 0.1,
+      "goal_joints_rad": [
+        -0.15616595258058463,
+        0.6563590912851938,
+        -0.08736010956498129,
+        1.6638224933253727,
+        -0.08130801279383741,
+        -0.293856030555404,
+        0.6642143667591787
+      ],
+      "goal_pose_base": null,
+      "scene_revision": 1,
+      "scene_scope": null,
+      "scene_frame_sequence": null,
+      "scene_capture_monotonic_s": null,
+      "planning_budget_s": 8.0,
+      "outcome": "delivered",
+      "elapsed_s": 0.0940694450000592,
+      "cancelled": false,
+      "timed_out": false,
+      "operation_timings_s": {
+        "goal_ik": 0.0,
+        "path_search": 0.05755030599902966,
+        "time_parameterization": 0.004186154001217801,
+        "curve_geometry": 0.031067493997397833
+      },
+      "state_check_counts": {
+        "start": 4,
+        "goal": 3,
+        "path": 499
+      },
+      "rejection_counts": {},
+      "rejection_examples": [],
+      "goal_attempts": [
+        {
+          "goal_joints_rad": [
+            -0.15616595258058463,
+            0.6563590912851938,
+            -0.08736010956498129,
+            1.6638224933253727,
+            -0.08130801279383741,
+            -0.293856030555404,
+            0.6642143667591787
+          ],
+          "outcome": "path_found",
+          "search_wall_s": 0.05755030599902966,
+          "waypoints": 25
+        }
+      ],
+      "ik_attempts": 0,
+      "ik_failures": 0,
+      "ik_failure_examples": [],
+      "curve_failures": []
+    }
+  },
+  "return_start_q": [
+    1.7322392826043722,
+    0.4202927371727545,
+    0.07422885308731886,
+    1.3014047567495715,
+    -0.07407177345463933,
+    0.0037524578917878084,
+    1.2427791471750826
+  ],
+  "return_end_q": [
+    -0.15616595258058452,
+    0.6563590912851939,
+    -0.08736010956498128,
+    1.6638224933253727,
+    -0.08130801279383741,
+    -0.29385603055540405,
+    0.6642143667591788
+  ],
+  "return_peak_acceleration_rad_s2": [
+    7.5713282699788245,
+    0.9464789798154853,
+    0.6478710492062971,
+    1.453069290085527,
+    0.029012810627831124,
+    1.193224589714011,
+    2.3196842480451405
+  ],
+  "return_peak_velocity_rad_s": [
+    2.9506331799764776,
+    0.3688536783006673,
+    0.2524827541442191,
+    0.566277713399717,
+    0.011306623967495998,
+    0.46501326319873676,
+    0.9040074693998714
+  ],
+  "hardware_connections": 0,
+  "commands_sent": 0,
+  "scope": "offline model and saved measured belt only; bin, people and unobserved obstacles not certified"
+}

@@ -57,12 +57,15 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
     follow_end = (reference.follow_end_s if smooth else path.duration)
     confirmation = None
     arrival = RestArrival(origin+path.duration, tolerance_rad=TRAJECTORY_ARRIVAL_TOLERANCE_RAD)
+    from .return_feedback import ReturnFeedbackCheck, RETURN_STAGES
+    feedback_check = ReturnFeedbackCheck(e.planner.model.check_feedback, e.clock,
+        enabled=not carrying and reference is None and path.stage in RETURN_STAGES)
 
     def step(state, dispatch, dt):
         nonlocal confirmation
         e._active(identity, version, epoch)
         fresh_feedback(state, e.clock(), e.feedback_stamps)
-        e.planner.model.check_feedback(state)
+        feedback_check.observe(state)
         if carrying or (close['held'] is not None and not scheduled_attempt):
             e.holding.check_holding(state)
         elapsed = dispatch+advance-origin
@@ -197,6 +200,8 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
             e._active(identity, version, epoch)
         e.sender.join()
         report = e.sender.snapshot()
+        for item in feedback_check.resumed:
+            e._emit('return_feedback_rechecked', {'stage': path.stage, **item})
         for event in getattr(report, 'events', ()):
             if event.get('event') == 'joint_stream_window_retry':
                 e._emit('dispatch_window_retry', {'stage': path.stage,

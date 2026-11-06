@@ -41,10 +41,16 @@ def run_pick_cycles(config, planner, device, vision, *, count, cancelled, result
         if offer_target is not None:
             offer_target(target)
         set_phase('planning_and_execution', cycle_index=attempt, target_identity=target.identity)
+        capture_position = getattr(target, 'entry_position', None)
+        capture_upstream = (None if capture_position is None else
+            float(config.follow_bounds[0]-sum(p*d for p,d in zip(capture_position, config.direction))))
         journal.emit('qualified_target', cycle_index=attempt, identity=target.identity,
             capture_monotonic_s=target.capture_s, received_monotonic_s=target.received_s,
             source_device_s=target.device_s, sequence=target.sequence,
-            speed_report=target.speed_report, grasp_candidate_count=len(target.grasps))
+            speed_report=target.speed_report, grasp_candidate_count=len(target.grasps),
+            freeze_capture_upstream_m=capture_upstream,
+            freeze_position_upstream_m=config.raw.get('freeze_position_upstream_m'),
+            freeze_position_tolerance_m=config.raw.get('freeze_position_tolerance_m'))
         executor = executor_factory(config, planner, device, epoch=lambda: vision.clock_epoch,
             cancelled=cancelled,
             event_sink=lambda row, index=attempt: journal.emit('execution_event', cycle_index=index, record=row))

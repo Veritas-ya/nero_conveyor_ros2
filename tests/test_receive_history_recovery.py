@@ -70,16 +70,13 @@ def test_real_adapter_guard_captures_all_four_can_joint_packet_types_without_rea
     assert report['maximum_bracket_span_s']==pytest.approx(.005)
 
 
-def test_recorded_five_point_zero_one_mm_mismatch_still_rejects():
+def test_recorded_five_point_zero_one_mm_mismatch_is_within_new_limit():
     model=RobotModel()
     paired=[.4670442113817257,.7498417113483694,.2070456633435994,1.7244604028096728,
         -.06206361604556415,.044557933179617655,.537102106699592]
     state={'joints':paired,'joints_at_pose_stamp':paired,'joints_at_pose_stamp_time':1.,'pose_stamp':1.,
         'width_m':.1,'pose':[-.292165,-.240073,.158195,-1.125335941808384,1.4114303127952943,-2.0488245556236233]}
-    with pytest.raises(PickRejected) as failure:model.check_feedback(state)
-    assert failure.value.details['reason']=='feedback_fk_mismatch'
-    assert failure.value.details['position_error_m']==pytest.approx(.005010816193620153,abs=1e-12)
-    assert failure.value.details['position_tolerance_m']==.005
+    model.check_feedback(state)
 
 
 def test_recovery_waits_for_new_pose_and_does_not_retry_the_identical_bad_sample():

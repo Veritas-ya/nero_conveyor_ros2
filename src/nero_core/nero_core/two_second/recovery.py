@@ -208,16 +208,22 @@ def _return_to_wait(e, target, failure, state, carrying, *, allow_workpiece_cont
     e.planner.model.check_feedback(state)
     if carrying:
         e.planner.reanchor_support(state)
-    e._emit('recovery_started', {'carrying':carrying, 'payload_policy':'configured_bin_then_wait',
+    prepared_taught = bool(carrying and e.config.raw.get('prepared_taught_cycle_enabled', False)
+        and e.config.raw.get('taught_playback_enabled', True) and e.config.raw.get('taught_segments'))
+    e._emit('recovery_started', {'carrying':carrying,
+        'payload_policy':'taught_drop_then_wait' if prepared_taught else 'configured_bin_then_wait',
         'allow_cancelled_workpiece_contact': allow_workpiece_contact})
     with ThreadPoolExecutor(max_workers=1, thread_name_prefix='recovery-planner') as pool:
         stages = []
-        if carrying:
+        if prepared_taught:
+            state = e._prepared_taught_cycle(pool, state, target, recovery=True)
+        elif carrying:
             lift = e.planner.model.tcp().copy()
             lift[:3, 3] += e.planner.support*e.config.settings.lift_m
             stages.extend([('recovery_lift', lift, None, True),
                 ('recovery_transfer', e.config.bins[e.config.default_bin], None, True)])
-        stages.append(('recovery_return', None, e.config.standby, False))
+        if not prepared_taught:
+            stages.append(('recovery_return', None, e.config.standby, False))
         for stage, goal, joints, loaded in stages:
             e._active(e.owner, e.version, target.epoch)
             e.stage = 'planning_'+stage

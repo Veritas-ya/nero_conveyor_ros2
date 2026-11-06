@@ -16,12 +16,12 @@ Heavy learned 6-D backends can later implement the same ``process`` contract.
 
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass
 import math
 import time
 from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 
@@ -213,22 +213,25 @@ def deproject_depth_to_world(
     cx, cy = float(matrix[0, 2]), float(matrix[1, 2])
     if fx <= 0.0 or fy <= 0.0:
         raise ValueError("intrinsics focal lengths must be positive")
-    rows, columns = np.indices(depth_image.shape, dtype=np.float64)
-    points_opencv = np.stack(
-        (
-            (columns - cx) * depth_image / fx,
-            (rows - cy) * depth_image / fy,
-            depth_image,
-        ),
-        axis=-1,
-    )
+    # Broadcast pixel offsets and fill one output buffer. Keep the original
+    # subtract/multiply/divide order, without two HxW grids and stack copies.
+    height, width = depth_image.shape
+    points_opencv = np.empty((height, width, 3), dtype=np.float64)
+    np.multiply(np.arange(width, dtype=np.float64)-cx, depth_image, out=points_opencv[..., 0])
+    np.divide(points_opencv[..., 0], fx, out=points_opencv[..., 0])
+    np.multiply((np.arange(height, dtype=np.float64)-cy)[:, None], depth_image,
+                out=points_opencv[..., 1])
+    np.divide(points_opencv[..., 1], fy, out=points_opencv[..., 1])
+    points_opencv[..., 2] = depth_image
     if camera_convention == "mujoco":
         points_camera = points_opencv @ _OPENCV_TO_MUJOCO.T
     elif camera_convention == "opencv":
         points_camera = points_opencv
     else:
         raise ValueError("camera_convention must be 'mujoco' or 'opencv'")
-    return points_camera @ transform[:3, :3].T + transform[:3, 3]
+    points_world = points_camera @ transform[:3, :3].T
+    points_world += transform[:3, 3]
+    return points_world
 
 
 def connected_component_masks(
@@ -236,51 +239,30 @@ def connected_component_masks(
     *,
     minimum_pixels: int,
 ) -> tuple[BoolArray, ...]:
-    """Extract eight-connected masks using NumPy plus a sparse flood fill."""
+    """Label the complete foreground's pixel bounds, preserving scan order."""
 
     mask = np.asarray(foreground, dtype=bool)
     if mask.ndim != 2:
         raise ValueError("foreground must have shape (height, width)")
     if minimum_pixels <= 0:
         raise ValueError("minimum_pixels must be positive")
-    height, width = mask.shape
-    visited = np.zeros_like(mask)
+    rows, columns = np.nonzero(mask)
+    if not len(rows):
+        return ()
+    y0, y1 = int(rows.min()), int(rows.max())+1
+    x0, x1 = int(columns.min()), int(columns.max())+1
+    crop = np.s_[y0:y1, x0:x1]
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(
+        mask[crop].astype(np.uint8), connectivity=8)
+    # OpenCV label numbering can vary by backend. The public order remains
+    # the old flood fill's first foreground pixel in row-major order.
+    ids, first = np.unique(labels[rows-y0, columns-x0], return_index=True)
     components: list[BoolArray] = []
-    for row_value, column_value in zip(*np.nonzero(mask), strict=True):
-        row, column = int(row_value), int(column_value)
-        if visited[row, column]:
-            continue
-        queue: deque[tuple[int, int]] = deque([(row, column)])
-        visited[row, column] = True
-        pixels: list[tuple[int, int]] = []
-        while queue:
-            current_row, current_column = queue.popleft()
-            pixels.append((current_row, current_column))
-            for row_offset, column_offset in (
-                (-1, -1),
-                (-1, 0),
-                (-1, 1),
-                (0, -1),
-                (0, 1),
-                (1, -1),
-                (1, 0),
-                (1, 1),
-            ):
-                next_row = current_row + row_offset
-                next_column = current_column + column_offset
-                if (
-                    0 <= next_row < height
-                    and 0 <= next_column < width
-                    and mask[next_row, next_column]
-                    and not visited[next_row, next_column]
-                ):
-                    visited[next_row, next_column] = True
-                    queue.append((next_row, next_column))
-        if len(pixels) < minimum_pixels:
-            continue
-        component = np.zeros_like(mask)
-        component[tuple(np.asarray(pixels, dtype=np.int64).T)] = True
-        components.append(component)
+    for label in ids[np.argsort(first)]:
+        if stats[label, cv2.CC_STAT_AREA] >= minimum_pixels:
+            component = np.zeros_like(mask)
+            component[crop] = labels == label
+            components.append(component)
     return tuple(components)
 
 
@@ -463,28 +445,41 @@ class DepthGeometryVisionPipeline:
             points_world = np.asarray(points_world, dtype=np.float64)
             if points_world.shape != (*depth_image.shape, 3):
                 raise ValueError('points_world must match native depth HxWx3 in pipeline frame')
-        relative_height = points_world[..., 2] - self.support_plane_height
-        foreground = (
-            np.isfinite(depth_image)
-            & (depth_image > 1e-6)
-            & np.all(np.isfinite(points_world), axis=-1)
-            & (relative_height >= self.minimum_height)
-            & (relative_height <= self.maximum_height)
-        )
-        inside_roi = (
-            (points_world[..., 0] >= self.roi_x[0])
-            & (points_world[..., 0] <= self.roi_x[1])
-            & (points_world[..., 1] >= self.roi_y[0])
-            & (points_world[..., 1] <= self.roi_y[1])
-        )
-        if not roi_selects_components:
-            foreground &= inside_roi
         if foreground_mask is not None:
             allowed = np.asarray(foreground_mask, dtype=bool)
             if allowed.shape != depth_image.shape:
                 raise ValueError("foreground_mask must match native depth shape")
-            foreground &= allowed
+            indices = np.flatnonzero(allowed)
+            candidates = points_world.reshape(-1, 3)[indices]
+            candidate_depths = depth_image.ravel()[indices]
+            relative_height = candidates[:, 2]-self.support_plane_height
+            valid = (np.isfinite(candidate_depths) & (candidate_depths > 1e-6)
+                     & np.isfinite(candidates).all(axis=1)
+                     & (relative_height >= self.minimum_height)
+                     & (relative_height <= self.maximum_height))
+            evaluated_pixels = len(indices)
+            indices, candidates, candidate_depths = indices[valid], candidates[valid], candidate_depths[valid]
+        else:
+            relative_height = points_world[..., 2]-self.support_plane_height
+            valid = (np.isfinite(depth_image) & (depth_image > 1e-6)
+                     & np.isfinite(points_world).all(axis=-1)
+                     & (relative_height >= self.minimum_height)
+                     & (relative_height <= self.maximum_height))
+            indices = np.flatnonzero(valid)
+            candidates = points_world.reshape(-1, 3)[indices]
+            candidate_depths = depth_image.ravel()[indices]
+            evaluated_pixels = depth_image.size
+        inside_roi = ((candidates[:, 0] >= self.roi_x[0]) & (candidates[:, 0] <= self.roi_x[1])
+                      & (candidates[:, 1] >= self.roi_y[0]) & (candidates[:, 1] <= self.roi_y[1]))
+        if not roi_selects_components:
+            indices, candidates = indices[inside_roi], candidates[inside_roi]
+            candidate_depths, inside_roi = candidate_depths[inside_roi], inside_roi[inside_roi]
+        foreground = np.zeros(depth_image.shape, dtype=bool)
+        foreground.ravel()[indices] = True
         self.last_foreground_mask = foreground.copy()
+        self.last_component_workload = {'grid_pixels': int(depth_image.size),
+            'geometry_evaluated_pixels': int(evaluated_pixels), 'foreground_pixels': len(indices),
+            'complete_components_preserved': True, 'sampling_applied': False}
         masks = connected_component_masks(
             foreground, minimum_pixels=self.minimum_mask_pixels
         )
@@ -493,10 +488,11 @@ class DepthGeometryVisionPipeline:
             # A measured search rectangle is not an object's silhouette.
             # Select components intersecting it, then measure their complete
             # observed foreground. The default preserves historical crops.
-            if roi_selects_components and not np.any(mask & inside_roi):
+            selected = mask.ravel()[indices]
+            if roi_selects_components and not np.any(inside_roi[selected]):
                 continue
-            points = points_world[mask]
-            depths = depth_image[mask]
+            points = candidates[selected]
+            depths = candidate_depths[selected]
             if len(points) < self.minimum_mask_pixels:
                 continue
             xy = points[:, :2]

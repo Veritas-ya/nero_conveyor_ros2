@@ -209,13 +209,28 @@ class CloudView(QtWidgets.QWidget):
             for i in range(4):line(corners[i],corners[(i+1)%4], '#458c78')
             # Show the exact configured s=p·direction freeze/entry/follow boundaries.
             direction = self.config.direction
-            for along, color in ((self.config.follow_bounds[0]-self.config.raw['freeze_upstream_distance_m'],'#96793e'),
-                                 (self.config.follow_bounds[0],'#ffcb65'),(self.config.follow_bounds[1],'#ff7474')):
+            fixed_position = self.config.raw.get('freeze_position_upstream_m')
+            distance = self.config.raw['freeze_upstream_distance_m']
+            if fixed_position is not None:
+                distance = fixed_position
+            elif (self.config.raw.get('synchronized_adaptive_freeze') and
+                  self.config.raw.get('planning_reserve_mode') == 'measured'):
+                distance = self.config.raw['synchronized_max_freeze_upstream_distance_m']
+            boundaries = [(self.config.follow_bounds[0]-distance,'#58cbd6',
+                           None if fixed_position is None else f'冻结 {distance*100:g} cm'),
+                          (self.config.follow_bounds[0],'#ffcb65',None),
+                          (self.config.follow_bounds[1],'#ff7474',None)]
+            if fixed_position is not None:
+                cutoff = fixed_position-self.config.raw['freeze_position_tolerance_m']
+                boundaries.append((self.config.follow_bounds[0]-cutoff,'#96793e',f'取帧截止 {cutoff*100:g} cm'))
+            for along, color, label in boundaries:
                 vertices=[]
                 for a,b in zip(corners,np.roll(corners,-1,axis=0)):
                     da,db=a@direction-along,b@direction-along
                     if da*db<0:vertices.append(a+(b-a)*da/(da-db))
-                if len(vertices)==2:line(*vertices,color,2)
+                if len(vertices)==2:
+                    line(*vertices,color,2)
+                    if label:label_at(np.mean(vertices,axis=0),label,color)
         live = snap.get('live_geometry')
         frozen = snap.get('frozen')
         if path_preview:
@@ -278,7 +293,7 @@ class CloudView(QtWidgets.QWidget):
             p.drawText(15,self.height()-18,'灰：预测机器人 · 橙黄凸包：碰撞几何 · 紫线：预测目标TCP · 橙夹爪：冻结抓姿')
         elif production_plan:p.drawText(15,self.height()-18,'绿：接近 · 青线：闭爪跟随 · 黄：减速 · 紫点：预测工件 · 白：接触抓姿')
         elif path_preview:p.drawText(15,self.height()-18,'黄：TCP轨迹 · 青：曝光工件 · 紫：预测接触工件 · 白：预测接触夹爪')
-        else:p.drawText(15,self.height()-18,'青色：工件点云  绿色：OBB  橙色：候选夹爪  黄色：冻结测速')
+        else:p.drawText(15,self.height()-18,snap.get('geometry_legend','青色：工件点云  绿色：OBB  橙色：候选夹爪  黄色：冻结测速'))
         p.end()
 
     def mousePressEvent(self, event):self.last=event.pos()

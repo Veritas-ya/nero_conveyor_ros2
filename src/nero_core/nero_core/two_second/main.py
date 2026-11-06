@@ -30,7 +30,8 @@ def provenance(config):
         'nero7_belt_velocity.py','nero7_fused_detection.py','nero7_tracking_roi.py','nero7_boundary_depth.py','workpiece_admission.py',
         'pointcloud_speed_tracker.py')]
     files += [root/'mujoco_conveyor_sorting/models/robot.xml',
-              root/'mujoco_conveyor_sorting/configs/robot.yaml']
+              root/'mujoco_conveyor_sorting/configs/robot.yaml',
+              root/'mujoco_conveyor_sorting/perception/rgbd_vision_pipeline.py']
     vendor=root/'vendor/nero7_speed_reference'
     files.append(vendor/'source_manifest.json')
     files += [vendor/'nero7_perception'/name for name in (
@@ -38,7 +39,9 @@ def provenance(config):
     return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
 
 
-def main(argv=None):
+def main(argv=None,*,freeze_source='tracked'):
+    if freeze_source not in ('tracked','single_exposure_native_depth'):
+        raise ValueError('unknown freeze acquisition source')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--output', type=Path, default=Path('runs/two_second_hardware'))
@@ -54,8 +57,8 @@ def main(argv=None):
         help='本次运行覆盖配置使用用户设定带速m/s；省略时使用配置指定的速度来源')
     parser.add_argument('--preview', action='store_true', help='共用当前相机来源，打开只读画面及碰撞预测窗口')
     parser.add_argument('--record-rgbd', action='store_true', help='异步记录同源RGB-D，供事后重建场景点云')
-    parser.add_argument('--taught-transfer', type=Path, help='可选：只读录制的载物投放示教轨迹')
-    parser.add_argument('--taught-return', type=Path, help='可选：只读录制的空爪返回示教轨迹')
+    parser.add_argument('--taught-transfer', type=Path, help='覆盖配置中的载物投放示教文件，须与 --taught-return 成对提供')
+    parser.add_argument('--taught-return', type=Path, help='覆盖配置中的空爪返回示教文件，须与 --taught-transfer 成对提供')
     args = parser.parse_args(argv)
     if args.check_config and args.execute:
         parser.error('--check-config 与 --execute 互斥')
@@ -70,15 +73,30 @@ def main(argv=None):
                      else args.fixed_belt_speed_m_s)
         if speed_m_s is not None:
             config = with_fixed_belt_speed(config, speed_m_s)
-        taught_requested = args.taught_transfer is not None
+        if freeze_source=='single_exposure_native_depth':
+            from .velocity_source import is_fixed
+            if not is_fixed(config):
+                raise ValueError('单帧冻结入口必须填写真实固定带速 --belt-speed-cm-s')
+            if (config.raw['intercept_strategy']!='synchronized'
+                    or config.raw['freeze_position_upstream_m'] is None):
+                raise ValueError('单帧冻结入口需要配置现有同步策略和固定冻结位置')
+            config.raw['freeze_source']=freeze_source
+        taught_source = ('cli' if args.taught_transfer is not None else
+                         'configuration' if config.raw.get('taught_transfer_file') else None)
+        taught_transfer = args.taught_transfer if taught_source == 'cli' else config.raw.get('taught_transfer_file')
+        taught_return = args.taught_return if taught_source == 'cli' else config.raw.get('taught_return_file')
+        taught_requested = taught_source is not None
         taught_ignored = taught_requested and not config.raw['taught_playback_enabled']
         if taught_requested and not taught_ignored:
             from .taught import TaughtSegment
             if config.raw['trajectory_profile'] != 'smooth':
                 raise ValueError('示教轨迹需要平滑轨迹模式')
             config.raw['taught_segments'] = {
-                'transfer': TaughtSegment.load(args.taught_transfer, config, 'transfer'),
-                'return': TaughtSegment.load(args.taught_return, config, 'return')}
+                'transfer': TaughtSegment.load(taught_transfer, config, 'transfer'),
+                'return': TaughtSegment.load(taught_return, config, 'return')}
+        if (config.raw['obb_grasp_orientation_reference'] == 'taught_transfer_start'
+                and not config.raw.get('taught_segments', {}).get('transfer')):
+            raise ValueError('示教起点抓姿排序需要已加载的搬运示教轨迹')
         from mujoco_conveyor_sorting.runtime.depth_calibration import load_runtime_depth_calibration
         calibration = load_runtime_depth_calibration(config.raw['camera_calibration_file'])
     except (ValueError, OSError, KeyError, TypeError) as error:
@@ -90,11 +108,18 @@ def main(argv=None):
         return 2
     if not args.execute:
         print(json.dumps({'status': 'configuration_valid', 'strategy': 'two_second',
+            'freeze_source':freeze_source,
             'continuous':args.continuous, 'requested_count':None if args.continuous else args.count,
             'mode': 'check_only', 'hardware_connections': 0, 'commands_sent': 0,
             'tcp_source': config.raw['tcp_source'],
             'taught_segments': {k:v.summary() for k,v in config.raw.get('taught_segments', {}).items()},
             'taught_playback_enabled': config.raw['taught_playback_enabled'],
+            'obb_grasp_orientation_reference': config.raw['obb_grasp_orientation_reference'],
+            'prepared_taught_cycle_enabled': config.raw['prepared_taught_cycle_enabled'],
+            'taught_joint_jerk_limit_rad_s3': config.raw.get('taught_joint_jerk_limit_rad_s3'),
+            'taught_transfer_jerk_limit_rad_s3': config.raw.get('taught_transfer_jerk_limit_rad_s3'),
+            'taught_transfer_max_duration_s': config.raw.get('taught_transfer_max_duration_s'),
+            'taught_segments_source': taught_source,
             'taught_arguments_ignored': taught_ignored,
             'velocity_policy': velocity_policy(config),
             'perception_detection_mode':config.raw['perception_detection_mode'],
@@ -122,6 +147,9 @@ def main(argv=None):
             'planning_reserve_mode': config.raw['planning_reserve_mode'],
             'planning_reserve_s': config.raw['planning_reserve_s'],
             'freeze_upstream_distance_m': config.raw['freeze_upstream_distance_m'],
+            'freeze_position_upstream_m': config.raw['freeze_position_upstream_m'],
+            'freeze_position_tolerance_m': config.raw['freeze_position_tolerance_m'],
+            'maximum_measured_speed_m_s':config.raw['maximum_measured_speed_m_s'],
             'synchronized_adaptive_freeze': config.raw['synchronized_adaptive_freeze'],
             'synchronized_max_freeze_upstream_distance_m': config.raw.get('synchronized_max_freeze_upstream_distance_m'),
             'approach_duration_candidates_s': config.raw.get('approach_duration_candidates_s'),
@@ -151,10 +179,16 @@ def main(argv=None):
     cancelled = Event()
     begin = time.monotonic()
     reports, executors = [], []
-    result = {'mode': 'hardware', 'strategy': 'two_second', 'source_hashes': provenance(config),
+    result = {'mode': 'hardware', 'strategy': 'two_second', 'freeze_source':freeze_source,'source_hashes': provenance(config),
               'joint_receive_offset_s': config.raw['hardware']['joint_receive_offset_s'],
               'taught_segments': {k:v.summary() for k,v in config.raw.get('taught_segments', {}).items()},
               'taught_playback_enabled': config.raw['taught_playback_enabled'],
+              'obb_grasp_orientation_reference': config.raw['obb_grasp_orientation_reference'],
+              'prepared_taught_cycle_enabled': config.raw['prepared_taught_cycle_enabled'],
+              'taught_joint_jerk_limit_rad_s3': config.raw.get('taught_joint_jerk_limit_rad_s3'),
+              'taught_transfer_jerk_limit_rad_s3': config.raw.get('taught_transfer_jerk_limit_rad_s3'),
+              'taught_transfer_max_duration_s': config.raw.get('taught_transfer_max_duration_s'),
+              'taught_segments_source': taught_source,
               'taught_arguments_ignored': taught_ignored,
               'prealign_orientation_s': config.raw.get('prealign_orientation_s', 0.),
               'rotate_first_s':config.raw.get('rotate_first_s',0.),
@@ -175,6 +209,9 @@ def main(argv=None):
               'intercept_strategy': config.raw['intercept_strategy'],
               'synchronized_duration_s': config.raw['synchronized_duration_s'],
               'freeze_upstream_distance_m': config.raw['freeze_upstream_distance_m'],
+              'freeze_position_upstream_m': config.raw['freeze_position_upstream_m'],
+              'freeze_position_tolerance_m': config.raw['freeze_position_tolerance_m'],
+              'maximum_measured_speed_m_s':config.raw['maximum_measured_speed_m_s'],
               'synchronized_adaptive_freeze': config.raw['synchronized_adaptive_freeze'],
               'synchronized_max_freeze_upstream_distance_m': config.raw.get('synchronized_max_freeze_upstream_distance_m'),
               'completed_feedback_cycles': 0, 'physical_success_count': None,
@@ -228,6 +265,7 @@ def main(argv=None):
 
     old_signals = {s: signal.signal(s, request_cancel) for s in (signal.SIGINT, signal.SIGTERM)}
     journal.emit('run_started', config=str(config.source), output=str(args.output),
+        freeze_source=freeze_source,
         source_hashes=result['source_hashes'], requested_count=result['requested_count'],
         continuous=args.continuous,
         environment_collision_scope=config.raw['environment_collision_scope'],
@@ -238,8 +276,15 @@ def main(argv=None):
         closure_policy=config.raw['closure_policy'],
         taught_segments=result['taught_segments'],
         taught_playback_enabled=result['taught_playback_enabled'],
+        prepared_taught_cycle_enabled=result['prepared_taught_cycle_enabled'],
+        taught_joint_jerk_limit_rad_s3=result['taught_joint_jerk_limit_rad_s3'],
+        taught_transfer_jerk_limit_rad_s3=result['taught_transfer_jerk_limit_rad_s3'],
+        taught_transfer_max_duration_s=result['taught_transfer_max_duration_s'],
+        taught_segments_source=result['taught_segments_source'],
         taught_arguments_ignored=result['taught_arguments_ignored'],
         velocity_policy=velocity_policy(config),
+        freeze_position_upstream_m=config.raw['freeze_position_upstream_m'],
+        freeze_position_tolerance_m=config.raw['freeze_position_tolerance_m'],
         clock_domains={'monotonic_s': 'host_monotonic', 'wall_time_utc': 'host_wall_display_only',
             'source_device_s': 'camera_device_clock_no_direct_subtraction_from_host_time'},
         joint_velocity_limits_rad_s=config.velocity_limits,
@@ -252,7 +297,10 @@ def main(argv=None):
         from mujoco_conveyor_sorting.runtime.nero_pick_hardware import Hardware
         from mujoco_conveyor_sorting.runtime.backends.orbbec import OrbbecCameraBackend
         from .planning import calibrated_model, MeasuredPlanner
-        from .vision import LiveVision
+        if freeze_source=='single_exposure_native_depth':
+            from .single_exposure_vision import SingleExposureVision as LiveVision
+        else:
+            from .vision import LiveVision
         from .execution import TwoSecondExecutor
         from .visual_archive import VisualArchive
         visuals = VisualArchive(args.output, journal.emit, live=args.preview,direction=config.direction,
@@ -272,6 +320,14 @@ def main(argv=None):
         # Private mirrors are prepared once, before either device is opened.
         set_phase('model_startup')
         planner = MeasuredPlanner(config)
+        if config.raw.get('taught_segments'):
+            from .taught import prepare_taught_timing
+            timings = {}
+            for kind, segment in config.raw['taught_segments'].items():
+                prepared, _ = prepare_taught_timing(config, segment, planner.model,
+                    payload=kind == 'transfer', cancelled=cancelled.is_set)
+                timings[kind] = {'duration_s': prepared.duration, **prepared.diagnostics}
+            journal.emit('taught_timing_prepared', segments=timings, hardware_connections=0)
         if args.preview:
             original_intercept = planner.intercept
             def intercept_with_visualization(*call_args, **call_kwargs):

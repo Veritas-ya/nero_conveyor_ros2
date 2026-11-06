@@ -5,7 +5,7 @@ from .feedback_gates import OpenConfirmation
 from .stationary_hold import StationaryHold
 
 
-def release_at_rest(executor, state, *, epoch, sender_factory):
+def release_at_rest(executor, state, *, epoch, sender_factory, prepare_return=None):
     e = executor
     # Opening is checked against the still-attached payload before the jaw is
     # commanded. Its release estimate is not a measurement of settled bin contents.
@@ -18,6 +18,7 @@ def release_at_rest(executor, state, *, epoch, sender_factory):
     with hold_context as hold:
         if hold is not None:
             hold.check()
+        future = None if prepare_return is None else prepare_return()
         with e.command_lock:
             e._active(e.owner, e.version, epoch)
             started = e.clock()
@@ -30,7 +31,10 @@ def release_at_rest(executor, state, *, epoch, sender_factory):
             'stationary_sender_active':hold is not None})
         result = e.holding.wait(lambda x: opening.observe(x['width_m'],mapped_stamp(x,'gripper')),
             anchor=state['pose'], stable=0., heartbeat=None if hold is None else hold.check)
+        e.holding.held_width = None
         if hold is not None:
             hold.check()
+        if future is not None:
+            e._prepare(future, e.owner, e.version, epoch, hold=hold)
     e.holding.held_width = None
     return result

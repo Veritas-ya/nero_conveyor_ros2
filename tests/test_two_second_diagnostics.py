@@ -500,7 +500,11 @@ def test_execute_terminal_is_concise_and_full_diagnostics_stay_on_disk(tmp_path,
     output=tmp_path/'concise_execution'
     assert entry.main(['--config',str(path),'--execute','--output',str(output)])==1
     lines=capsys.readouterr().out.splitlines()
-    assert len(lines)<=15 and all(line.startswith('[') and '{' not in line for line in lines)
+    # Preparing both taught timings adds one concise startup status. Keep the
+    # existing budget for the remaining steps and full diagnostics on disk.
+    timing_lines=[line for line in lines if line.startswith('[示教]') and '时序已预计算' in line]
+    assert len(timing_lines)==1
+    assert len(lines)-len(timing_lines)<=15 and all(line.startswith('[') and '{' not in line for line in lines)
     assert any('[轨迹] 正在' in line for line in lines)
     assert not any('[轨迹] 已得到' in line for line in lines)
     assert any('[停止] 恢复状态检查' in line for line in lines)

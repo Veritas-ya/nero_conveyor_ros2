@@ -11,11 +11,34 @@ from .reference import predict_entry_time, DEFAULT_FREEZE_UPSTREAM_DISTANCE_M
 from .trajectory import sampling_times, certify_curve, extrema
 
 
-def order_obb_grasps(grasps, start_rotation, *, synchronized):
-    """Only short-axis poses, including legacy packets with long-axis extras."""
+def order_obb_grasps(grasps, start_rotation, *, synchronized, reference_rotation=None):
+    """Rank the two short-axis poses by full TCP rotation to a reference."""
     indexed = list(enumerate(grasps))[:2]
-    indexed.sort(key=lambda item: Rotation.from_matrix(start_rotation.T@item[1][:3, :3]).magnitude())
+    reference = start_rotation if reference_rotation is None else reference_rotation
+    indexed.sort(key=lambda item: Rotation.from_matrix(reference.T@item[1][:3, :3]).magnitude())
     return indexed
+
+
+def grasp_orientation_reference(cfg, model, state, start_rotation):
+    """Use the calibrated TCP frame at the active transfer's first joint sample."""
+    policy = cfg.raw.get('obb_grasp_orientation_reference', 'current_tcp')
+    if policy == 'current_tcp':
+        return np.asarray(start_rotation).copy(), {'policy': policy}
+    if policy != 'taught_transfer_start' or not cfg.raw.get('taught_playback_enabled', True):
+        raise PickRejected('OBB 抓姿方向参考配置无效')
+    segment = cfg.raw.get('taught_segments', {}).get('transfer')
+    if segment is None:
+        raise PickRejected('OBB 抓姿排序缺少已加载的搬运示教轨迹')
+    # Use the same calibrated physical TCP as the candidates; restore the
+    # newest measured robot state before any scheduling or IK work.
+    try:
+        model.set_state(segment.joints[0], state['width_m'])
+        reference = model.tcp()[:3, :3].copy()
+    finally:
+        model.set_state(state['joints'], state['width_m'])
+    return reference, {'policy': policy, 'taught_segment_path': segment.path,
+                       'taught_segment_sha256': segment.sha256,
+                       'taught_joint_sample_index': 0}
 
 
 def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
@@ -36,7 +59,8 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
         freeze_window = freeze_window_for_speed(cfg, target.velocity@cfg.direction)
         upstream_distance = freeze_window['distance_m']
         entry = admit_synchronized_observation(target.capture_s, entry_position@cfg.direction,
-            target.velocity@cfg.direction, cfg.follow_bounds, begun, upstream_distance)
+            target.velocity@cfg.direction, cfg.follow_bounds, begun, upstream_distance,
+            minimum_upstream_distance_m=freeze_window.get('minimum_distance_m'))
     else:
         entry = predict_entry_time(target.capture_s, entry_position@cfg.direction,
             target.velocity@cfg.direction, cfg.follow_bounds[0], begun, cfg.raw['planning_reserve_s']+prealign_s,
@@ -69,7 +93,13 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
             'send_deadline_monotonic_s': send_deadline,
             'scene_prepared': scene_prepared})
     # Only the two finger-symmetric short-axis poses may be selected.
-    indexed_grasps = order_obb_grasps(target.grasps, start[:3, :3], synchronized=synchronized)
+    reference_rotation, orientation_reference = grasp_orientation_reference(cfg, model, state, start[:3, :3])
+    indexed_grasps = order_obb_grasps(target.grasps, start[:3, :3], synchronized=synchronized,
+                                     reference_rotation=reference_rotation)
+    orientation_reference['candidate_angle_deg'] = [
+        {'input_grasp_index': index, 'angle_deg': float(np.degrees(
+            Rotation.from_matrix(reference_rotation.T @ grasp[:3, :3]).magnitude()))}
+        for index, grasp in indexed_grasps]
     grasps = [grasp for _, grasp in indexed_grasps]
     durations=(cfg.raw.get('synchronized_join_candidates_s', [prealign_s]) if synchronized
                else cfg.raw['approach_duration_candidates_s'])
@@ -206,6 +236,7 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                         'reference_check': reference_check, 'approach_s': duration, 'prealign_s': effective_prealign,
                         'rotate_first_s':rotate_first_s if synchronized else prealign_s,
                         'grasp_axis_policy':'obb_short_axis_only',
+                        'grasp_orientation_reference':orientation_reference,
                         'translation_start_elapsed_s':rotate_first_s if synchronized else prealign_s,
                         'follow_s': ref.follow_s,
                         'brake_s': ref.brake_s, 'rest_qva_endpoints': True,

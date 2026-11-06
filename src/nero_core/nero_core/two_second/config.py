@@ -76,6 +76,38 @@ class CellConfig:
         raw['payload_belt_clearance_m'] = payload_belt_margin
         if not isinstance(raw.setdefault('taught_playback_enabled', True), bool):
             raise ValueError('taught_playback_enabled 必须为布尔值')
+        if raw.setdefault('obb_grasp_orientation_reference', 'current_tcp') not in (
+                'current_tcp', 'taught_transfer_start'):
+            raise ValueError('obb_grasp_orientation_reference 必须为 current_tcp 或 taught_transfer_start')
+        if (raw['obb_grasp_orientation_reference'] == 'taught_transfer_start'
+                and not raw['taught_playback_enabled']):
+            raise ValueError('使用示教起点排序 OBB 时必须启用示教轨迹')
+        if raw.setdefault('taught_transfer_timing_policy', 'recorded_uniform') not in (
+                'recorded_uniform', 'path_preserving_variable_speed'):
+            raise ValueError('taught_transfer_timing_policy 不受支持')
+        if not isinstance(raw.setdefault('prepared_taught_cycle_enabled', False), bool):
+            raise ValueError('prepared_taught_cycle_enabled 必须为布尔值')
+        for key in ('taught_joint_jerk_limit_rad_s3', 'taught_transfer_jerk_limit_rad_s3',
+                    'taught_transfer_max_duration_s'):
+            if raw.get(key) is not None:
+                value = float(raw[key])
+                if not np.isfinite(value) or value <= 0:
+                    raise ValueError(f'{key} 必须为正有限数')
+                raw[key] = value
+        taught_files = ('taught_transfer_file', 'taught_return_file')
+        configured_taught = [raw.get(key) is not None for key in taught_files]
+        if any(configured_taught) and not all(configured_taught):
+            raise ValueError('示教默认文件须同时配置 taught_transfer_file 和 taught_return_file')
+        if all(configured_taught):
+            for key in taught_files:
+                if not isinstance(raw[key], str) or not raw[key].strip():
+                    raise ValueError(f'{key} 必须为非空路径')
+                taught_path = Path(raw[key]).expanduser()
+                if not taught_path.is_absolute():
+                    taught_path = path.parent/taught_path
+                # The selected pair is opened by the entry point. Explicit
+                # CLI overrides and disabled playback need not open defaults.
+                raw[key] = str(taught_path.resolve())
         if not isinstance(raw.setdefault('grasp_workpiece_collision_check_enabled', True), bool):
             raise ValueError('grasp_workpiece_collision_check_enabled 必须为布尔值')
         if not isinstance(raw.setdefault('recovery_allow_workpiece_contact', False), bool):
@@ -188,6 +220,18 @@ class CellConfig:
             raise ValueError('intercept_strategy 必须为 classic 或 synchronized')
         if raw['intercept_strategy'] == 'synchronized' and profile != 'smooth':
             raise ValueError('synchronized 抓取策略需要 smooth 轨迹')
+        position = raw.setdefault('freeze_position_upstream_m', None)
+        tolerance = float(raw.setdefault('freeze_position_tolerance_m', .02))
+        if not np.isfinite(tolerance) or tolerance <= 0:
+            raise ValueError('freeze_position_tolerance_m 必须为正有限数')
+        raw['freeze_position_tolerance_m'] = tolerance
+        if position is not None:
+            position = float(position)
+            if not np.isfinite(position) or position <= tolerance:
+                raise ValueError('freeze_position_upstream_m 必须为大于取帧容差的正有限数')
+            if raw['intercept_strategy'] != 'synchronized':
+                raise ValueError('固定位置冻结需要 synchronized 策略')
+            raw['freeze_position_upstream_m'] = position
         if raw['planning_reserve_mode'] == 'measured' and (profile != 'smooth' or raw['intercept_strategy'] != 'synchronized'):
             raise ValueError('measured 规划时序需要 smooth synchronized 策略')
         synchronized_duration = float(raw.get('synchronized_duration_s', .2))
