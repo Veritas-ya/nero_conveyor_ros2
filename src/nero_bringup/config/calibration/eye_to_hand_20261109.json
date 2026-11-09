@@ -1,0 +1,1302 @@
+{
+  "schema_version": 1,
+  "calibration_type": "eye_to_hand",
+  "method": "park",
+  "units": "metres",
+  "camera_frame": "color_optical_cv",
+  "sample_count": 11,
+  "accepted": true,
+  "rejection_reasons": [],
+  "camera_to_base_cv": [
+    [
+      -0.05479343936545608,
+      -0.8174042128293104,
+      0.5734527285238075,
+      -0.8090440167635786
+    ],
+    [
+      -0.9983799452732409,
+      0.05367089429771079,
+      -0.018892325994577155,
+      0.1610033061305947
+    ],
+    [
+      -0.015335053919222689,
+      -0.5735588792392459,
+      -0.8190207861630345,
+      0.8087528002067278
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "base_to_camera_cv": [
+    [
+      -0.05479343936545608,
+      -0.9983799452732409,
+      -0.015335053919222689,
+      0.1288144354854463
+    ],
+    [
+      -0.8174042128293104,
+      0.05367089429771079,
+      -0.5735588792392459,
+      -0.20608982942364099
+    ],
+    [
+      0.5734527285238075,
+      -0.018892325994577155,
+      -0.8190207861630345,
+      1.129375580091429
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "target_to_gripper": [
+    [
+      -0.013020006821658516,
+      -0.032819519058703624,
+      -0.9993764849100258,
+      0.08604058023178528
+    ],
+    [
+      0.9996615070932695,
+      -0.02294145623266795,
+      -0.012270322813074785,
+      -0.08621695967274871
+    ],
+    [
+      -0.022524445795100746,
+      -0.999197962745461,
+      0.03310710780094806,
+      0.0499748058214023
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "quality": {
+    "max_relative_rotation_deg": 24.907769482546158,
+    "rotation_vector_singular_values": [
+      1.4864762935195917,
+      0.9372158580688043,
+      0.6151277232729175
+    ],
+    "translation_system_singular_values": [
+      1.7499384583107838,
+      1.6017806592348756,
+      1.11735580122225
+    ],
+    "translation_rms_m": 0.001676633566023607,
+    "translation_max_m": 0.002653486406578793,
+    "rotation_rms_deg": 0.2555974958290168,
+    "rotation_max_deg": 0.5357314473818156,
+    "reprojection_max_px": 0.2322521833954715
+  },
+  "thresholds": {
+    "max_reprojection_px": 1.5,
+    "max_translation_error_m": 0.005,
+    "max_rotation_error_deg": 1.0
+  },
+  "residuals": [
+    {
+      "sample_id": "0000",
+      "translation_error_m": 0.0020148860217370675,
+      "rotation_error_deg": 0.5357314473818156,
+      "reprojection_error_px": 0.1736443981651881
+    },
+    {
+      "sample_id": "0001",
+      "translation_error_m": 0.0010514301405608758,
+      "rotation_error_deg": 0.1637360848616235,
+      "reprojection_error_px": 0.19995015586452625
+    },
+    {
+      "sample_id": "0002",
+      "translation_error_m": 0.0009201703817507188,
+      "rotation_error_deg": 0.25178608980129297,
+      "reprojection_error_px": 0.1936491448733631
+    },
+    {
+      "sample_id": "0003",
+      "translation_error_m": 0.002653486406578793,
+      "rotation_error_deg": 0.10327813483104696,
+      "reprojection_error_px": 0.1950069299318017
+    },
+    {
+      "sample_id": "0004",
+      "translation_error_m": 0.000773648939656255,
+      "rotation_error_deg": 0.15439228941781005,
+      "reprojection_error_px": 0.20655683789723048
+    },
+    {
+      "sample_id": "0005",
+      "translation_error_m": 0.0009518112122643245,
+      "rotation_error_deg": 0.07420179617511788,
+      "reprojection_error_px": 0.2322521833954715
+    },
+    {
+      "sample_id": "0006",
+      "translation_error_m": 0.0005585950458871144,
+      "rotation_error_deg": 0.14732820676520883,
+      "reprojection_error_px": 0.1996024954266475
+    },
+    {
+      "sample_id": "0007",
+      "translation_error_m": 0.001524959041467974,
+      "rotation_error_deg": 0.10696710827524067,
+      "reprojection_error_px": 0.21712630916423833
+    },
+    {
+      "sample_id": "0008",
+      "translation_error_m": 0.002627980588974458,
+      "rotation_error_deg": 0.07993669458879699,
+      "reprojection_error_px": 0.21058535788210803
+    },
+    {
+      "sample_id": "0009",
+      "translation_error_m": 0.001430394763645688,
+      "rotation_error_deg": 0.25706305023994014,
+      "reprojection_error_px": 0.21335031533916085
+    },
+    {
+      "sample_id": "0010",
+      "translation_error_m": 0.002185133788697387,
+      "rotation_error_deg": 0.442480333997257,
+      "reprojection_error_px": 0.20235008642500066
+    }
+  ],
+  "created_at": "2026-11-09T05:05:09.513793+00:00",
+  "source_session": "/home/ubuntu22/nero_conveyor_ros2/runs/eye_to_hand_auto_20261109_130239/session.json",
+  "excluded_sample_ids": [],
+  "pnp_input_audits": [
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.309923+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0000",
+      "image": "images/0000.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.329766+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0001",
+      "image": "images/0001.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.349234+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0002",
+      "image": "images/0002.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.368650+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0003",
+      "image": "images/0003.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.388274+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0004",
+      "image": "images/0004.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.407533+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0005",
+      "image": "images/0005.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.426887+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0006",
+      "image": "images/0006.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.446106+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0007",
+      "image": "images/0007.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.465500+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0008",
+      "image": "images/0008.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.484748+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0009",
+      "image": "images/0009.png"
+    },
+    {
+      "schema_version": 1,
+      "solver": "cv2.solvePnP",
+      "flags": "SOLVEPNP_ITERATIVE",
+      "call_site": "calibration.eye_to_hand.estimate_target_pose",
+      "recorded_at": "2026-11-09T05:05:09.503931+00:00",
+      "K": [
+        [
+          603.5457763671875,
+          0.0,
+          640.5368041992188
+        ],
+        [
+          0.0,
+          603.7945556640625,
+          360.72784423828125
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.029667459428310394,
+        0.0354110486805439,
+        -1.1176083717145957e-05,
+        5.4242004807747435e-06,
+        -0.012831234373152256,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "image_size": [
+        1280,
+        720
+      ],
+      "image_size_source": "saved_image_pixels",
+      "intrinsics_image_size": [
+        1280,
+        720
+      ],
+      "application_undistorted": false,
+      "application_undistortion_state_source": "session.rgb_capture.application_geometry",
+      "sdk_rgb_rectification": "unknown",
+      "calibration_reference": {
+        "source": "sdk_factory",
+        "K": [
+          [
+            603.5457763671875,
+            0.0,
+            640.5368041992188
+          ],
+          [
+            0.0,
+            603.7945556640625,
+            360.72784423828125
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "D": [
+          -0.029667459428310394,
+          0.0354110486805439,
+          -1.1176083717145957e-05,
+          5.4242004807747435e-06,
+          -0.012831234373152256,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "image_size": [
+          1280,
+          720
+        ]
+      },
+      "calibration_reference_error": null,
+      "checks": {
+        "image_size_matches_intrinsics": true,
+        "K_matches_reference": true,
+        "D_matches_reference": true,
+        "reference_image_size_matches_intrinsics": true,
+        "undistorted_image_uses_zero_D": true
+      },
+      "status": "passed",
+      "scope": "application PnP input consistency; not device rectification or physical accuracy",
+      "sample_id": "0010",
+      "image": "images/0010.png"
+    }
+  ],
+  "serial_number": "CP28563000CT",
+  "calibration_id": "eye-to-hand-20261109T050509513859Z",
+  "depth_to_base_cv": [
+    [
+      -0.059117797487375584,
+      -0.8181403471328444,
+      0.571971518273081,
+      -0.8075388787141019
+    ],
+    [
+      -0.9980886127099445,
+      0.05877932997481071,
+      -0.019083211965836337,
+      0.18491497680334934
+    ],
+    [
+      -0.01800735793274509,
+      -0.5720064019649415,
+      -0.820051442361274,
+      0.8091492026995928
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "base_to_world": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "color_to_world_cv": [
+    [
+      -0.05479343936545608,
+      -0.8174042128293104,
+      0.5734527285238075,
+      -0.8090440167635786
+    ],
+    [
+      -0.9983799452732409,
+      0.05367089429771079,
+      -0.018892325994577155,
+      0.1610033061305947
+    ],
+    [
+      -0.015335053919222689,
+      -0.5735588792392459,
+      -0.8190207861630345,
+      0.8087528002067278
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "camera_to_world_cv": [
+    [
+      -0.059117797487375584,
+      -0.8181403471328444,
+      0.571971518273081,
+      -0.8075388787141019
+    ],
+    [
+      -0.9980886127099445,
+      0.05877932997481071,
+      -0.019083211965836337,
+      0.18491497680334934
+    ],
+    [
+      -0.01800735793274509,
+      -0.5720064019649415,
+      -0.820051442361274,
+      0.8091492026995928
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ]
+}

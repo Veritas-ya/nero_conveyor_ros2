@@ -61,6 +61,9 @@ class CellConfig:
             raise ValueError('isolate_boundary_depth_gaps 必须为布尔值')
         if raw.setdefault('perception_plane_mode','ransac3d') not in ('fixed','ransac3d'):
             raise ValueError('perception_plane_mode 必须为 fixed 或 ransac3d')
+        if raw.setdefault('perception_search_region','height_prism') not in (
+                'height_prism','measured_belt_footprint'):
+            raise ValueError('perception_search_region 必须为 height_prism 或 measured_belt_footprint')
         from .belt_collision_scene import OBSERVED_SCENE, SCOPES
         scope = raw.setdefault('environment_collision_scope', OBSERVED_SCENE)
         if scope not in SCOPES:

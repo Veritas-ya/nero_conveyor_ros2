@@ -4,6 +4,54 @@ import numpy as np
 from vendor.nero7_speed_reference.nero7_perception.block_tracker import BlockTracker
 
 
+class _BeltRelativeMotion:
+    """Run the original filter in a frame moving at the operator's belt speed.
+
+    Only association uses this prior. Observation stamps/counts still belong
+    to accepted real detections; the prior cannot qualify a measured speed.
+    Public positions stay in robot base coordinates, including after misses.
+    """
+
+    def __init__(self, motion, velocity_xy):
+        self._motion = motion
+        self._velocity = velocity_xy
+        self._reference_s = motion.state_stamp
+
+    def __getattr__(self, name):
+        return getattr(self._motion, name)
+
+    def _offset(self, stamp):
+        return self._velocity * (float(stamp)-self._reference_s)
+
+    def _base_state(self, state, stamp):
+        state = state.copy()
+        state[:2] += self._offset(stamp)
+        state[2:] += self._velocity
+        return state
+
+    @property
+    def state(self):
+        return self._base_state(self._motion.state, self._motion.state_stamp)
+
+    @property
+    def observed_xy(self):
+        return self._motion.observed_xy+self._offset(self._motion.observation_stamp)
+
+    @property
+    def speed_valid(self):
+        return False  # The association state contains an operator-supplied prior.
+
+    def forecast(self, stamp):
+        state, covariance = self._motion.forecast(stamp)
+        return self._base_state(state, stamp), covariance
+
+    def innovation(self, xy, stamp):
+        return self._motion.innovation(np.asarray(xy)-self._offset(stamp), stamp)
+
+    def update(self, xy, stamp):
+        return self._motion.update(np.asarray(xy)-self._offset(stamp), stamp)
+
+
 class OcclusionAwareBlockTracker(BlockTracker):
     """Defer assignments when the existing motion gates permit multiple IDs.
 
@@ -11,8 +59,15 @@ class OcclusionAwareBlockTracker(BlockTracker):
     gating, expiry, and one-to-one tracker process all unambiguous detections.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, association_velocity_xy=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.association_velocity_xy = None
+        if association_velocity_xy is not None:
+            velocity = np.asarray(association_velocity_xy, dtype=float)
+            if velocity.shape != (2,) or not np.isfinite(velocity).all() or np.linalg.norm(velocity)<=0:
+                raise ValueError('ID association belt velocity must be a finite nonzero XY vector')
+            self.association_velocity_xy = velocity.copy()
+            self.association_velocity_xy.setflags(write=False)
         self.ambiguous_frames = 0
         self.last_ambiguous = None
 
@@ -60,4 +115,10 @@ class OcclusionAwareBlockTracker(BlockTracker):
             self.last_ambiguous = {'source_time': t,
                 'track_ids': sorted({self.tracks[i].id for i,j in pairs if j in ambiguous_detections}),
                 'detection_count': len(ambiguous_detections)}
-        return super().update([d for j,d in enumerate(detections) if j not in ambiguous_detections], t)
+        tracks = super().update([d for j,d in enumerate(detections) if j not in ambiguous_detections], t)
+        if self.association_velocity_xy is not None:
+            for track in tracks:
+                if not isinstance(track.motion, _BeltRelativeMotion):
+                    track.motion = _BeltRelativeMotion(track.motion, self.association_velocity_xy)
+                    track._sync_motion()
+        return tracks

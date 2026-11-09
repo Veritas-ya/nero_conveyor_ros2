@@ -27,7 +27,7 @@ def provenance(config):
     root=Path(__file__).resolve().parents[2]
     files += [root/'mujoco_conveyor_sorting/runtime'/name for name in (
         'nero_pick_hardware.py','single_pick.py','frame_products.py','scene_region_filter.py',
-        'nero7_belt_velocity.py','nero7_fused_detection.py','nero7_tracking_roi.py','nero7_boundary_depth.py','workpiece_admission.py',
+        'nero7_belt_velocity.py','nero7_occlusion_tracker.py','nero7_fused_detection.py','nero7_tracking_roi.py','nero7_boundary_depth.py','workpiece_admission.py',
         'pointcloud_speed_tracker.py')]
     files += [root/'mujoco_conveyor_sorting/models/robot.xml',
               root/'mujoco_conveyor_sorting/configs/robot.yaml',
@@ -123,6 +123,7 @@ def main(argv=None,*,freeze_source='tracked'):
             'taught_arguments_ignored': taught_ignored,
             'velocity_policy': velocity_policy(config),
             'perception_detection_mode':config.raw['perception_detection_mode'],
+            'perception_search_region':config.raw['perception_search_region'],
             'isolate_boundary_depth_gaps':config.raw['isolate_boundary_depth_gaps'],
             'perception_plane_mode':config.raw['perception_plane_mode'],
             'tcp_calibration_id': config.raw['tcp_calibration_id'],
@@ -199,6 +200,7 @@ def main(argv=None,*,freeze_source='tracked'):
               'velocity_source': config.raw['velocity_source'],
               'velocity_policy': velocity_policy(config),
               'perception_detection_mode':config.raw['perception_detection_mode'],
+              'perception_search_region':config.raw['perception_search_region'],
               'isolate_boundary_depth_gaps':config.raw['isolate_boundary_depth_gaps'],
               'perception_plane_mode':config.raw['perception_plane_mode'],
               'environment_collision_scope': config.raw['environment_collision_scope'],

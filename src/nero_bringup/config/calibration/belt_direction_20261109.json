@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "measurement_type": "measured_belt_long_axis",
+  "created_at": "2026-11-09T13:45:36.685109+08:00",
+  "calibration_id": "eye-to-hand-20261109T050509513859Z",
+  "operator_confirmed_physical_direction_changed": true,
+  "sample_count": 12,
+  "source_record": "/home/ubuntu22/nero_conveyor_ros2/runs/diagnostics/belt_boundary_20261109_132527/live_belt_check.json",
+  "source_record_sha256": "c61f6b6f92d443b9e2745b52b256ac0e35b02898fc432340c67dd9aa1c9c57d4",
+  "belt_direction_base": [
+    -0.02849255278899827,
+    -0.9995940048017325,
+    0.0
+  ],
+  "mean_measured_axis_3d": [
+    -0.028490402329682883,
+    -0.9995185610092738,
+    -0.012285893253782668
+  ],
+  "xy_direction_semantics": "unit XY projection; instantaneous measured plane supplies Z for prediction",
+  "measurement_is_actual_object_velocity": false,
+  "maximum_sample_axis_deviation_from_mean_deg": 0.12488622440829868,
+  "samples": [
+    {
+      "sequence": 1,
+      "capture_source_s": 2746.628303,
+      "long_axis_candidate_base": [
+        -0.027926160909974344,
+        -0.9995304614864928,
+        -0.012608968928065619
+      ]
+    },
+    {
+      "sequence": 6,
+      "capture_source_s": 2746.7951679999996,
+      "long_axis_candidate_base": [
+        -0.030649626098612794,
+        -0.9994582232759854,
+        -0.011994179672892931
+      ]
+    },
+    {
+      "sequence": 10,
+      "capture_source_s": 2746.92866,
+      "long_axis_candidate_base": [
+        -0.028184574298240273,
+        -0.9995330492447412,
+        -0.011803102945281786
+      ]
+    },
+    {
+      "sequence": 15,
+      "capture_source_s": 2747.0955249999997,
+      "long_axis_candidate_base": [
+        -0.0276092806779311,
+        -0.9995441606282542,
+        -0.01221468683208237
+      ]
+    },
+    {
+      "sequence": 19,
+      "capture_source_s": 2747.2290169999997,
+      "long_axis_candidate_base": [
+        -0.02768686958335038,
+        -0.9995431373093067,
+        -0.012122454806804845
+      ]
+    },
+    {
+      "sequence": 24,
+      "capture_source_s": 2747.395882,
+      "long_axis_candidate_base": [
+        -0.02987506403309433,
+        -0.9994798343885551,
+        -0.012146653845598565
+      ]
+    },
+    {
+      "sequence": 28,
+      "capture_source_s": 2747.5293739999997,
+      "long_axis_candidate_base": [
+        -0.0293579866930946,
+        -0.9994938939037613,
+        -0.012250088425182576
+      ]
+    },
+    {
+      "sequence": 33,
+      "capture_source_s": 2747.6962399999998,
+      "long_axis_candidate_base": [
+        -0.027615164879933398,
+        -0.9995379481893404,
+        -0.012700110160848424
+      ]
+    },
+    {
+      "sequence": 37,
+      "capture_source_s": 2747.8297319999997,
+      "long_axis_candidate_base": [
+        -0.02850339551825385,
+        -0.999517144727121,
+        -0.012370684721281435
+      ]
+    },
+    {
+      "sequence": 42,
+      "capture_source_s": 2747.996597,
+      "long_axis_candidate_base": [
+        -0.028098497856903146,
+        -0.9995283600297233,
+        -0.012390799589914197
+      ]
+    },
+    {
+      "sequence": 46,
+      "capture_source_s": 2748.1300889999998,
+      "long_axis_candidate_base": [
+        -0.02829757018200801,
+        -0.9995189902333915,
+        -0.012689983633394183
+      ]
+    },
+    {
+      "sequence": 51,
+      "capture_source_s": 2748.296954,
+      "long_axis_candidate_base": [
+        -0.02808047840675986,
+        -0.9995319569383605,
+        -0.012138936997070244
+      ]
+    }
+  ]
+}

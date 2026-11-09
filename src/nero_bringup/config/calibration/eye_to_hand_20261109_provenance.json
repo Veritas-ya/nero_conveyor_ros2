@@ -1,0 +1,63 @@
+{
+  "saved_at": "2026-11-09T13:10:32.475885+08:00",
+  "calibration_id": "eye-to-hand-20261109T050509513859Z",
+  "serial_number": "CP28563000CT",
+  "method": "park",
+  "sample_count": 11,
+  "accepted": true,
+  "quality": {
+    "max_relative_rotation_deg": 24.907769482546158,
+    "rotation_vector_singular_values": [
+      1.4864762935195917,
+      0.9372158580688043,
+      0.6151277232729175
+    ],
+    "translation_system_singular_values": [
+      1.7499384583107838,
+      1.6017806592348756,
+      1.11735580122225
+    ],
+    "translation_rms_m": 0.001676633566023607,
+    "translation_max_m": 0.002653486406578793,
+    "rotation_rms_deg": 0.2555974958290168,
+    "rotation_max_deg": 0.5357314473818156,
+    "reprojection_max_px": 0.2322521833954715
+  },
+  "thresholds": {
+    "max_reprojection_px": 1.5,
+    "max_translation_error_m": 0.005,
+    "max_rotation_error_deg": 1.0
+  },
+  "source_session": "/home/ubuntu22/nero_conveyor_ros2/runs/eye_to_hand_auto_20261109_130239/session.json",
+  "source_session_sha256": "137c5d200214ce2bd8d3c1b369d538f8467f069458b405af37931bb9f89d0c8c",
+  "original_sampling_record_preserved": true,
+  "artifacts": {
+    "eye_to_hand_20261109.json": {
+      "sha256": "2b71ddf2875fab9401763dcfeb19c11abdff5ed0975c8d64eefc03bb995876a6",
+      "source_file": "/home/ubuntu22/nero_conveyor_ros2/runs/eye_to_hand_auto_20261109_130239/result.json"
+    },
+    "runtime_depth_20261109.yaml": {
+      "sha256": "de1ceb090de80fecb92d02c52f016209d28ec171a24efe3c59170e74b29ef83f",
+      "source_file": "/home/ubuntu22/nero_conveyor_ros2/runs/eye_to_hand_auto_20261109_130239/runtime_depth_calibrated_20261109.yaml"
+    },
+    "eye_to_hand_20261109_session.json": {
+      "sha256": "137c5d200214ce2bd8d3c1b369d538f8467f069458b405af37931bb9f89d0c8c",
+      "source_file": "/home/ubuntu22/nero_conveyor_ros2/runs/eye_to_hand_auto_20261109_130239/session.json",
+      "sample_count": 11,
+      "contains_corner_and_pose_measurements": true,
+      "source_images_included": false
+    }
+  },
+  "applied_to_grasp_config": true,
+  "activation_record": "/home/ubuntu22/nero_conveyor_ros2/runs/diagnostics/calibration_activation_20261109_131337/activation.json",
+  "active_grasp_configs": [
+    "two_second.hardware.legacy_observed.yaml",
+    "two_second.hardware.tracked_freeze.yaml"
+  ],
+  "independent_accuracy_validation_completed": false,
+  "active_grasp_configs_sha256_at_archive": {
+    "/home/ubuntu22/nero_conveyor_ros2/src/nero_bringup/config/two_second.hardware.legacy_observed.yaml": "2c14d8724023de60d382ef1d55ba22f7c699fe4137b122e7d42fd965114e96ee",
+    "/home/ubuntu22/nero_conveyor_ros2/src/nero_bringup/config/two_second.hardware.tracked_freeze.yaml": "a8898769e01dd3b02d5eb18c0945fa5b60f1a1a52af2422130601c96752594d9"
+  },
+  "archived_source_session_file": "eye_to_hand_20261109_session.json"
+}

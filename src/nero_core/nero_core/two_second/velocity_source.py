@@ -43,10 +43,14 @@ def policy(config):
         'origin':config.raw.get('velocity_override_origin','configuration' if fixed else 'camera'),
         'visual_velocity_used':not fixed,
         'tracking_source':'nero7_position_identity_tracking',
+        'association_prediction_source':FIXED if fixed else KALMAN,
+        'id_confirmation_source':'distinct_real_rgbd_observations',
         'internal_tracking_kalman_still_runs':True,
         'speed_semantics':'surface_speed_along_configured_belt_direction' if fixed else 'measured_XY_velocity'}
     if config.raw.get('freeze_source')=='single_exposure_native_depth':
         report.update(tracking_source='none_single_exposure_native_depth',
+            association_prediction_source='none_single_exposure_native_depth',
+            id_confirmation_source='single_real_native_depth_exposure',
             internal_tracking_kalman_still_runs=False,
             identity_source='capture_epoch_generation_sequence')
     return report
@@ -72,10 +76,12 @@ def speed_report(config, track, velocity):
             'sample_count':None,'span_s':None,'speed_std_m_s':None,
             'prediction_model':'operator_fixed_surface_speed_with_measured_belt_plane',
             'tracking_source':'nero7_position_identity_tracking',
+            'association_prediction_source':FIXED,
             'tracking_sample_count':track.sample_count,
             'internal_tracking_kalman_still_runs':True}
         if getattr(track, 'observation_source', None) == 'single_exposure_native_depth':
             report.update(tracking_source='none_single_exposure_native_depth',
+                association_prediction_source='none_single_exposure_native_depth',
                 tracking_sample_count=0, internal_tracking_kalman_still_runs=False,
                 observation_sample_count=1, identity_source=getattr(track,'identity_source','manually_armed_exposure_event'))
         return report

@@ -519,28 +519,31 @@ def test_second_obb_candidate_is_attempted_after_first_ik_failure(monkeypatch):
     assert count[0]>100 and len(checked)==1
 
 
-def test_legacy_site_camera_and_provenance_are_self_contained():
+@pytest.mark.parametrize('site_name', [
+    'two_second.hardware.legacy_observed.yaml',
+    'two_second.hardware.tracked_freeze.yaml',
+])
+def test_hardware_site_camera_and_provenance_are_self_contained(site_name):
     from hashlib import sha256
     from mujoco_conveyor_sorting.runtime.depth_calibration import load_runtime_depth_calibration
     from mujoco_conveyor_sorting.runtime.backends.orbbec import OrbbecCameraConfig
     root = Path(__file__).parents[1]
     config = root/'src/nero_bringup/config'
-    site = yaml.safe_load((config/'two_second.hardware.legacy_observed.yaml').read_text())
+    site = yaml.safe_load((config/site_name).read_text())
     assert site['unknown_category_bin'] == 'common_bin'
     assert set(site['bins_base']) == {'common_bin'}
     assert site['maximum_target_height_m'] == .12
     calibration_path = config/site['camera_calibration_file']
     calibration = load_runtime_depth_calibration(calibration_path)
     camera = OrbbecCameraConfig.from_mapping(site['camera'])
-    reconstruction_path = config/'calibration/eye_to_hand_20261017_reconstructed.json'
-    result = json.loads(reconstruction_path.read_text())
-    manifest = json.loads((root/'docs/旧项目现场配置来源.json').read_text())
-    assert sha256(calibration_path.read_bytes()).hexdigest() == manifest['copied_runtime_sha256']
-    assert sha256(reconstruction_path.read_bytes()).hexdigest() == manifest['copied_reconstructed_result_sha256']
-    assert result['reconstruction']['is_reconstructed'] is True
-    assert result['reconstruction']['original_file_restored_byte_for_byte'] is False
+    result_path = config/'calibration/eye_to_hand_20261109.json'
+    result = json.loads(result_path.read_text())
+    manifest = json.loads((config/'calibration/eye_to_hand_20261109_provenance.json').read_text())
+    assert sha256(calibration_path.read_bytes()).hexdigest() == manifest['artifacts'][calibration_path.name]['sha256']
+    assert sha256(result_path.read_bytes()).hexdigest() == manifest['artifacts'][result_path.name]['sha256']
     assert result['accepted'] is True
     np.testing.assert_allclose(calibration['depth_to_base_cv'], result['depth_to_base_cv'], atol=1e-12)
+    np.testing.assert_allclose(camera.camera_to_world_cv, calibration['depth_to_base_cv'], atol=1e-12)
     assert camera.serial_number == calibration['serial_number'] == result['serial_number']
     assert camera.calibration_id == calibration['calibration_id'] == result['calibration_id']
     assert [camera.depth_width, camera.depth_height] == calibration['capture_profiles']['depth']
@@ -555,21 +558,21 @@ def test_legacy_site_camera_and_provenance_are_self_contained():
     np.testing.assert_allclose(np.asarray(simulation['conveyor']['grasp_region'])-base[0],
                                [-.20, .38], atol=1e-12)
     expected_joints_deg = [2.728, 43.334, -0.263, 98.814, 3.253, -4.163, 29.269]
-    # The current cell retains the original 50mm height increase and moves
-    # the wait TCP upstream by 150mm (the additional 50mm is dated 2026-11-06).
-    # Verify the Cartesian change, rather than fixing the old joint angles.
+    # Shift the initially recorded TCP by the current measured belt direction;
+    # the independently recorded pose anchors the requested translation.
     from nero_core.two_second.planning import calibrated_model
-    cfg=CellConfig.load(config/'two_second.hardware.legacy_observed.yaml')
-    model=calibrated_model(cfg);raised=model.tcp().copy()
+    cfg=CellConfig.load(config/site_name)
+    model=calibrated_model(cfg);current=model.tcp().copy()
     model.set_state(np.deg2rad(expected_joints_deg),cfg.settings.open_width_m)
-    expected=model.tcp().copy();expected[2,3]+=.05
-    expected[:3,3] -= .15*cfg.direction
-    np.testing.assert_allclose(raised,expected,atol=1e-8)
+    expected=model.tcp().copy()
+    displacement=-.15*cfg.direction+np.array([0.,0.,.05])
+    expected[:3,3]+=displacement
+    np.testing.assert_allclose(current,expected,atol=1e-8)
     from mujoco_conveyor_sorting.runtime.single_pick import RobotModel
     model = RobotModel()
     model.set_state(site['standby_joint_rad'], .1)
     flange = model.flange()
-    np.testing.assert_allclose(flange[:3, 3], np.array([-377.009, -40.174, 202.380])/1000-.15*cfg.direction, atol=.00005)
+    np.testing.assert_allclose(flange[:3, 3], np.array([-377.009, -40.174, 152.380])/1000+displacement, atol=.00005)
     reported_rotation = Rotation.from_euler('xyz', [-59.456, 79.925, -147.315], degrees=True)
     assert (reported_rotation.inv() * Rotation.from_matrix(flange[:3, :3])).magnitude() < np.deg2rad(.01)
     cfg = CellConfig.load(config/'two_second.hardware.legacy_observed.yaml')

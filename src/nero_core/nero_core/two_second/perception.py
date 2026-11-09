@@ -1,6 +1,7 @@
 """One production/preview binding to the retained Nero7 perception chain."""
 from mujoco_conveyor_sorting.runtime.nero7_belt_velocity import Nero7BeltVelocityMeter
 from .measured_rgbd import green_belt_points
+from .velocity_source import is_fixed, prediction_velocity
 
 
 def make_meter(config, surface, *, previous=None):
@@ -11,6 +12,9 @@ def make_meter(config, surface, *, previous=None):
         detection_mode=mode,plane_mode=config.raw.get('perception_plane_mode','ransac3d'),
         green_belt_extractor=green_belt_points,
         tracking_entry_coordinate_m=None if follow is None else float(follow[0]),
+        tracking_roi_mode=config.raw.get('perception_search_region','height_prism'),
+        association_velocity_base_m_s=(prediction_velocity(config,None,surface.normal_base)
+                                      if is_fixed(config) else None),
         pointcloud_speed=config.raw.get('velocity_source')=='pointcloud_xy_kalman')
     meter.parameters['isolate_boundary_depth_gaps'] = config.raw.get('isolate_boundary_depth_gaps', False)
     if mode!='legacy_depth':

@@ -1,0 +1,53 @@
+runtime:
+  camera:
+    backend: orbbec
+    calibration_id: eye-to-hand-20261109T050509513859Z
+    camera_to_world_cv:
+    - - -0.059117797487375584
+      - -0.8181403471328444
+      - 0.571971518273081
+      - -0.8075388787141019
+    - - -0.9980886127099445
+      - 0.05877932997481071
+      - -0.019083211965836337
+      - 0.18491497680334934
+    - - -0.01800735793274509
+      - -0.5720064019649415
+      - -0.820051442361274
+      - 0.8091492026995928
+    - - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+    color_format: RGB
+    color_fps: 30
+    color_height: 720
+    color_width: 1280
+    depth_format: Y16
+    depth_fps: 30
+    depth_height: 800
+    depth_width: 1280
+    enable_color: true
+    enable_frame_sync: true
+    expected_product_id: 2052
+    frame_timeout_ms: 200
+    max_consecutive_timeouts: 10
+    max_frame_age_s: 0.25
+    maximum_depth_m: 5.0
+    minimum_depth_m: 0.17
+    require_color: false
+    serial_number: CP28563000CT
+    startup_timeout_s: 5.0
+  mode: simulation
+  production: false
+  safety:
+    camera_frame_max_age_s: 0.25
+    conveyor_state_max_age_s: 0.2
+    gripper_state_max_age_s: 0.2
+    require_automatic_mode: false
+    require_camera: true
+    require_camera_calibration: true
+    require_guard_closed: true
+    robot_state_max_age_s: 0.1
+    safety_io_max_age_s: 0.1
+schema_version: 1

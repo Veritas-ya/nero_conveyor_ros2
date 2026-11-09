@@ -477,7 +477,8 @@ class LiveVision:
                         'detection_ms','tracking_ms','tracking_roi_source','tracking_roi_px',
                         'tracking_limit_coordinate_m','belt_surface_capture_sequence',
                         'native_roi_candidate_points','registered_valid_pixels','candidate_count',
-                        'depth_admission','candidate_depth_diagnostics') if k in diagnostics}
+                        'depth_admission','candidate_depth_diagnostics',
+                        'association_prediction_source','association_velocity_base_m_s') if k in diagnostics}
                 peer = self.meter.latest_snapshot
                 speed_sink = getattr(self,'speed_sink',None)
                 if speed_sink is not None:

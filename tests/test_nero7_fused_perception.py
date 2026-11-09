@@ -195,6 +195,22 @@ def test_upstream_roi_contains_visible_full_height_and_never_changes_native_imag
     np.testing.assert_array_equal(frames[0].depth_m,original_depth)
 
 
+def test_footprint_search_keeps_a_measured_workpiece_inside_the_belt(frames):
+    surface=BeltSurface.from_frame(frames[0],np.eye(4),fit_plane=fit_plane,green_belt_points=green_belt_points)
+    cfg=config();cfg.raw['perception_search_region']='measured_belt_footprint'
+    meter=make_meter(cfg,surface)
+    meter.parameters['workspace_x']=[-1.,1.]  # Same upstream synthetic fixture bounds.
+    detected_frames=0
+    for frame in frames:
+        report=meter.update(frame,np.eye(4))
+        detected_frames+=bool(meter._detections)
+    assert detected_frames>=30
+    assert meter.latest_snapshot.current
+    assert report['speed_valid']
+    assert report['signed_belt_speed_m_s']==pytest.approx(.028,abs=.001)
+    assert report['diagnostics']['tracking_roi_source']=='upstream_measured_belt_footprint'
+
+
 def test_grasp_geometry_does_not_block_camera_speed_updates(monkeypatch):
     vision=vision_fixture(monkeypatch,'eligible')
     from nero_core.two_second import vision as module

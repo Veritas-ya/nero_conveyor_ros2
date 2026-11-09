@@ -32,7 +32,8 @@ payload_belt_clearance_m: 0.005
 # 只在恢复阶段生效，仍检查自碰、实测带面、环境及载物与环境碰撞。
 recovery_allow_workpiece_contact: true
 base_frame: robot_base
-camera_calibration_file: calibration/runtime_depth_20261017.yaml
+# 2026-11-09：11组停稳采样，Park眼在手外求解；native depth optical -> robot base。
+camera_calibration_file: calibration/runtime_depth_20261109.yaml
 tcp_calibration_file: calibration/tcp_legacy_model_nominal.yaml
 confirmed_nominal_tcp_sha256: 4c0d2e9e1bb46bde0dc14f290bd80934401170707b4f636a887c8f39759f5324
 joint_names:
@@ -43,11 +44,11 @@ joint_names:
 - joint5
 - joint6
 - joint7
-# 2026-11-02：两次过件轨迹拟合 XY 带向，并以12帧带面长轴交叉核对。
-# 标定记录：runs/diagnostics/belt_direction_correction_20261102/calibration_report.json；Z由实测带面补足。
+# 2026-11-09：用户确认带向改变；采用新外参下12帧实测带面长轴的平均XY方向。
+# 来源：calibration/belt_direction_20261109.json；Z由每次实测带面补足。
 belt_direction_base:
-- -0.003579267858883172
-- -0.9999935944002813
+- -0.02849255278899827
+- -0.9995940048017325
 - 0.0
 maximum_target_height_m: 0.12  # 用户给出的工件高度上限，单位 m
 # 沿用Nero7感知预览的RGB-D融合检测与原ID/卡尔曼；多帧绿色带面实测校核后才发布目标。
@@ -56,14 +57,16 @@ maximum_target_height_m: 0.12  # 用户给出的工件高度上限，单位 m
 isolate_boundary_depth_gaps: true
 perception_detection_mode: rgb_depth
 perception_plane_mode: ransac3d
+# 仅在实测带面轮廓的投影内搜索；12cm继续作为工件高度上限，不扩展搜索框。
+perception_search_region: measured_belt_footprint
 # 沿现场带向相对机器人基座原点投影；仿真沿带 x 范围原样映射。
 # 用户2026-11-03将下游上限扩至38cm；沿带区间总长58cm。
 follow_interval_base_m: [-0.20, 0.38]
 # 仿真 safety_region 从世界系平移到仿真机器人基座系；作为用户指定的初始工作区。
 workspace_base_m: [[-0.62, 0.62], [-0.48, 0.54], [-0.60, 1.00]]
-# 原始等待位先沿基座Z抬高50mm，再沿标定带向上游平移150mm（2026-11-06在原配置基础上增加50mm）。
-# 保持TCP高度和姿态；新等待位端点通过模型自碰检查，实际带面与回位路径尚待验证。
-standby_joint_rad: [-0.2559425215746051, 0.6906592205925871, -0.12370435476428071, 1.5998599583834592, -0.1426169690024461, -0.4062875118068958, 0.6756284640316828]
+# 2026-11-09：以恢复后的最初等待位为基准，沿新带向上游移动150mm，基座Z抬高50mm。
+# 保持TCP朝向；离线逆解及带面/示教返回连接检查见 runs/diagnostics/wait_upstream15_z5_20261109_135900。
+standby_joint_rad: [-0.25952411189600655, 0.6819600313408632, -0.12181076990631212, 1.6167383324759468, -0.14963744504747223, -0.4057906486045951, 0.6663312947232224]
 # 所有工件使用 common_bin；由用户提供的法兰位姿和旧模型 TCP 计算。
 bins_base:
   common_bin:
@@ -115,20 +118,20 @@ camera:
   max_consecutive_timeouts: 10
   minimum_depth_m: 0.17
   maximum_depth_m: 5.0
-  calibration_id: eye-to-hand-20261017T102127186585Z
+  calibration_id: eye-to-hand-20261109T050509513859Z
   camera_to_world_cv:
-  - - -0.03890396737726649
-    - -0.8295906201964232
-    - 0.5570151195791351
-    - -0.8749030555459123
-  - - -0.9985623450810638
-    - 0.01170562632122411
-    - -0.05230945190565077
-    - -0.15525995502984452
-  - - 0.03687522270104549
-    - -0.5582493549681508
-    - -0.8288533239451502
-    - 0.7536628945745366
+  - - -0.059117797487375584
+    - -0.8181403471328444
+    - 0.571971518273081
+    - -0.8075388787141019
+  - - -0.9980886127099445
+    - 0.05877932997481071
+    - -0.019083211965836337
+    - 0.18491497680334934
+  - - -0.01800735793274509
+    - -0.5720064019649415
+    - -0.820051442361274
+    - 0.8091492026995928
   - - 0.0
     - 0.0
     - 0.0
@@ -139,7 +142,7 @@ hardware:
   joint_command_mode: js
   # 按法兰接收时刻对实测关节反馈插值；接收时间不等于设备采样时间。
   joint_receive_offset_s: 0.0
-command_advance_s: 0.015
+command_advance_s: 0.050
 # 使用同一目标实测点云的分位范围中心进行视觉卡尔曼测速。
 # 固定带速仅在显式传入 --fixed-belt-speed-m-s 时启用。
 velocity_source: pointcloud_xy_kalman

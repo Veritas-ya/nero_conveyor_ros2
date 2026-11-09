@@ -169,8 +169,20 @@ class Nero7BeltVelocityMeter:
 
     def __init__(self, surface, window_s=.6, belt_direction_base=None, *, maximum_measured_speed_m_s=None,
                  detection_mode='legacy_depth', plane_mode='ransac3d', green_belt_extractor=None,
-                 tracking_entry_coordinate_m=None, pointcloud_speed=False):
+                 tracking_entry_coordinate_m=None, pointcloud_speed=False,
+                 tracking_roi_mode='height_prism', association_velocity_base_m_s=None):
         self.surface = surface
+        self.association_velocity_base_m_s = None
+        if association_velocity_base_m_s is not None:
+            velocity = np.asarray(association_velocity_base_m_s, dtype=float)
+            if (velocity.shape != (3,) or not np.isfinite(velocity).all()
+                    or np.linalg.norm(velocity[:2])<=0 or pointcloud_speed):
+                raise ValueError('固定带速ID关联须提供有效基座速度，且不能用于视觉测速模式')
+            self.association_velocity_base_m_s = velocity.copy()
+            self.association_velocity_base_m_s.setflags(write=False)
+        if tracking_roi_mode not in ('height_prism','measured_belt_footprint'):
+            raise ValueError('Unknown measured-belt search region')
+        self.tracking_roi_mode=tracking_roi_mode
         self.pointcloud_speed=bool(pointcloud_speed)
         self.parameters = load_detection_params(REFERENCE / 'upstream_perception.yaml')
         # The upstream six-frame bound expires after only 0.2 s at 30 Hz,
@@ -287,12 +299,15 @@ class Nero7BeltVelocityMeter:
             if self._fused is not None and self.tracking_entry_coordinate_m is not None:
                 from .nero7_tracking_roi import upstream_rgb_roi
                 self.tracking_rgb_roi=upstream_rgb_roi(self.surface,self._camera,color_to_base,
-                    self._requested_direction,self.tracking_entry_coordinate_m,
-                    self.parameters['block_height_max'])
+                     self._requested_direction,self.tracking_entry_coordinate_m,
+                     0. if self.tracking_roi_mode=='measured_belt_footprint'
+                     else self.parameters['block_height_max'])
                 rows,cols=np.nonzero(self.tracking_rgb_roi)
+                if not len(rows) and self.tracking_roi_mode=='measured_belt_footprint':
+                    raise ValueError('上游实测带面搜索轮廓不在彩色画面内')
                 if len(rows):
-                    # Include the whole height prism rather than truncating a
-                    # tall part to the belt-plane rectangle.
+                    # This rectangle is only a crop; the polygon mask below
+                    # remains the actual measured search boundary.
                     self.roi_px=[int(cols.min()),int(rows.min()),int(cols.max()+1),int(rows.max()+1)]
             self.parameters['roi_px'] = self.roi_px.copy()
         if self._direction is None:
@@ -509,11 +524,15 @@ class Nero7BeltVelocityMeter:
             BeltModel(d_hat=self._direction), speed_cfg,
             max_vel=p['tracker_max_vel'], gate_radius=p['tracker_gate_radius'],
             confirm_frames=p['tracker_confirm_frames'], lost_frames=p['tracker_lost_frames'],
-            lost_timeout=p['tracker_lost_timeout'], motion_cfg=motion_cfg)
+            lost_timeout=p['tracker_lost_timeout'], motion_cfg=motion_cfg,
+            association_velocity_xy=(None if self.association_velocity_base_m_s is None
+                                     else self.association_velocity_base_m_s[:2]))
         self._tracker._next_id = self._next_id
 
     def _report(self, stamp, *, reason='', timings=None, current=False, sequence=None):
         tracks = [] if self._tracker is None else self._tracker.tracks
+        motion_source = ('operator_fixed_belt_speed' if self.association_velocity_base_m_s is not None
+                         else 'pointcloud_xy_kalman' if self.pointcloud_speed else 'nero7_xy_kalman')
         def measured_motion(track):
             if not self.pointcloud_speed:
                 return track.motion, None
@@ -536,6 +555,9 @@ class Nero7BeltVelocityMeter:
         valid = bool(selected is not None and is_valid(selected,selected_motion,selected_entry))
         status = ('measured' if valid else 'lost' if selected is not None and selected.status == STATUS_LOST
                   else 'warming_up' if selected is not None else 'no_target')
+        if (self.association_velocity_base_m_s is not None and current
+                and selected is not None and selected.confirmed and not selected.misses):
+            status = 'tracking'
         velocity = (np.r_[selected_motion.state[2:4],0.] if valid and self.pointcloud_speed
                     else selected.velocity.copy() if valid else None)
         speed = None if velocity is None else float(np.linalg.norm(velocity[:2]))
@@ -560,7 +582,7 @@ class Nero7BeltVelocityMeter:
                 speed_std_m_s=float(np.sqrt(np.linalg.eigvalsh(covariance)[-1])),
                 velocity_covariance_xy=tuple(tuple(map(float, row)) for row in covariance),
                 misses=int(track.misses), area_px=float(track.area_px), confirmed=bool(track.confirmed),
-                velocity_source='pointcloud_xy_kalman' if self.pointcloud_speed else 'nero7_xy_kalman',
+                velocity_source=motion_source,
                 legacy_velocity_base_m_s=tuple(map(float,track.velocity)) if track.speed_valid else None,
                 speed_position_base_m=None if point_entry is None else tuple(map(float,point_entry['point']))))
             track_diagnostics.append({
@@ -592,7 +614,7 @@ class Nero7BeltVelocityMeter:
             'direction_base': None if speed is None or speed <= 1e-12 else velocity / speed,
             'sample_count': len(stamps),
             'span_s': float(stamps[-1] - stamps[0]) if len(stamps) > 1 else 0.,
-            'motion_source': 'pointcloud_xy_kalman' if self.pointcloud_speed else 'nero7_xy_kalman',
+            'motion_source': motion_source,
             'speed_valid': valid,
             'signed_belt_speed_m_s': None if not valid else float(velocity[:2]@self._direction),
             'speed_std_m_s': (None if motion is None else
@@ -608,6 +630,10 @@ class Nero7BeltVelocityMeter:
                             'tracking_limit_coordinate_m': self.tracking_entry_coordinate_m,
                             'belt_surface_capture_sequence': (getattr(self.surface, 'boundary_diagnostics', {}) or {}).get('capture_sequence'),
                             'belt_direction_xy': None if self._direction is None else self._direction.tolist(),
+                            'association_prediction_source': ('operator_fixed_belt_speed'
+                                if self.association_velocity_base_m_s is not None else 'nero7_xy_kalman'),
+                            'association_velocity_base_m_s': (None if self.association_velocity_base_m_s is None
+                                else self.association_velocity_base_m_s.tolist()),
                             'tracks': track_diagnostics, **(timings or {})},
         }
 
@@ -676,6 +702,9 @@ class Nero7BeltVelocityMeter:
             'depth_admission':admission,
             'candidate_depth_diagnostics':self._candidate_depth_diagnostics,
             'detection_mode':self.parameters['detection_mode'],
-            'tracking_roi_source':'upstream_measured_belt_height_prism' if self.tracking_rgb_roi is not None else 'measured_belt_rectangle',
+            'tracking_roi_source':(('upstream_measured_belt_footprint'
+                if self.tracking_roi_mode=='measured_belt_footprint'
+                else 'upstream_measured_belt_height_prism')
+                if self.tracking_rgb_roi is not None else 'measured_belt_rectangle'),
             'plane_calibration':None if self._fused is None else self._fused.diagnostics(),
         })

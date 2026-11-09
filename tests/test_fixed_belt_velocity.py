@@ -117,7 +117,7 @@ def test_check_only_cli_validates_override_without_device_imports(monkeypatch,ca
     assert main(['--config',str(CONFIG),'--fixed-belt-speed-m-s','0.0595','--count','2'])==0
 
 
-@pytest.mark.parametrize('speed', ['4.53', '12', '30'])
+@pytest.mark.parametrize('speed', ['4.53', '12', '30', '43.5', '50.7', '100'])
 def test_cm_per_second_cli_converts_units_without_modifying_config_or_connecting_devices(speed, capsys):
     from nero_core.two_second.main import main
     before = CONFIG.read_bytes()
@@ -130,10 +130,12 @@ def test_cm_per_second_cli_converts_units_without_modifying_config_or_connecting
     assert CONFIG.read_bytes() == before
 
 
-@pytest.mark.parametrize('speed', ['0', '-4.53', 'nan', 'inf', '30.01'])
+@pytest.mark.parametrize('speed', ['0', '-4.53', 'nan', 'inf', 'over_limit'])
 def test_invalid_cm_per_second_is_rejected_before_hardware_start(speed, capsys, monkeypatch):
     import builtins
     from nero_core.two_second.main import main
+    if speed == 'over_limit':
+        speed = str(CellConfig.load(CONFIG).raw['maximum_measured_speed_m_s']*100.+.01)
     original = builtins.__import__
     def guarded(name, *args, **kwargs):
         if 'nero_pick_hardware' in name or 'backends.orbbec' in name:

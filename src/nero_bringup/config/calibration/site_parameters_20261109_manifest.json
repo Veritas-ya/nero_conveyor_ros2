@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "archived_at": "2026-11-09T15:28:50.049191+08:00",
+  "calibration_id": "eye-to-hand-20261109T050509513859Z",
+  "sample_count": 11,
+  "parameters": {
+    "two_second.hardware.legacy_observed.yaml": {
+      "camera_calibration_file": "calibration/runtime_depth_20261109.yaml",
+      "belt_direction_base": [
+        -0.02849255278899827,
+        -0.9995940048017325,
+        0.0
+      ],
+      "perception_search_region": "measured_belt_footprint",
+      "standby_joint_rad": [
+        -0.25952411189600655,
+        0.6819600313408632,
+        -0.12181076990631212,
+        1.6167383324759468,
+        -0.14963744504747223,
+        -0.4057906486045951,
+        0.6663312947232224
+      ],
+      "follow_interval_base_m": [
+        -0.2,
+        0.38
+      ],
+      "command_advance_s": 0.05,
+      "maximum_measured_speed_m_s": 1.0,
+      "freeze_position_upstream_m": 0.5,
+      "synchronized_max_freeze_upstream_distance_m": 0.6,
+      "velocity_source": "pointcloud_xy_kalman"
+    },
+    "two_second.hardware.tracked_freeze.yaml": {
+      "camera_calibration_file": "calibration/runtime_depth_20261109.yaml",
+      "belt_direction_base": [
+        -0.02849255278899827,
+        -0.9995940048017325,
+        0.0
+      ],
+      "perception_search_region": "measured_belt_footprint",
+      "standby_joint_rad": [
+        -0.25952411189600655,
+        0.6819600313408632,
+        -0.12181076990631212,
+        1.6167383324759468,
+        -0.14963744504747223,
+        -0.4057906486045951,
+        0.6663312947232224
+      ],
+      "follow_interval_base_m": [
+        -0.2,
+        0.38
+      ],
+      "command_advance_s": 0.05,
+      "maximum_measured_speed_m_s": 1.0,
+      "freeze_position_upstream_m": null,
+      "synchronized_max_freeze_upstream_distance_m": 0.6,
+      "velocity_source": "pointcloud_xy_kalman"
+    }
+  },
+  "artifacts": {
+    "src/nero_bringup/config/two_second.hardware.legacy_observed.yaml": {
+      "sha256": "b4e818ca67212440008ed296c01b44799008bb9069acebd640013a63901532d3",
+      "bytes": 10726
+    },
+    "src/nero_bringup/config/two_second.hardware.tracked_freeze.yaml": {
+      "sha256": "cd19d9e0778324aaefa6d7881fc68ec76fdc7f68892280210ac7f5a2dc08c273",
+      "bytes": 10902
+    },
+    "src/nero_bringup/config/calibration/eye_to_hand_20261109.json": {
+      "sha256": "2b71ddf2875fab9401763dcfeb19c11abdff5ed0975c8d64eefc03bb995876a6",
+      "bytes": 30760
+    },
+    "src/nero_bringup/config/calibration/runtime_depth_20261109.yaml": {
+      "sha256": "de1ceb090de80fecb92d02c52f016209d28ec171a24efe3c59170e74b29ef83f",
+      "bytes": 1326
+    },
+    "src/nero_bringup/config/calibration/eye_to_hand_20261109_provenance.json": {
+      "sha256": "970e46aab6ba76f4ad188380c8068d31da8099b60fd6ffaa844c71a05243b11d",
+      "bytes": 2828
+    },
+    "src/nero_bringup/config/calibration/eye_to_hand_20261109_session.json": {
+      "sha256": "137c5d200214ce2bd8d3c1b369d538f8467f069458b405af37931bb9f89d0c8c",
+      "bytes": 163533
+    },
+    "src/nero_bringup/config/calibration/belt_direction_20261109.json": {
+      "sha256": "1961ed6ebfc3269204df09c9e7355a7f0210fb98af5654fccac8e565ba8f39e5",
+      "bytes": 3461
+    },
+    "taught/session_20261104_223416/transfer_trimmed_start025_20261105.json": {
+      "sha256": "3e30e72152a56f8ebd2f9d897e2da8f4a7a9728467a0d111a7af40fb20e893ee",
+      "bytes": 11466
+    },
+    "taught/session_20261104_223416/planned_return/return_generated.json": {
+      "sha256": "2d06bafa6c8e7557c3b030a72ed2c7fa8a695a4d7e87240c1774c8d7d5d2dc88",
+      "bytes": 14491
+    }
+  },
+  "default_velocity_is_visual": true,
+  "fixed_speed_example_cm_s": 43.5,
+  "fixed_speed_id_association_uses_operator_prior": true,
+  "raw_images_and_run_logs_included": false,
+  "independent_calibration_accuracy_validation_completed": false,
+  "fixed_speed_id_change_physically_tested": false,
+  "manifest_scope": "2026-11-09 production configuration and archived calibration; historical trajectory files unchanged"
+}
