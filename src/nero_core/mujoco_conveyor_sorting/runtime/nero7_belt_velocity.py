@@ -491,8 +491,8 @@ class Nero7BeltVelocityMeter:
                 refit=self._frame_count%self.parameters['plane_refresh_every']==0)
         else:
             if parameters.get('isolate_boundary_depth_gaps', False):
-                from .nero7_boundary_depth import isolate_boundary_depth_gaps
-                color, skipped = isolate_boundary_depth_gaps(color, depth[crop], parameters,
+                from .nero7_boundary_depth import isolate_candidate_depth_gaps
+                color, skipped = isolate_candidate_depth_gaps(color, depth[crop], parameters,
                     camera=camera, color_to_base=color_to_base, surface=self.surface)
                 skipped = [
                     {**item, 'bbox_px':[item['bbox_px'][0]+x0, item['bbox_px'][1]+y0,
@@ -501,6 +501,8 @@ class Nero7BeltVelocityMeter:
                     item for item in skipped if item['reason']=='roi_boundary']
                 self._candidate_depth_diagnostics['skipped_measured_background_components'] = [
                     item for item in skipped if item['reason']=='measured_outside_belt']
+                self._candidate_depth_diagnostics['rejected_interior_depth_components'] = [
+                    item for item in skipped if item['reason']=='insufficient_interior_depth']
             detections,mask=detect_blocks(color,depth[crop],camera,color_to_base,
                                          self._fused.plane,parameters)
         for detection in detections:
@@ -675,8 +677,12 @@ class Nero7BeltVelocityMeter:
             if candidate_filter is not None:
                 self._detections,admission=candidate_filter(self._detections,self._mask,
                     aligned_depth,self._camera,color_to_base,frame,self.parameters)
-            if (not self._detections and
-                self._candidate_depth_diagnostics.get('skipped_boundary_components')):
+            # One unobservable RGB region must not hide an independent target
+            # that passed the unchanged depth and measured-workpiece checks.
+            # With no admitted target, uncertainty is retained; do not age IDs
+            # or turn this exposure into an empty-belt observation.
+            if (not self._detections and any(self._candidate_depth_diagnostics.get(key)
+                    for key in ('skipped_boundary_components','rejected_interior_depth_components'))):
                 raise ValueError('RGB object candidate has insufficient interior depth; frame is ambiguous')
         except ValueError as exc:
             self._detections = []

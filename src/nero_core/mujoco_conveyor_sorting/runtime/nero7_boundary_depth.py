@@ -1,8 +1,10 @@
-"""Isolate clipped or measured-background blobs with insufficient depth.
+"""Isolate unobservable RGB candidates without changing native RGB-D or limits.
 
-Keep the upstream detector and its depth thresholds unchanged. Only components
-cut by the ROI edge, or whose measured points are all outside the belt,
-are removed. An uncertain clipped target still makes an empty frame ambiguous.
+The boundary-only helper retains its original contract. The candidate helper
+also rejects interior components locally, so an independent valid workpiece
+can reach the unchanged detector/admission/tracker. Rejected interior blobs
+are unknown, not measured background; the caller must not publish an empty
+frame when any such uncertain component remains.
 """
 import cv2
 import numpy as np
@@ -12,6 +14,18 @@ from vendor.nero7_speed_reference.nero7_perception.geometry import roi_mask
 
 def isolate_boundary_depth_gaps(color, depth, params, *, camera=None,
                                 color_to_base=None, surface=None):
+    return _isolate_depth_gaps(color, depth, params, camera=camera,
+        color_to_base=color_to_base, surface=surface, include_interior=False)
+
+
+def isolate_candidate_depth_gaps(color, depth, params, *, camera=None,
+                                 color_to_base=None, surface=None):
+    return _isolate_depth_gaps(color, depth, params, camera=camera,
+        color_to_base=color_to_base, surface=surface, include_interior=True)
+
+
+def _isolate_depth_gaps(color, depth, params, *, camera, color_to_base,
+                        surface, include_interior):
     _, gray = color_masks(color, params)
     mask = gray & roi_mask(gray.shape, params['roi_px'])
     mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
@@ -37,7 +51,7 @@ def isolate_boundary_depth_gaps(color, depth, params, *, camera=None,
         usable = int((region & valid[y:y+h, x:x+w]).sum())
         if usable >= params['depth_min_valid_pixels'] and usable >= params['depth_min_valid_ratio']*inside:
             continue
-        reason = 'roi_boundary'
+        reason = 'roi_boundary' if boundary else 'insufficient_interior_depth'
         maximum_distance = None
         if (camera is not None and color_to_base is not None and surface is not None
                 and usable >= params['depth_min_valid_pixels']):
@@ -57,7 +71,7 @@ def isolate_boundary_depth_gaps(color, depth, params, *, camera=None,
                 maximum_distance = float(max(distances))
                 if maximum_distance < -.005:
                     reason = 'measured_outside_belt'
-        if not boundary and reason!='measured_outside_belt':
+        if not include_interior and not boundary and reason!='measured_outside_belt':
             continue
         output[y:y+h, x:x+w][component] = 0
         skipped.append({'bbox_px':[x,y,w,h], 'valid_pixels':usable,
