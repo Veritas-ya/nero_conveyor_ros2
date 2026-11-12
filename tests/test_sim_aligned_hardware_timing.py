@@ -12,8 +12,9 @@ from nero_core.two_second.synchronized_reference import schedule_forward_join
 CONFIG = Path(__file__).parents[1] / 'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml'
 
 
-def test_recorded_target_now_fits_schedule_without_claiming_a_path():
-    cfg = CellConfig.load(CONFIG)
+def test_recorded_target_fits_historical_schedule_without_claiming_a_path():
+    # Pin the original regression's timing instead of mixing its saved poses
+    # with later production join/follow tuning.
     # Recorded frozen grasp, velocity and TCP; all times share host monotonic clock.
     velocity = np.array([-.0004205833258817123, -.11750465412904605, .004715863407611723])
     direction = velocity / np.linalg.norm(velocity)
@@ -22,15 +23,12 @@ def test_recorded_target_now_fits_schedule_without_claiming_a_path():
         grasp_position=[-.3635653094485638, .5142805640465032, -.11430224328248004],
         velocity=velocity, standby_position=[-.4029539131830803, -.03316729605119425, .033369018903275094],
         direction=direction, now_s=12946.813802781,
-        planning_reserve_s=cfg.raw['planning_reserve_s'], advance_s=cfg.raw['command_advance_s'],
-        join_s=cfg.raw['synchronized_join_candidates_s'][0],
-        synchronized_s=cfg.raw['synchronized_duration_s'],
-        follow_s=cfg.settings.full_plan_close_window_s,
-        follow_bounds=cfg.follow_bounds, rotate_first_s=cfg.raw['rotate_first_s'])
+        planning_reserve_s=0., advance_s=.05, join_s=1.2,
+        synchronized_s=0., follow_s=.1,
+        follow_bounds=[-.2, .38], rotate_first_s=0.)
     assert schedule['contact_s'] == pytest.approx(schedule['sync_start_s'])
     assert schedule['follow_end_coordinate_m'] == pytest.approx(.1182, abs=.001)
-    assert schedule['follow_end_coordinate_m'] <= cfg.follow_bounds[1]
-    assert cfg.raw['brake_duration_s'] == .4
+    assert schedule['follow_end_coordinate_m'] <= .38
 
 
 @pytest.mark.parametrize('key,value', [('synchronized_duration_s', -.01),

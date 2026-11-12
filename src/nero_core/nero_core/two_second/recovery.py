@@ -26,11 +26,14 @@ def _fk_mismatch(error):
 
 
 def _recovery_feedback(e,*,epoch,failure=None):
-    """Read only: require new measured feedback after a rejected FK comparison.
+    """Read only: recheck FK/arrival or validate a host-clock recovery handshake.
 
     The sender has already joined. Do not send recovery targets or open the
     gripper while waiting; do not accept the failed sample or widen FK limits.
     """
+    if (getattr(failure, 'details', None) or {}).get('reason') == 'feedback_clock_epoch_changed':
+        from .clock_recovery import rebase_after_host_clock_step
+        return rebase_after_host_clock_step(e, epoch=epoch)
     began=e.clock();deadline=began+.2
     identity,version=e.owner,e.version
     last=failure if failure is not None and _fk_mismatch(failure) else None

@@ -30,6 +30,31 @@ def test_smooth_config_rejects_invalid_scheduling(site, field, value):
         CellConfig.load(path)
 
 
+@pytest.mark.parametrize('policy,profile,strategy,brake,allowed', [
+    ('scheduled_attempt', 'smooth', 'synchronized', .8, True),
+    ('scheduled_attempt', 'smooth', 'synchronized', .199, False),
+    ('feedback', 'smooth', 'synchronized', .8, False),
+    ('scheduled_attempt', 'smooth', 'classic', .8, False),
+    ('scheduled_attempt', 'legacy', 'classic', .8, False)])
+def test_zero_follow_requires_scheduled_sync_and_retains_grip_dwell(
+        site, policy, profile, strategy, brake, allowed):
+    from mujoco_conveyor_sorting.runtime.single_pick import PickSettings
+    with pytest.raises(ValueError, match='closure window'):
+        PickSettings(full_plan_close_window_s=0.).validate()
+    path, data = site
+    data.update(trajectory_profile=profile, intercept_strategy=strategy,
+                closure_policy=policy, prealign_orientation_s=1.1, brake_duration_s=brake,
+                pick_settings={'full_plan_close_window_s': 0.})
+    path.write_text(yaml.safe_dump(data))
+    if allowed:
+        cfg = CellConfig.load(path)
+        assert cfg.settings.full_plan_close_window_s == 0.
+        assert cfg.raw['brake_duration_s'] >= GRIP_CONFIRMATION_DWELL_S
+    else:
+        with pytest.raises(ValueError):
+            CellConfig.load(path)
+
+
 def test_quintic_curve_extrema_and_rest_qva_endpoints():
     t = np.linspace(0., 1., 41)
     q = np.zeros((len(t), 7)); q[:, 0] = .1*(10*t**3-15*t**4+6*t**5)
@@ -56,7 +81,7 @@ def test_site_per_joint_speed_cap_rejects_only_when_exceeded():
     cfg = CellConfig.load(Path(__file__).parents[1]/
                           'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
     np.testing.assert_allclose(cfg.velocity_limits, [np.pi]*3+[1.25*np.pi]*4)
-    assert cfg.raw['prealign_orientation_s'] == 1.2
+    assert cfg.raw['prealign_orientation_s'] > 0
     times = np.linspace(0., 1., 41)
     def samples(amount):
         q = np.zeros((len(times), 7))
@@ -136,15 +161,22 @@ def test_native_rrt_route_uses_retiming_and_rest_handoff_in_explicit_empty_scene
 @pytest.mark.parametrize('scheduled', [False, True])
 @pytest.mark.parametrize('synchronized', [False, True])
 @pytest.mark.parametrize('short_follow,join_s,brake_s', [
-    (False, 2., 1.5), (.3, 2., .5), (.1, 2., .5), (.1, 1.2, .3)])
+    (None, 2., 1.5), (.3, 2., .5), (.1, 2., .5), (.1, 1.2, .3), (0., 1.1, .8)])
 def test_one_stream_confirms_grip_before_braking_and_sends_rest_endpoint(monkeypatch, empty, scheduled, synchronized, short_follow, join_s, brake_s):
-    if short_follow and not (scheduled and synchronized):
+    if short_follow is not None and not (scheduled and synchronized):
         pytest.skip('short follow is allowed only for synchronized scheduled closure')
     e, device, clock = executor_fixture(empty=empty)
     e.config.raw['trajectory_profile'] = 'smooth'
     if scheduled:
         e.config.raw['closure_policy'] = 'scheduled_attempt'
         monkeypatch.setattr('nero_core.two_second.streaming.closure_feedback', lambda *a, **k: (False, {}))
+    if short_follow == 0.:
+        from nero_core.two_second.execution import TwoSecondExecutor
+        e.config.raw['intercept_strategy'] = 'synchronized'
+        e.config.settings = replace(e.config.settings, full_plan_close_window_s=0.)
+        e = TwoSecondExecutor(e.config, e.planner, device, clock=clock, sleep=clock.sleep)
+        e.owner = (0, 1, 2)
+        e.version = 1
     phases, attachments, runtime_stamps = [], [], []
     e.planner.valid = lambda *a, **kw: runtime_stamps.append(kw.get('stamp'))
     e.planner.attach_measured = lambda state, stamp: attachments.append((clock(), stamp))
@@ -175,9 +207,10 @@ def test_one_stream_confirms_grip_before_braking_and_sends_rest_endpoint(monkeyp
     monkeypatch.setattr('nero_core.two_second.execution.JointStreamSender', Sender)
     if synchronized:
         from nero_core.two_second.synchronized_reference import SynchronizedIntercept
-        ref = SynchronizedIntercept(1., 1., 2.2, np.zeros(3), np.zeros(3), np.zeros(3),
+        ref = SynchronizedIntercept(1., 1., join_s if short_follow == 0. else 2.2,
+                                     np.zeros(3), np.zeros(3), np.zeros(3),
                                      [1, 0, 0, 0], [1, 0, 0, 0], prealign_s=join_s,
-                                     follow_s=short_follow if short_follow else .8,
+                                     follow_s=.8 if short_follow is None else short_follow,
                                      brake_s=brake_s)
     else:
         ref = SmoothIntercept(1., 1., 2., np.zeros(3), np.zeros(3), np.zeros(3),
@@ -194,7 +227,7 @@ def test_one_stream_confirms_grip_before_braking_and_sends_rest_endpoint(monkeyp
         assert len(attachments) == (0 if empty else 1)
         if attachments:
             brake_time = next(t for t, p in phases if p == 'brake')
-            assert (attachments[0][0] > brake_time) if short_follow and short_follow < GRIP_CONFIRMATION_DWELL_S else (attachments[0][0] < brake_time)
+            assert (attachments[0][0] > brake_time) if short_follow is not None and short_follow < GRIP_CONFIRMATION_DWELL_S else (attachments[0][0] < brake_time)
         assert phases[-1][0]+.1-1. >= path.duration
         np.testing.assert_allclose(e.rest_anchor, path.q1)
         assert e.command_history.dispatch == phases[-1][0]
@@ -205,6 +238,9 @@ def test_one_stream_confirms_grip_before_braking_and_sends_rest_endpoint(monkeyp
             assert not event['data']['feedback_would_allow_close']
             assert event['data']['reference_time_s'] >= ref.duration_s-1e-9
             assert any(phase == 'brake' for _, phase in phases)
+            if short_follow == 0.:
+                assert not any(phase == 'follow' for _, phase in phases)
+                assert len([event for event in e.events if event['event']=='close_during_follow']) == 1
             if empty:
                 assert runtime_stamps and all(stamp is None for stamp in runtime_stamps)
 

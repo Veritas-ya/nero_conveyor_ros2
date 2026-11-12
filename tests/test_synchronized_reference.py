@@ -52,6 +52,43 @@ def test_closure_at_join_end_preserves_position_velocity_and_acceleration():
     assert schedule['contact_s'] == pytest.approx(schedule['sync_start_s'])
 
 
+def test_zero_follow_joins_directly_into_braking_without_a_discontinuous_step():
+    from dataclasses import replace
+    from nero_core.two_second.trajectory import sampling_times
+    ref = replace(make_reference(), duration_s=1.1, prealign_s=1.1,
+                  follow_s=0., brake_s=.8)
+    assert ref.follow_end_s == ref.duration_s
+    assert ref.full_duration_s == pytest.approx(1.9)
+    for before, after in zip(ref.position_derivatives(1.1-1e-7),
+                             ref.position_derivatives(1.1+1e-7)):
+        np.testing.assert_allclose(before, after, atol=1e-5)
+    np.testing.assert_allclose(ref.position_derivatives(1.1)[1], ref.velocity_world)
+    pos, velocity, acceleration = ref.position_derivatives(ref.full_duration_s)
+    np.testing.assert_allclose(pos, ref.contact_xyz+ref.velocity_world*.8/2)
+    np.testing.assert_allclose([velocity, acceleration], 0., atol=1e-12)
+    times = sampling_times(ref.full_duration_s, .01, ref.prealign_s,
+                           ref.duration_s, ref.follow_end_s)
+    assert np.count_nonzero(times == 1.1) == 1
+    assert np.min(np.diff(times)) > .009999999
+    schedule = schedule_forward_join(capture_s=0., grasp_position=[-.4, 0., .5],
+        velocity=[.058, 0., 0.], standby_position=[-.1, 0., .7], direction=[1, 0, 0],
+        now_s=.1, planning_reserve_s=1., advance_s=.05, join_s=1.1,
+        synchronized_s=0., follow_s=0., follow_bounds=[-.2, .28])
+    assert schedule['follow_end_coordinate_m'] == schedule['contact_coordinate_m']
+
+
+@pytest.mark.parametrize('follow', [-.001, float('nan'), float('inf')])
+def test_invalid_follow_duration_is_still_rejected(follow):
+    from dataclasses import replace
+    with pytest.raises(ValueError):
+        replace(make_reference(), follow_s=follow)
+    with pytest.raises(ValueError):
+        schedule_forward_join(capture_s=0., grasp_position=[-.4, 0., .5],
+            velocity=[.058, 0., 0.], standby_position=[-.1, 0., .7], direction=[1, 0, 0],
+            now_s=.1, planning_reserve_s=1., advance_s=.05, join_s=1.1,
+            synchronized_s=0., follow_s=follow, follow_bounds=[-.2, .28])
+
+
 def test_rotate_first_holds_tcp_position_and_joins_smoothly():
     from dataclasses import replace
     from scipy.spatial.transform import Rotation

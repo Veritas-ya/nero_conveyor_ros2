@@ -1,5 +1,6 @@
 """Duration/candidate scheduling for measured smooth interception."""
 from dataclasses import replace
+from collections import deque
 import numpy as np
 from scipy.spatial.transform import Rotation
 from mujoco_conveyor_sorting.runtime.single_pick import PickRejected
@@ -45,6 +46,10 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                           reservation_s=None, measure_late=False, global_deadline=None):
     from .planning import InterceptPlan
     cfg, model, clock = planner.config, planner.model, planner.clock
+    retry_policy = cfg.raw.get('candidate_retry_policy', 'per_grasp')
+    if retry_policy not in ('per_grasp', 'coarse_first'):
+        raise ValueError('unknown candidate retry policy')
+    coarse_first = retry_policy == 'coarse_first'
     begun = clock()
     planner.attempt_diagnostics = []
     planner._progress('smooth_entry_selection', identity=target.identity)
@@ -104,8 +109,31 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
     durations=(cfg.raw.get('synchronized_join_candidates_s', [prealign_s]) if synchronized
                else cfg.raw['approach_duration_candidates_s'])
     rotation_cache = {}
+    first_hz = cfg.raw.get('planning_knot_hz', min(50., cfg.settings.control_hz))
+    fallback_hz = cfg.raw.get('planning_knot_hz_fallback', first_hz)
+    all_knot_rates = [first_hz] if fallback_hz == first_hz else [first_hz, fallback_hz]
     for duration in durations:
-        for index, grasp in enumerate(grasps):
+        # Legacy entries finish both rates for A before trying B. The separate
+        # coarse-first entry defers only eligible dense retries behind all
+        # remaining coarse candidates; a fully certified coarse path returns
+        # immediately. Every deferred trial gets a fresh moving-target schedule.
+        work_items = deque((index, grasp, [first_hz] if coarse_first else all_knot_rates)
+                           for index, grasp in enumerate(grasps))
+        budget_ends = {}
+        while work_items:
+            index, grasp, knot_rates = work_items.popleft()
+            if coarse_first and (cancelled() or clock() >= planning_deadline):
+                raise stopped()
+            if coarse_first and index in budget_ends and clock() >= budget_ends[index]:
+                record = {'candidate_index':index, 'approach_s':duration,
+                    'ik_knot_hz':knot_rates[0], 'ik_solve_count':0,
+                    'candidate_retry_policy':retry_policy, 'reason':'加密重算前原候选预算已耗尽',
+                    'details':{'reason':'deferred_candidate_budget_expired'},
+                    'failed_phase':'deferred_retry_budget', 'candidate_budget_exhausted':True,
+                    'stop_reason':'candidate_budget'}
+                failures.append(record)
+                planner.attempt_diagnostics.append({**record, 'status':'rejected', 'wall_s':0.})
+                continue
             rotate_first_s = cfg.raw.get('rotate_first_s',0.) if synchronized else 0.
             rotation_timing = None
             if rotate_first_s and cfg.raw.get('rotate_first_retime_enabled',False):
@@ -130,26 +158,32 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                 # Each selected grasp owns its predicted contact and schedule.
                 # Delay the join so it does not move against belt travel.
                 try:
+                    follow_bounds = cfg.follow_bounds
+                    if 'execution_delay_window' in cfg.raw:
+                        from .execution_delay_window import planning_bounds
+                        follow_bounds = planning_bounds(cfg, target.velocity)
                     schedule = schedule_forward_join(capture_s=target.capture_s,
                         grasp_position=grasp[:3,3], velocity=target.velocity,
                         standby_position=start[:3,3], direction=cfg.direction,
                         now_s=clock(), planning_reserve_s=reservation_s,
                         advance_s=cfg.raw['command_advance_s'], join_s=duration, rotate_first_s=rotate_first_s,
                         synchronized_s=synchronized_s, follow_s=cfg.settings.full_plan_close_window_s,
-                        follow_bounds=cfg.follow_bounds)
+                        follow_bounds=follow_bounds)
                 except ValueError as error:
                     failures.append({'candidate_index': index, 'approach_s':duration, 'reason': str(error),
-                                     'failed_phase': 'synchronized_schedule'})
+                                     'failed_phase': 'synchronized_schedule',
+                                     **({'details': error.details} if hasattr(error, 'details') else {})})
                     continue
                 send_deadline = schedule['join_start_s']-cfg.raw['command_advance_s']
                 deadline = planning_deadline if measure_late else min(planning_deadline, send_deadline)
             if cancelled() or clock() >= deadline:
                 raise stopped()
             attempt_started = clock()
-            candidate_deadline = min(deadline, attempt_started+cfg.raw['candidate_planning_budget_s'])
-            first_hz = cfg.raw.get('planning_knot_hz', min(50., cfg.settings.control_hz))
-            fallback_hz = cfg.raw.get('planning_knot_hz_fallback', first_hz)
-            knot_rates = [first_hz] if fallback_hz == first_hz else [first_hz, fallback_hz]
+            if coarse_first:
+                budget_end = budget_ends.setdefault(index, attempt_started+cfg.raw['candidate_planning_budget_s'])
+                candidate_deadline = min(deadline, budget_end)
+            else:
+                candidate_deadline = min(deadline, attempt_started+cfg.raw['candidate_planning_budget_s'])
             for knot_hz in knot_rates:
                 attempt_timings = {}
                 ik_solve_count = 0
@@ -179,6 +213,10 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                     follow_end = (ref.contact_xyz+target.velocity*ref.follow_s)@cfg.direction
                     if min(contact, follow_end) < cfg.follow_bounds[0] or max(contact, follow_end) > cfg.follow_bounds[1]:
                         raise PickRejected('平滑接触和跟随段超出抓取区间')
+                    delay_window = None
+                    if 'execution_delay_window' in cfg.raw:
+                        from .execution_delay_window import require_reference
+                        delay_window = require_reference(cfg, ref)
                     times = sampling_times(ref.full_duration_s, 1./knot_hz,
                                            rotate_first_s, ref.prealign_s, ref.duration_s, ref.follow_end_s)
                     xyzs = np.array([ref.sample(t)[0] for t in times])
@@ -214,6 +252,9 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                         planner._progress('scene_prepare', identity=target.identity)
                         planner.install(target, state)
                         timings['scene_prepare'] = clock()-check_started
+                        if coarse_first:
+                            for pending_index in budget_ends:
+                                budget_ends[pending_index] += timings['scene_prepare']
                         candidate_deadline = min(deadline, candidate_deadline+timings['scene_prepare'])
                         scene_prepared = True
                         preparing_scene = False
@@ -233,6 +274,7 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                             'measured_candidate_wall_s': clock()-attempt_started,
                             'missed_by_s': clock()-send_deadline})
                     diagnostics = {'profile': 'smooth', 'ik_knot_hz': knot_hz, 'ik_solve_count': ik_solve_count,
+                        'candidate_retry_policy':retry_policy,
                         'reference_check': reference_check, 'approach_s': duration, 'prealign_s': effective_prealign,
                         'rotate_first_s':rotate_first_s if synchronized else prealign_s,
                         'grasp_axis_policy':'obb_short_axis_only',
@@ -249,6 +291,8 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                                            rotation_timing=rotation_timing,
                                            freeze_window=freeze_window,
                                            selected_input_grasp_index=indexed_grasps[index][0])
+                    if delay_window is not None:
+                        diagnostics['execution_delay_window'] = delay_window
                     timings['full_planning_delivery'] = clock()-begun
                     path = replace(path, planning_s=timings['full_planning_delivery'], diagnostics=diagnostics)
                     planner.contact_reference = ref
@@ -264,6 +308,7 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                     failed_phase = phase
                     enter_phase('rejected')
                     record = {'candidate_index': index, 'approach_s': duration, 'ik_knot_hz': knot_hz,
+                        'candidate_retry_policy':retry_policy,
                         'ik_solve_count': ik_solve_count, 'reason': str(error),
                         'details': error.details, 'candidate_budget_exhausted': clock() >= candidate_deadline,
                         'stop_reason': stop_reason(candidate_deadline), 'failed_phase': failed_phase,
@@ -277,11 +322,14 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                             'scene_prepared': scene_prepared}) from error
                     if cancelled() or clock() >= planning_deadline:
                         raise stopped()
-                    # A sparse curve can deviate between IK nodes or violate q/v/a;
-                    # retry the SAME candidate at the configured dense grid while
-                    # retaining its original budget and the global send deadline.
+                    # Density can help IK, polynomial limits or interpolation
+                    # error, but cannot cure a workspace/actual collision reject.
                     retryable = (failed_phase in ('ik', 'polynomial_limits') or
                         (failed_phase == 'sampled_geometry' and str(error) == '关节曲线偏离指定 TCP 参考/方向'))
+                    if coarse_first:
+                        if knot_hz == first_hz and fallback_hz != first_hz and retryable and not abort():
+                            work_items.append((index, grasp, [fallback_hz]))
+                        break
                     if not retryable or abort():
                         break
     planner._progress('all_smooth_candidates_rejected', planning_wall_s=clock()-begun)

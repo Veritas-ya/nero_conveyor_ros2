@@ -109,6 +109,35 @@ def test_transfer_duration_cap_cannot_reuse_an_overlong_cached_path():
     assert not cached and accepted.diagnostics['maximum_duration_s']==original.duration
 
 
+@pytest.mark.parametrize('requested', [
+    [8.,8.,8.,8.,10.,8.,8.],
+    [8.,8.,8.,8.,10.,10.,8.],
+])
+def test_relaxing_real_transfer_joint_limits_keeps_previous_feasible_timing(requested):
+    """Increasing J5/J6 limits must retain the existing feasible 1.48 s path."""
+    from pathlib import Path
+    from nero_core.two_second.config import CellConfig
+    from nero_core.two_second.planning import calibrated_model
+    cfg=CellConfig.load(Path(__file__).parents[1]/'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
+    model=calibrated_model(cfg)
+    segment=TaughtSegment.load(cfg.raw['taught_transfer_file'],cfg,'transfer')
+    requested=list(requested)
+    cfg.raw['loaded_joint_acceleration_limits_rad_s2']=[8.]*7
+    original,_=prepare_taught_timing(cfg,segment,model,payload=True)
+    cfg.raw['loaded_joint_acceleration_limits_rad_s2']=requested
+    updated,cached=prepare_taught_timing(cfg,segment,model,payload=True)
+    assert not cached
+    assert updated.duration<=original.duration<=cfg.raw['taught_transfer_max_duration_s']
+    np.testing.assert_allclose(updated.curve.x,original.curve.x,atol=1e-12)
+    np.testing.assert_allclose(updated.curve.c,original.curve.c,atol=1e-10)
+    assert updated.diagnostics['timing_limit_search']['selected']=='balanced_lower_acceleration'
+    assert cfg.raw['loaded_joint_acceleration_limits_rad_s2']==requested
+    for derivative,limits in ((1,cfg.velocity_limits),(2,np.asarray(requested))):
+        assert np.all(abs(np.asarray(extrema(updated.curve,derivative)))<=limits+1e-8)
+    assert np.max(abs(np.asarray(extrema(updated.curve,3))))<=10000.+1e-8
+    assert prepare_taught_timing(cfg,segment,model,payload=True)==(updated,True)
+
+
 def test_prepare_failure_restores_payload_and_never_returns_partial_chain():
     cfg,p,q=fixture();original=p.payload_local
     def rejected(*a,**kw):raise PickRejected('返回碰撞')

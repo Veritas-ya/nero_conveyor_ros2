@@ -90,6 +90,8 @@ class CellConfig:
             raise ValueError('taught_transfer_timing_policy 不受支持')
         if not isinstance(raw.setdefault('prepared_taught_cycle_enabled', False), bool):
             raise ValueError('prepared_taught_cycle_enabled 必须为布尔值')
+        if not isinstance(raw.setdefault('return_wait_precision_enabled', False), bool):
+            raise ValueError('return_wait_precision_enabled 必须为布尔值')
         for key in ('taught_joint_jerk_limit_rad_s3', 'taught_transfer_jerk_limit_rad_s3',
                     'taught_transfer_max_duration_s'):
             if raw.get(key) is not None:
@@ -117,6 +119,11 @@ class CellConfig:
             raise ValueError('recovery_allow_workpiece_contact 必须为布尔值')
         if raw['joint_names'] != [f'joint{i}' for i in range(1, 8)]:
             raise ValueError('joint_names 必须按当前厂家接口 joint1..joint7 排列')
+        margins = vector(raw.setdefault('joint_position_margins_rad', [.02]*7),
+                         7, 'joint_position_margins_rad')
+        if np.any(margins < 0):
+            raise ValueError('joint_position_margins_rad 必须为非负弧度值')
+        raw['joint_position_margins_rad'] = margins.tolist()
         for key in ('camera_calibration_file', 'tcp_calibration_file'):
             resolved = Path(raw[key]).expanduser()
             if not resolved.is_absolute():
@@ -152,7 +159,9 @@ class CellConfig:
         if default_bin not in bins:
             raise ValueError('未知类别料框必须存在于 bins_base')
         settings = PickSettings(**raw.get('pick_settings', {}))
-        settings.validate()
+        settings.validate(allow_zero_close_window=(raw.get('trajectory_profile') == 'smooth'
+            and raw.get('intercept_strategy') == 'synchronized'
+            and raw.get('closure_policy') == 'scheduled_attempt'))
         geometry_hz = float(raw.get('geometry_check_hz', 2.*settings.control_hz))
         if not np.isfinite(geometry_hz) or geometry_hz <= 0:
             raise ValueError('geometry_check_hz 必须为正有限数')
@@ -214,8 +223,8 @@ class CellConfig:
         from .velocity_source import validate_velocity_configuration
         validate_velocity_configuration(raw)
         follow_window = float(settings.full_plan_close_window_s)
-        if not np.isfinite(follow_window) or follow_window <= 0:
-            raise ValueError('闭合跟随段须为正有限秒数')
+        if not np.isfinite(follow_window) or follow_window < 0:
+            raise ValueError('闭合跟随段须为非负有限秒数')
         profile = raw.setdefault('trajectory_profile', 'legacy')
         if profile not in ('legacy', 'smooth'):
             raise ValueError('trajectory_profile 必须为 legacy 或 smooth')
@@ -237,6 +246,9 @@ class CellConfig:
             raw['freeze_position_upstream_m'] = position
         if raw['planning_reserve_mode'] == 'measured' and (profile != 'smooth' or raw['intercept_strategy'] != 'synchronized'):
             raise ValueError('measured 规划时序需要 smooth synchronized 策略')
+        if 'timing_experiment' in raw:
+            from .timing_experiment import validate_experiment
+            validate_experiment(raw)
         synchronized_duration = float(raw.get('synchronized_duration_s', .2))
         if not np.isfinite(synchronized_duration) or synchronized_duration < 0:
             raise ValueError('synchronized_duration_s 须为非负有限秒数')
@@ -311,6 +323,9 @@ class CellConfig:
         if not np.isfinite(offset):
             raise ValueError('joint_receive_offset_s 必须为有限秒数')
         raw['hardware']['joint_receive_offset_s'] = offset
+        if 'execution_delay_window' in raw:
+            from .execution_delay_window import validate_configuration
+            validate_configuration(raw, path)
         return cls(raw, settings, path, hashlib.sha256(content).hexdigest(), tcp,
                    canonical, direction, follow, workspace,
                    vector(raw['standby_joint_rad'], 7, 'standby joints'), bins,

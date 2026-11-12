@@ -14,8 +14,9 @@ class SmoothIntercept(Intercept):
 
     def __post_init__(self):
         super().__post_init__()
-        if not np.isfinite([self.follow_s, self.brake_s]).all() or min(self.follow_s, self.brake_s) <= 0:
-            raise ValueError('follow and brake durations must be positive')
+        if (not np.isfinite([self.follow_s, self.brake_s]).all()
+                or self.follow_s < 0 or self.brake_s <= 0):
+            raise ValueError('follow duration must be nonnegative and brake duration positive')
         if not np.isfinite(self.prealign_s) or not 0 <= self.prealign_s < self.duration_s:
             raise ValueError('prealignment must leave a positive approach duration')
         zero = np.zeros(3)

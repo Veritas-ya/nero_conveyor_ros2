@@ -4,6 +4,7 @@ import pytest
 from types import SimpleNamespace
 from experiments.two_second_grasp.smooth_reference import SmoothDiagnosticReference
 from experiments.two_second_grasp.smooth_execution import closure_gate
+from nero_core.two_second.feedback_gates import GRIP_CONFIRMATION_DWELL_S
 
 
 def reference():
@@ -22,11 +23,12 @@ def feedback(ref, elapsed, error=None, velocity=None):
     return closure_gate(ref, elapsed, pose, before, now-.02, now)
 
 
-def test_feedback_matched_close_and_original_remaining_dwell():
+def test_feedback_matched_close_and_shared_confirmation_dwell():
     r = reference()
+    last_close = r.follow_end_s-GRIP_CONFIRMATION_DWELL_S
     assert feedback(r, 2.)[0]
-    assert feedback(r, 2.2)[0]
-    assert not feedback(r, 2.201)[0]
+    assert feedback(r, last_close)[0]
+    assert not feedback(r, last_close+.001)[0]
     assert not feedback(r, 1.99)[0]
 
 

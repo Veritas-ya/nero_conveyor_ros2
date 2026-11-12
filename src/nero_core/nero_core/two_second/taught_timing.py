@@ -7,6 +7,7 @@ the original joint polynomial, then the complete resulting polynomials are
 certified at their derivative extrema, not merely at the optimization grid.
 """
 from dataclasses import replace
+from types import SimpleNamespace
 import numpy as np
 from scipy.interpolate import CubicSpline, PPoly
 from scipy.optimize import linprog
@@ -117,8 +118,8 @@ def _time_law(path, motion, cancelled):
     return law
 
 
-def retime_taught_path(times, joints, motion, lower, upper, *, identity, version, stage,
-                      cancelled=lambda: False, jerk_limit=None):
+def _retime_taught_candidate(times, joints, motion, lower, upper, *, identity, version, stage,
+                            cancelled=lambda: False, jerk_limit=None):
     baseline = retime_samples(times, joints, motion, lower, upper,
         identity=identity, version=version, stage=stage)
     baseline = limit_jerk(baseline, jerk_limit, motion.settings.control_hz)
@@ -164,3 +165,35 @@ def retime_taught_path(times, joints, motion, lower, upper, *, identity, version
         'time_law_pieces': len(law.x)-1, 'certification': 'complete_polynomial_derivative_extrema',
         'joint_jerk_limit_rad_s3': jerk_limit,
         'peak_joint_jerk_rad_s3': float(np.max(abs(np.asarray(extrema(curve, 3)))))})
+
+
+def retime_taught_path(times, joints, motion, lower, upper, *, identity, version, stage,
+                      cancelled=lambda: False, jerk_limit=None):
+    """Keep the faster certified law when unequal limits worsen interpolation.
+
+    The grid-optimal rate is interpolated and then slowed for complete-curve
+    acceleration/jerk limits. Relaxing one axis can worsen that final slowdown.
+    A second law using the smallest acceleration cap remains feasible within
+    every requested axis limit, without changing the original spatial path.
+    """
+    arguments = dict(identity=identity, version=version, stage=stage,
+                     cancelled=cancelled, jerk_limit=jerk_limit)
+    requested = _retime_taught_candidate(times, joints, motion, lower, upper, **arguments)
+    caps = np.asarray(motion.acceleration_limits, float)
+    balanced_caps = np.full_like(caps, np.min(caps))
+    if np.array_equal(caps, balanced_caps):
+        return requested
+    if cancelled():
+        raise PickRejected('示教轨迹时间参数化已取消')
+    balanced_motion = SimpleNamespace(velocity_limits=motion.velocity_limits,
+        acceleration_limits=balanced_caps, settings=motion.settings)
+    balanced = _retime_taught_candidate(times, joints, balanced_motion, lower, upper, **arguments)
+    if cancelled():
+        raise PickRejected('示教轨迹时间参数化已取消')
+    use_balanced = balanced.duration < requested.duration
+    chosen = balanced if use_balanced else requested
+    return replace(chosen, diagnostics={**chosen.diagnostics, 'timing_limit_search': {
+        'requested_duration_s': requested.duration, 'balanced_duration_s': balanced.duration,
+        'requested_acceleration_limits_rad_s2': caps.tolist(),
+        'selected_acceleration_limits_rad_s2': (balanced_caps if use_balanced else caps).tolist(),
+        'selected': 'balanced_lower_acceleration' if use_balanced else 'requested_axis_limits'}})

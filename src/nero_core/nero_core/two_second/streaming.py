@@ -9,6 +9,7 @@ from mujoco_conveyor_sorting.runtime.types import identity_dict
 from .feedback_gates import (closure_feedback, GripConfirmation, RestArrival,
     TRAJECTORY_ARRIVAL_TOLERANCE_RAD, ARRIVAL_DWELL_S)
 from .motion_profile import select_motion_profile
+from .wait_precision import enabled_for, finish_wait, JS_ENDPOINT_HOLD_S, MAX_CORRECTION_RAD
 
 
 class CheckedWindowExpired(PickRejected, DispatchWindowExpired):
@@ -18,6 +19,7 @@ class CheckedWindowExpired(PickRejected, DispatchWindowExpired):
 def fresh_feedback(state, now, previous=None):
     packet_keys = {'pose': ('end_pose_xy','end_pose_zrx','end_pose_ryrz'),
                    'joint': ('joint_12','joint_34','joint_56','joint_7'), 'gripper': ('gripper',)}
+    updates = {}
     for kind in ('pose', 'joint', 'gripper'):
         stamp = mapped_stamp(state, kind)
         if stamp is None or not 0 <= now-stamp <= .2:
@@ -30,8 +32,16 @@ def fresh_feedback(state, now, previous=None):
             epoch_key = kind+'_clock_epoch'
             if epoch_key in previous and previous[epoch_key] != epoch:
                 raise PickRejected('设备反馈时钟代次重置', details={
+                    'reason':'feedback_clock_epoch_changed',
                     'kind':kind,'previous_epoch':previous[epoch_key],'current_epoch':epoch})
-            previous[kind], previous[epoch_key] = stamp, epoch
+            updates[kind], updates[epoch_key] = stamp, epoch
+    if previous is not None:
+        # Commit only a fully checked snapshot. Recovery needs the last good
+        # receive-boundary references, never a partially accepted new epoch.
+        updates['clock_mapping_evidence'] = {
+            key: dict(value) for key, value in state.get('feedback_time', {}).items()
+            if isinstance(value, dict)}
+        previous.update(updates)
 
 
 def stream(executor, path, *, origin, epoch, sender_factory, reference=None, carrying=False):
@@ -39,6 +49,12 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
     identity, version = e.owner, e.version
     if path.identity != identity or path.version != e.planner.version:
         raise PickRejected('规划目标或版本不属于当前任务')
+    if reference is not None and 'execution_delay_window' in e.config.raw:
+        from .execution_delay_window import verify_plan
+        if not np.isfinite(origin) or abs(origin-reference.start_s) > 1e-9:
+            raise PickRejected('执行时延窗口与发送轨迹时钟起点不一致')
+        report = verify_plan(e.config, path, reference)
+        e._emit('execution_delay_window_checked', report)
     e.stage = path.stage
     e._emit('stage_started', {'stage': path.stage,
         'prealign_s': path.diagnostics.get('prealign_s', 0.),
@@ -60,6 +76,7 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
     from .return_feedback import ReturnFeedbackCheck, RETURN_STAGES
     feedback_check = ReturnFeedbackCheck(e.planner.model.check_feedback, e.clock,
         enabled=not carrying and reference is None and path.stage in RETURN_STAGES)
+    precision = enabled_for(e, path, reference=reference, carrying=carrying)
 
     def step(state, dispatch, dt):
         nonlocal confirmation
@@ -142,6 +159,11 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
         if elapsed >= path.duration and previous['endpoint_sent'] and arrival.observe(
                 actual, path.q1, mapped_stamp(state, 'joint')):
             return None
+        if (precision and previous['endpoint_sent'] and elapsed >= path.duration+JS_ENDPOINT_HOLD_S
+                and np.max(abs(actual-path.q1)) <= MAX_CORRECTION_RAD):
+            # Stop and join this JS sender before testing stillness or issuing
+            # the single J precision target. This is not an arrival success.
+            return None
         e.trace.prepare_command(context, policy_time_s=elapsed, candidate=q,
             stage=path.stage, stream_id=request.request_id, trajectory=path, edge_started=0.)
         return q, {'task_identity': identity_dict(e.trace.target_identity), 'trajectory_version': path.version,
@@ -215,16 +237,17 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
         e._active(identity, version, epoch)
         if not previous['endpoint_sent']:
             raise PickRejected('发送器退出但未完整交付轨迹终点')
-        e.rest_anchor = path.q1.copy()
-        e._emit('stage_finished', {'stage': path.stage, 'commands': report.command_count,
-            'trajectory_duration_s': path.duration, 'diagnostics': path.diagnostics})
-        if reference is not None:
-            e.holding.held_width = None if close['held'] is None else close['held']['width_m']
-            e._emit('intercept_attempt_finished', {'close_sent': close['sent'],
-                'grip_confirmed': close['held'] is not None,
-                'closure_policy': 'scheduled_attempt' if scheduled_attempt else 'feedback'})
-        return report.last_feedback
     finally:
         e.sender.request_stop()
         e.sender.join()
         e.sender = None
+    state = finish_wait(e, path, epoch=epoch) if precision else report.last_feedback
+    e.rest_anchor = path.q1.copy()
+    e._emit('stage_finished', {'stage': path.stage, 'commands': report.command_count,
+        'trajectory_duration_s': path.duration, 'diagnostics': path.diagnostics})
+    if reference is not None:
+        e.holding.held_width = None if close['held'] is None else close['held']['width_m']
+        e._emit('intercept_attempt_finished', {'close_sent': close['sent'],
+            'grip_confirmed': close['held'] is not None,
+            'closure_policy': 'scheduled_attempt' if scheduled_attempt else 'feedback'})
+    return state

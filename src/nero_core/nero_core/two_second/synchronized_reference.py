@@ -98,7 +98,7 @@ def schedule_forward_join(*, capture_s, grasp_position, velocity, standby_positi
             or not np.isfinite(np.r_[grasp, velocity, standby, axis, bounds,
                 capture_s, now_s, planning_reserve_s, advance_s, join_s,
                 synchronized_s, follow_s, rotate_first_s]).all() or np.linalg.norm(axis) < 1e-9
-            or join_s <= 0 or synchronized_s < 0 or follow_s <= 0
+            or join_s <= 0 or synchronized_s < 0 or follow_s < 0
             or planning_reserve_s < 0 or advance_s < 0 or rotate_first_s < 0 or bounds[0] >= bounds[1]
             or capture_s > now_s):
         raise ValueError('invalid synchronized trajectory schedule')
@@ -139,10 +139,10 @@ class SynchronizedIntercept(SmoothIntercept):
     def __post_init__(self):
         Intercept.__post_init__(self)
         if (not np.isfinite([self.follow_s, self.brake_s, self.prealign_s]).all()
-                or min(self.follow_s, self.brake_s, self.prealign_s) <= 0
+                or self.follow_s < 0 or min(self.brake_s, self.prealign_s) <= 0
                 or self.prealign_s > self.duration_s or not np.isfinite(self.rotate_first_s)
                 or not 0 <= self.rotate_first_s < self.prealign_s):
-            raise ValueError('joining, follow and brake must be positive; synchronized duration cannot be negative')
+            raise ValueError('joining and brake must be positive; follow and synchronized durations cannot be negative')
         zero = np.zeros(3)
         sync_duration = self.duration_s-self.prealign_s
         sync_start = self.contact_xyz-self.velocity_world*sync_duration

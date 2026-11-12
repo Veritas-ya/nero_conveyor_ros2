@@ -77,7 +77,7 @@ class PickSettings:
     joint_jerk_limit_rad_s3: float | None = None
     joint_response_model_path: str | None = None
 
-    def validate(self):
+    def validate(self, *, allow_zero_close_window=False):
         values = [value for name, value in vars(self).items()
                   if name not in {'planning_backend', 'scene_collision_backend',
                                   'joint_trajectory_backend', 'joint_response_model_path',
@@ -107,7 +107,7 @@ class PickSettings:
             if not isinstance(getattr(self, name), bool):
                 raise ValueError(f'{name}须为布尔值')
         from ..controllers.full_pick_execution import validate_full_pick_settings
-        validate_full_pick_settings(self)
+        validate_full_pick_settings(self, allow_zero_close_window=allow_zero_close_window)
         if self.moving_approach_mode not in {'high', 'continuous'}:
             raise ValueError('接近方式须为high或continuous')
         if self.planning_backend not in {'auto', 'cpu', 'curobo'}:
@@ -622,7 +622,8 @@ class RobotModel:
     """Private existing model in robot BASE frame, never the simulation world."""
     def __init__(self, self_filter_config=None, scene_noise_filter_config=None,
                  belt_scene_filter_config=None, *, gripper_scene_margin_m=0.,
-                 simd_broadphase_enabled=True, simd_broadphase_backend='auto'):
+                 simd_broadphase_enabled=True, simd_broadphase_backend='auto',
+                 joint_position_margins_rad=None):
         import mujoco as mj
         from scipy.spatial import HalfspaceIntersection
         self.mj = mj
@@ -642,8 +643,14 @@ class RobotModel:
         self.limits = self.model.jnt_range[self.ids]
         self.nominal_limits = self.limits.copy()
         self.joint_margin_rad = .02
-        self.command_lower = self.limits[:, 0]+self.joint_margin_rad
-        self.command_upper = self.limits[:, 1]-self.joint_margin_rad
+        margins = np.asarray([self.joint_margin_rad]*7 if joint_position_margins_rad is None
+                             else joint_position_margins_rad, dtype=float)
+        if (margins.shape != (7,) or not np.isfinite(margins).all()
+                or np.any(margins < 0) or np.any(2*margins >= np.diff(self.limits, axis=1)[:, 0])):
+            raise ValueError('关节位置余量须为7个非负有限弧度值，且不能耗尽模型角度范围')
+        self.joint_position_margins_rad = margins.copy()
+        self.command_lower = self.limits[:, 0]+self.joint_position_margins_rad
+        self.command_upper = self.limits[:, 1]-self.joint_position_margins_rad
         self.nominal_command_lower = self.command_lower.copy()
         self.nominal_command_upper = self.command_upper.copy()
         self._start_joint_tolerance_configuration = None
@@ -797,8 +804,8 @@ class RobotModel:
             raise PickRejected(f'当前位姿超过{tolerance:g}°起始关节容差：{detail}')
 
         path_limits = self.nominal_limits.copy()
-        path_limits[below, 0] = start[below]-slack-self.joint_margin_rad
-        path_limits[above, 1] = start[above]+slack+self.joint_margin_rad
+        path_limits[below, 0] = start[below]-slack-self.joint_position_margins_rad[below]
+        path_limits[above, 1] = start[above]+slack+self.joint_position_margins_rad[above]
         changed = np.flatnonzero(below | above)
         actuator_ids = []
         # Resolve every actuator before changing any range, retaining atomic
@@ -818,8 +825,8 @@ class RobotModel:
                     self.model.jnt_range[self.ids[index], 1] = path_limits[index, 1]
                     self.model.actuator_ctrlrange[actuator_id, 1] = path_limits[index, 1]
             self.limits = self.model.jnt_range[self.ids]
-            self.command_lower = self.limits[:, 0]+self.joint_margin_rad
-            self.command_upper = self.limits[:, 1]-self.joint_margin_rad
+            self.command_lower = self.limits[:, 0]+self.joint_position_margins_rad
+            self.command_upper = self.limits[:, 1]-self.joint_position_margins_rad
             self._start_joint_tolerance_configuration = (start.copy(), tolerance, slack)
 
         return {
@@ -1556,8 +1563,9 @@ class RobotModel:
 
 class PickCycle:
     def __init__(self, hardware, model, cfg, emit, *, clock=time.monotonic, sleep=time.sleep,
-                 heartbeat=lambda: None):
-        cfg.validate(); self.hw, self.model, self.cfg, self.emit = hardware, model, cfg, emit
+                 heartbeat=lambda: None, allow_zero_close_window=False):
+        cfg.validate(allow_zero_close_window=allow_zero_close_window)
+        self.hw, self.model, self.cfg, self.emit = hardware, model, cfg, emit
         self.clock, self.sleep = clock, sleep
         self.heartbeat = heartbeat
         self.sent = False; self.held_width = None; self.force_lost_since = None

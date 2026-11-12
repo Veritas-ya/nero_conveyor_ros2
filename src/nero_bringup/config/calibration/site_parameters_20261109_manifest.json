@@ -1,72 +1,169 @@
 {
   "schema_version": 1,
-  "archived_at": "2026-11-09T15:28:50.049191+08:00",
+  "archived_at": "2026-11-11T15:18:05.225140+08:00",
   "calibration_id": "eye-to-hand-20261109T050509513859Z",
   "sample_count": 11,
   "parameters": {
     "two_second.hardware.legacy_observed.yaml": {
       "camera_calibration_file": "calibration/runtime_depth_20261109.yaml",
       "belt_direction_base": [
-        -0.02849255278899827,
-        -0.9995940048017325,
+        -0.05305147034336377,
+        -0.9985917792042989,
         0.0
       ],
       "perception_search_region": "measured_belt_footprint",
       "standby_joint_rad": [
-        -0.25952411189600655,
-        0.6819600313408632,
-        -0.12181076990631212,
-        1.6167383324759468,
-        -0.14963744504747223,
-        -0.4057906486045951,
-        0.6663312947232224
+        -0.43905289658211416,
+        0.7839166064563594,
+        -0.20637776475240047,
+        1.4268647285127678,
+        -0.22624681132443875,
+        -0.6372016252086253,
+        0.6963245395472308
       ],
       "follow_interval_base_m": [
         -0.2,
         0.38
       ],
-      "command_advance_s": 0.05,
+      "command_advance_s": 0.09,
       "maximum_measured_speed_m_s": 1.0,
-      "freeze_position_upstream_m": 0.5,
+      "freeze_position_upstream_m": 0.7,
       "synchronized_max_freeze_upstream_distance_m": 0.6,
-      "velocity_source": "pointcloud_xy_kalman"
+      "velocity_source": "pointcloud_xy_kalman",
+      "brake_duration_s": 0.9,
+      "joint_position_margins_rad": [
+        0.02,
+        0.02,
+        0.02,
+        0.02,
+        0.02,
+        0.0,
+        0.02
+      ],
+      "prealign_orientation_s": 1.1,
+      "synchronized_join_candidates_s": [
+        1.1
+      ],
+      "follow_duration_s": 0.0,
+      "freeze_position_tolerance_m": 0.05,
+      "return_wait_precision_enabled": false,
+      "manufacturer_joint_acceleration_limits_rad_s2": [
+        8.0,
+        8.0,
+        8.0,
+        8.0,
+        10.0,
+        10.0,
+        8.0
+      ],
+      "manufacturer_acceleration_limit_source": "user_reported_j5_j6_10_others8_20261110",
+      "joint_acceleration_limits_rad_s2": [
+        8.0,
+        8.0,
+        8.0,
+        8.0,
+        10.0,
+        10.0,
+        8.0
+      ],
+      "loaded_joint_acceleration_limits_rad_s2": [
+        8.0,
+        8.0,
+        8.0,
+        8.0,
+        10.0,
+        10.0,
+        8.0
+      ],
+      "loaded_acceleration_limit_source": "user_requested_loaded_j5_j6_10_others8_20261110",
+      "pick_settings.min_force_n": 0.5,
+      "taught_transfer_max_duration_s": 1.5,
+      "belt_direction_source": "calibration/belt_direction_20261111_three_pass.json"
     },
     "two_second.hardware.tracked_freeze.yaml": {
       "camera_calibration_file": "calibration/runtime_depth_20261109.yaml",
       "belt_direction_base": [
-        -0.02849255278899827,
-        -0.9995940048017325,
+        -0.05305147034336377,
+        -0.9985917792042989,
         0.0
       ],
       "perception_search_region": "measured_belt_footprint",
       "standby_joint_rad": [
-        -0.25952411189600655,
-        0.6819600313408632,
-        -0.12181076990631212,
-        1.6167383324759468,
-        -0.14963744504747223,
-        -0.4057906486045951,
-        0.6663312947232224
+        -0.43905289658211416,
+        0.7839166064563594,
+        -0.20637776475240047,
+        1.4268647285127678,
+        -0.22624681132443875,
+        -0.6372016252086253,
+        0.6963245395472308
       ],
       "follow_interval_base_m": [
         -0.2,
         0.38
       ],
-      "command_advance_s": 0.05,
+      "command_advance_s": 0.09,
       "maximum_measured_speed_m_s": 1.0,
       "freeze_position_upstream_m": null,
       "synchronized_max_freeze_upstream_distance_m": 0.6,
-      "velocity_source": "pointcloud_xy_kalman"
+      "velocity_source": "pointcloud_xy_kalman",
+      "brake_duration_s": 0.9,
+      "joint_position_margins_rad": [
+        0.02,
+        0.02,
+        0.02,
+        0.02,
+        0.02,
+        0.0,
+        0.02
+      ],
+      "prealign_orientation_s": 1.1,
+      "synchronized_join_candidates_s": [
+        1.1
+      ],
+      "follow_duration_s": 0.0,
+      "return_wait_precision_enabled": false,
+      "manufacturer_joint_acceleration_limits_rad_s2": [
+        8.0,
+        8.0,
+        8.0,
+        8.0,
+        10.0,
+        10.0,
+        8.0
+      ],
+      "manufacturer_acceleration_limit_source": "user_reported_j5_j6_10_others8_20261110",
+      "joint_acceleration_limits_rad_s2": [
+        8.0,
+        8.0,
+        8.0,
+        8.0,
+        10.0,
+        10.0,
+        8.0
+      ],
+      "loaded_joint_acceleration_limits_rad_s2": [
+        8.0,
+        8.0,
+        8.0,
+        8.0,
+        10.0,
+        10.0,
+        8.0
+      ],
+      "loaded_acceleration_limit_source": "user_requested_loaded_j5_j6_10_others8_20261110",
+      "pick_settings.min_force_n": 0.5,
+      "taught_transfer_max_duration_s": 1.5,
+      "belt_direction_source": "calibration/belt_direction_20261111_three_pass.json"
     }
   },
   "artifacts": {
     "src/nero_bringup/config/two_second.hardware.legacy_observed.yaml": {
-      "sha256": "b4e818ca67212440008ed296c01b44799008bb9069acebd640013a63901532d3",
-      "bytes": 10726
+      "sha256": "813c91ba5dad9468ff2940ded2fe82235c26c13651d1f8559b0d3e6e227a4908",
+      "bytes": 11001
     },
     "src/nero_bringup/config/two_second.hardware.tracked_freeze.yaml": {
-      "sha256": "cd19d9e0778324aaefa6d7881fc68ec76fdc7f68892280210ac7f5a2dc08c273",
-      "bytes": 10902
+      "sha256": "51fdd4a8c6e092c494c0f526e4d5d8d95b4ca0809a119ebdbb30919f9b359918",
+      "bytes": 11177
     },
     "src/nero_bringup/config/calibration/eye_to_hand_20261109.json": {
       "sha256": "2b71ddf2875fab9401763dcfeb19c11abdff5ed0975c8d64eefc03bb995876a6",
@@ -95,6 +192,10 @@
     "taught/session_20261104_223416/planned_return/return_generated.json": {
       "sha256": "2d06bafa6c8e7557c3b030a72ed2c7fa8a695a4d7e87240c1774c8d7d5d2dc88",
       "bytes": 14491
+    },
+    "src/nero_bringup/config/calibration/belt_direction_20261111_three_pass.json": {
+      "sha256": "5955d1bd3800f3118b4d7090504da915166d5ddbb0e71873ea3f24280a870978",
+      "bytes": 4672
     }
   },
   "default_velocity_is_visual": true,
@@ -103,5 +204,8 @@
   "raw_images_and_run_logs_included": false,
   "independent_calibration_accuracy_validation_completed": false,
   "fixed_speed_id_change_physically_tested": false,
-  "manifest_scope": "2026-11-09 production configuration and archived calibration; historical trajectory files unchanged"
+  "manifest_scope": "2026-11-09 calibration retained; current production YAML and three-pass belt direction verified 2026-11-12; command advance 90ms; historical taught trajectory files unchanged",
+  "return_wait_precision_physically_tested": true,
+  "return_wait_precision_physical_validation_passed": false,
+  "current_parameters_verified_at": "2026-11-12T19:28:50.894593+08:00"
 }

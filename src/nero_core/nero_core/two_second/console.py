@@ -27,6 +27,7 @@ def step_name(stage):
         'planning_prepared_taught_cycle': '准备整段示教搬运及返回',
         'planning_prepared_taught_recovery_cycle': '准备整段恢复示教搬运及返回',
         'return': '返回等待位', 'waiting': '等待下一件',
+        'return_wait_precision': '等待位末段精定位',
         'recovery_checking': '恢复状态检查', 'recovery_settling': '恢复前位置保持',
         'planning_recovery_lift': '恢复抬升规划', 'recovery_lift': '恢复抬升',
         'planning_recovery_transfer': '恢复入框规划', 'recovery_transfer': '恢复入框',
@@ -220,8 +221,17 @@ class ConsoleProgress:
             self.write('[恢复] 等待新反馈与最后目标到位，暂不发送回位指令')
         elif event == 'recovery_feedback_rechecked':
             self.write(f'[恢复] 新反馈复核通过，等待 {data["waited_s"]:.3f}s')
+        elif event == 'recovery_clock_wait':
+            self.write('[恢复] 反馈时钟代次改变，等待校时证据和连续稳定反馈，暂不发送回位指令')
+        elif event == 'recovery_clock_rebased':
+            self.write(f'[恢复] 主机校时 {data["host_wall_step_s"]*1000:+.1f} ms，'
+                f'新反馈稳定及位置检查通过，已更新恢复基准（{data["waited_s"]:.3f}s）')
         elif event == 'return_feedback_rechecked':
             self.write(f'[反馈] 空爪返回新反馈复核通过，等待 {data["waited_s"]*1000:.1f} ms')
+        elif event == 'return_wait_precision_target_sent':
+            self.write(f'[回位] 空载已稳定，使用J模式修正剩余 {math.degrees(data["max_correction_rad"]):.2f}°')
+        elif event == 'return_wait_precision_finished':
+            self.write(f'[回位] 等待位精定位通过，最大关节误差 {math.degrees(data["max_joint_error_rad"]):.3f}°')
         elif event == 'recovery_started':
             self.write('[恢复] 按示教投放后回等待位' if data.get('payload_policy') == 'taught_drop_then_wait' else
                 '[恢复] 先放入配置料框，再回等待位' if data['carrying'] else '[恢复] 规划空爪返回等待位')

@@ -14,7 +14,7 @@ from ._math import quat_distance
 from .dynamic_intercept import intercept_lead
 
 
-def validate_full_pick_settings(config):
+def validate_full_pick_settings(config, *, allow_zero_close_window=False):
     if config.planning_mode not in {'legacy', 'full_preplanned'}:
         raise ValueError('planning_mode must be legacy or full_preplanned')
     if config.selection_policy not in {'default', 'first_safe'}:
@@ -23,8 +23,10 @@ def validate_full_pick_settings(config):
         raise ValueError('replan_policy must be legacy or event_triggered')
     if not np.isfinite(config.full_plan_observation_max_age_s) or config.full_plan_observation_max_age_s <= 0.:
         raise ValueError('full plan observation validity must be finite and positive')
-    if not np.isfinite(config.full_plan_close_window_s) or config.full_plan_close_window_s <= 0.:
-        raise ValueError('full plan closure window must be finite and positive')
+    if (not np.isfinite(config.full_plan_close_window_s) or config.full_plan_close_window_s < 0.
+            or (config.full_plan_close_window_s == 0. and not allow_zero_close_window)):
+        raise ValueError('full plan closure window must be finite and positive; '
+                         'zero requires synchronized scheduled closure')
     if not np.isfinite(config.full_plan_compute_budget_s) or config.full_plan_compute_budget_s <= 0.:
         raise ValueError('full plan compute budget must be finite and positive')
     if config.planning_mode == 'full_preplanned':

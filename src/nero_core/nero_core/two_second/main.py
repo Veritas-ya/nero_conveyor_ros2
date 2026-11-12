@@ -22,6 +22,8 @@ from .velocity_source import with_fixed_belt_speed, policy as velocity_policy
 def provenance(config):
     files = [config.source, Path(config.raw['tcp_calibration_file']),
              Path(config.raw['camera_calibration_file'])]
+    if 'execution_delay_window' in config.raw:
+        files.append(Path(config.raw['execution_delay_window']['profile_file']))
     files += sorted(Path(__file__).parent.glob('*.py'))
     files.append(Path(__file__).parent.parent/'move_to_wait.py')
     root=Path(__file__).resolve().parents[2]
@@ -39,9 +41,11 @@ def provenance(config):
     return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
 
 
-def main(argv=None,*,freeze_source='tracked'):
+def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp'):
     if freeze_source not in ('tracked','single_exposure_native_depth'):
         raise ValueError('unknown freeze acquisition source')
+    if candidate_retry_policy not in ('per_grasp','coarse_first'):
+        raise ValueError('unknown candidate retry policy')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
     parser.add_argument('--output', type=Path, default=Path('runs/two_second_hardware'))
@@ -69,6 +73,12 @@ def main(argv=None,*,freeze_source='tracked'):
     # All configuration checks happen before importing a camera or CAN SDK.
     try:
         config = CellConfig.load(args.config)
+        if candidate_retry_policy == 'coarse_first' and (
+                config.raw['trajectory_profile'] != 'smooth' or
+                config.raw['intercept_strategy'] != 'synchronized'):
+            raise ValueError('粗算优先入口需要平滑同步抓取策略')
+        # Entry-specific and runtime-only: do not rewrite the shared site YAML.
+        config.raw['candidate_retry_policy'] = candidate_retry_policy
         speed_m_s = (args.belt_speed_cm_s/100. if args.belt_speed_cm_s is not None
                      else args.fixed_belt_speed_m_s)
         if speed_m_s is not None:
@@ -109,6 +119,7 @@ def main(argv=None,*,freeze_source='tracked'):
     if not args.execute:
         print(json.dumps({'status': 'configuration_valid', 'strategy': 'two_second',
             'freeze_source':freeze_source,
+            'candidate_retry_policy':candidate_retry_policy,
             'continuous':args.continuous, 'requested_count':None if args.continuous else args.count,
             'mode': 'check_only', 'hardware_connections': 0, 'commands_sent': 0,
             'tcp_source': config.raw['tcp_source'],
@@ -139,6 +150,7 @@ def main(argv=None,*,freeze_source='tracked'):
             'payload_belt_clearance_m': config.raw['payload_belt_clearance_m'],
             'grasp_workpiece_collision_check_enabled': config.raw['grasp_workpiece_collision_check_enabled'],
             'recovery_allow_workpiece_contact': config.raw['recovery_allow_workpiece_contact'],
+            'return_wait_precision_enabled': config.raw['return_wait_precision_enabled'],
             'planning_knot_hz': config.raw.get('planning_knot_hz'),
             'planning_knot_hz_fallback': config.raw.get('planning_knot_hz_fallback'),
             'geometry_check_hz': config.raw['geometry_check_hz'],
@@ -158,6 +170,7 @@ def main(argv=None,*,freeze_source='tracked'):
             'brake_duration_s': config.raw.get('brake_duration_s'),
             'joint_velocity_limits_rad_s': config.velocity_limits.tolist(),
             'joint_acceleration_limits_rad_s2': config.acceleration_limits.tolist(),
+            'joint_position_margins_rad': config.raw['joint_position_margins_rad'],
             'joint_receive_offset_s': config.raw['hardware']['joint_receive_offset_s'],
             'runtime_command_acceleration_check_enabled': config.raw['runtime_command_acceleration_check_enabled'],
             'loaded_motion_profile': select_motion_profile(config, payload=True).diagnostics(),
@@ -181,6 +194,7 @@ def main(argv=None,*,freeze_source='tracked'):
     begin = time.monotonic()
     reports, executors = [], []
     result = {'mode': 'hardware', 'strategy': 'two_second', 'freeze_source':freeze_source,'source_hashes': provenance(config),
+              'candidate_retry_policy':candidate_retry_policy,
               'joint_receive_offset_s': config.raw['hardware']['joint_receive_offset_s'],
               'taught_segments': {k:v.summary() for k,v in config.raw.get('taught_segments', {}).items()},
               'taught_playback_enabled': config.raw['taught_playback_enabled'],
@@ -207,6 +221,7 @@ def main(argv=None,*,freeze_source='tracked'):
               'payload_belt_clearance_m': config.raw['payload_belt_clearance_m'],
               'grasp_workpiece_collision_check_enabled': config.raw['grasp_workpiece_collision_check_enabled'],
               'recovery_allow_workpiece_contact': config.raw['recovery_allow_workpiece_contact'],
+              'return_wait_precision_enabled': config.raw['return_wait_precision_enabled'],
               'closure_policy': config.raw['closure_policy'],
               'intercept_strategy': config.raw['intercept_strategy'],
               'synchronized_duration_s': config.raw['synchronized_duration_s'],
@@ -232,6 +247,7 @@ def main(argv=None,*,freeze_source='tracked'):
         motion_limit_sources=config.raw['motion_limit_sources'],
         joint_velocity_limits_rad_s=config.velocity_limits.tolist(),
         joint_acceleration_limits_rad_s2=config.acceleration_limits.tolist(),
+        joint_position_margins_rad=config.raw['joint_position_margins_rad'],
         loaded_motion_profile=select_motion_profile(config, payload=True).diagnostics())
     runtime = {'phase': 'starting'}
     vision = executor = planner = visuals = viewer = recorder = None

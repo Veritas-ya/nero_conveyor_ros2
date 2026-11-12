@@ -236,6 +236,35 @@ def test_physical_tcp_is_applied_to_kinematic_site(site):
     np.testing.assert_allclose(model.tcp(), model.flange()@tcp, atol=1e-8)
 
 
+def test_configured_j6_original_range_reaches_normal_and_precise_ik(site):
+    from nero_core.two_second.planning import calibrated_model
+    from nero_core.two_second.precise_ik import PrecisePoseSolver
+    path, data = site
+    assert CellConfig.load(path).raw['joint_position_margins_rad'] == [.02]*7
+    margins = [.02]*7
+    margins[5] = 0.
+    data['joint_position_margins_rad'] = margins
+    path.write_text(yaml.safe_dump(data))
+    model = calibrated_model(CellConfig.load(path))
+    precise = PrecisePoseSolver(model)
+    np.testing.assert_allclose(model.command_lower, model.limits[:, 0]+margins)
+    np.testing.assert_allclose(model.command_upper, model.limits[:, 1]-margins)
+    np.testing.assert_allclose(precise.ik.lower_limits, model.command_lower)
+    np.testing.assert_allclose(precise.ik.upper_limits, model.command_upper)
+    np.testing.assert_allclose(np.degrees([model.command_lower[5], model.command_upper[5]]),
+                               [-44., 57.], atol=1e-10)
+
+
+@pytest.mark.parametrize('margins', [None, [0.]*6, [-.01]*7, [float('nan')]*7,
+                                    [float('inf')]*7])
+def test_config_rejects_invalid_joint_position_margins(site, margins):
+    path, data = site
+    data['joint_position_margins_rad'] = margins
+    path.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match='joint_position_margins_rad'):
+        CellConfig.load(path)
+
+
 def cloud():
     x, y, z = np.meshgrid(np.linspace(-.02,.02,7), np.linspace(-.01,.01,5), [.02,.04])
     return np.column_stack((x.ravel(),y.ravel(),z.ravel()))
@@ -558,14 +587,17 @@ def test_hardware_site_camera_and_provenance_are_self_contained(site_name):
     np.testing.assert_allclose(np.asarray(simulation['conveyor']['grasp_region'])-base[0],
                                [-.20, .38], atol=1e-12)
     expected_joints_deg = [2.728, 43.334, -0.263, 98.814, 3.253, -4.163, 29.269]
-    # Shift the initially recorded TCP by the current measured belt direction;
-    # the independently recorded pose anchors the requested translation.
+    # The earlier displacement used the Nov 9 belt direction. The Nov 11
+    # upstream move uses the new fitted direction and preserves TCP attitude.
     from nero_core.two_second.planning import calibrated_model
     cfg=CellConfig.load(config/site_name)
     model=calibrated_model(cfg);current=model.tcp().copy()
     model.set_state(np.deg2rad(expected_joints_deg),cfg.settings.open_width_m)
     expected=model.tcp().copy()
-    displacement=-.15*cfg.direction+np.array([0.,0.,.05])
+    old_direction = np.asarray(json.loads((config/'calibration/belt_direction_20261109.json').read_text())['belt_direction_base'])
+    displacement=-.10*old_direction-.15*cfg.direction+np.array([0.,0.,.05])
+    fitted = json.loads((config/'calibration/belt_direction_20261111_three_pass.json').read_text())
+    np.testing.assert_allclose(cfg.direction, fitted['belt_direction_base'], atol=1e-12)
     expected[:3,3]+=displacement
     np.testing.assert_allclose(current,expected,atol=1e-8)
     from mujoco_conveyor_sorting.runtime.single_pick import RobotModel

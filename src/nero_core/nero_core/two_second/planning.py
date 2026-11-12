@@ -23,7 +23,7 @@ def _support_hull_separated(hull_vertices, rotation, position, origin, normal):
 
 
 def calibrated_model(config):
-    model = RobotModel()
+    model = RobotModel(joint_position_margins_rad=config.raw.get('joint_position_margins_rad'))
     # Change only the calibrated task site; collision meshes stay physical
     # model assets. Resolve flange->site through the actual site parent body.
     model.set_state(config.standby, config.settings.open_width_m)
@@ -327,9 +327,13 @@ class MeasuredPlanner:
                     'position_tolerance_m': self.model.ik.config.position_tolerance,
                     'orientation_tolerance_rad': self.model.ik.config.orientation_tolerance}
 
-    def intercept(self, target, state, *, cancelled=lambda: False):
+    def intercept(self, target, state, *, cancelled=lambda: False, experiment_deadline=None):
         if self.config.raw.get('trajectory_profile') == 'smooth':
             from .smooth_planning import plan_smooth_intercept
+            if 'timing_experiment' in self.config.raw:
+                from .timing_experiment import plan_experiment
+                return plan_experiment(self, target, state, cancelled=cancelled,
+                    planning_fn=plan_smooth_intercept, deadline=experiment_deadline)
             if self.config.raw.get('planning_reserve_mode', 'fixed') == 'measured':
                 from .adaptive_planning import plan_with_measured_timing
                 return plan_with_measured_timing(self, target, state, cancelled=cancelled,

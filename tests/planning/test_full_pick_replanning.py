@@ -451,6 +451,12 @@ def test_joined_plan_still_requires_original_hardware_snapshot_quality(policy,mo
         for name in names:
             original=getattr(owner,name)
             setattr(owner,name,lambda *a,_original=original:decorate(_original(*a)))
+    # This fake bypasses Hardware.__init__; populate the same coherent pose
+    # cache that the real receive adapter builds before enabling mapped reads.
+    from mujoco_conveyor_sorting.runtime.coherent_flange import CoherentFlangeCache
+    adapter._pose_group_cache=CoherentFlangeCache()
+    adapter._pose_group_cache.observe_epoch(0)
+    assert adapter._pose_group_cache.capture(adapter.robot._parser,adapter.robot.get_flange_pose,100.+now)
     if failure=='missing':adapter.robot._parser.joint_7=None
     elif failure!='normal':
         part=adapter.robot._parser.joint_7

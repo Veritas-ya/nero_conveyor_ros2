@@ -13,10 +13,10 @@ obb_grasp_orientation_reference: taught_transfer_start
 taught_transfer_timing_policy: path_preserving_variable_speed
 # 执行前准备并检查整段搬运/返回；示教时序在启动时计算一次。
 prepared_taught_cycle_enabled: true
-# 上位机平滑请求，非厂家能力值；限制加速度变化率，保留8 rad/s²加速度边界。
+# 上位机平滑请求，非厂家能力值；加速度边界为J5 10 rad/s²、其他轴8 rad/s²。
 taught_joint_jerk_limit_rad_s3: 500.0
 # 用户2026-11-05要求投放示教段最多1.5秒；该段单独放宽软件平滑请求。
-# 仍验证原路径、关节速度及8 rad/s²加速度；抬升/接入/返回继续使用上方500。
+# 仍验证原路径、关节速度及各轴加速度边界；抬升/接入/返回继续使用上方500。
 taught_transfer_jerk_limit_rad_s3: 10000.0
 taught_transfer_max_duration_s: 1.5
 taught_transfer_file: /home/ubuntu22/nero_conveyor_ros2/taught/session_20261104_223416/transfer_trimmed_start025_20261105.json
@@ -46,11 +46,13 @@ joint_names:
 - joint5
 - joint6
 - joint7
-# 2026-11-09：用户确认带向改变；采用新外参下12帧实测带面长轴的平均XY方向。
-# 来源：calibration/belt_direction_20261109.json；Z由每次实测带面补足。
+# 用户2026-11-09：J6规划使用模型原始范围-44°～+57°，其他轴保留0.02rad余量。
+joint_position_margins_rad: [0.02, 0.02, 0.02, 0.02, 0.02, 0.0, 0.02]
+# 2026-11-11：三次相机过件轨迹等权拟合的XY方向；共同相机标定误差尚未独立验证。
+# 来源：calibration/belt_direction_20261111_three_pass.json；Z由每次实测带面补足。
 belt_direction_base:
-- -0.02849255278899827
-- -0.9995940048017325
+- -0.05305147034336377
+- -0.9985917792042989
 - 0.0
 maximum_target_height_m: 0.12  # 用户给出的工件高度上限，单位 m
 # 沿用Nero7感知预览的RGB-D融合检测与原ID/卡尔曼；多帧绿色带面实测校核后才发布目标。
@@ -66,9 +68,9 @@ perception_search_region: measured_belt_footprint
 follow_interval_base_m: [-0.20, 0.38]
 # 仿真 safety_region 从世界系平移到仿真机器人基座系；作为用户指定的初始工作区。
 workspace_base_m: [[-0.62, 0.62], [-0.48, 0.54], [-0.60, 1.00]]
-# 2026-11-09：以恢复后的最初等待位为基准，沿新带向上游移动150mm，基座Z抬高50mm。
-# 保持TCP朝向；离线逆解及带面/示教返回连接检查见 runs/diagnostics/wait_upstream15_z5_20261109_135900。
-standby_joint_rad: [-0.25952411189600655, 0.6819600313408632, -0.12181076990631212, 1.6167383324759468, -0.14963744504747223, -0.4057906486045951, 0.6663312947232224]
+# 2026-11-11：相对上一等待位沿三次过件拟合的新带向上游移动150mm。
+# 基座Z和TCP朝向保持；离线检查见 runs/diagnostics/wait_upstream15_20261111。
+standby_joint_rad: [-0.43905289658211416, 0.7839166064563594, -0.20637776475240047, 1.4268647285127678, -0.22624681132443875, -0.6372016252086253, 0.6963245395472308]
 # 所有工件使用 common_bin；由用户提供的法兰位姿和旧模型 TCP 计算。
 bins_base:
   common_bin:
@@ -82,18 +84,18 @@ unknown_category_bin: common_bin
 manufacturer_joint_velocity_limits_rad_s: [3.141592653589793, 3.141592653589793, 3.141592653589793, 3.9269908169872414, 3.9269908169872414, 3.9269908169872414, 3.9269908169872414]
 manufacturer_velocity_limit_source: user_supplied_nero7_joint_specs_20261031
 joint_velocity_limits_rad_s: [3.141592653589793, 3.141592653589793, 3.141592653589793, 3.9269908169872414, 3.9269908169872414, 3.9269908169872414, 3.9269908169872414]
-# 用户于2026-10-30说明厂家加速度上限为8 rad/s²。
+# 用户2026-11-10提供J5、J6上限为10 rad/s²；其他轴沿用原8 rad/s²。
 # 下列为上位机规划/发送检查的边界；保留固件原设置，不把它写成CAN实测值。
-manufacturer_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
-manufacturer_acceleration_limit_source: user_reported_manufacturer_spec_20261030
-joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
+manufacturer_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 10.0, 10.0, 8.0]
+manufacturer_acceleration_limit_source: user_reported_j5_j6_10_others8_20261110
+joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 10.0, 10.0, 8.0]
 # 用户要求停止依据发送指令差分加速度触发上位机停机；规划曲线限值仍生效。
 # 厂家控制器在 JS 模式下的保护动作尚未独立验证。
 runtime_command_acceleration_check_enabled: false
-# 用户2026-11-05最终指定抬升与载物转运的加速度上限为8 rad/s²。
-# 这是分阶段规划约束，厂家能力/空载边界仍为8；不改厂家固件限值，夹爪仍2N。
-loaded_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
-loaded_acceleration_limit_source: user_requested_loaded_limit_8rad_s2_20261105
+# 抬升与载物转运同步本次J5、J6上限10 rad/s²，其他轴保留8 rad/s²。
+# 这是上位机分阶段规划约束，不改厂家固件限值，夹爪仍2N。
+loaded_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 10.0, 10.0, 8.0]
+loaded_acceleration_limit_source: user_requested_loaded_j5_j6_10_others8_20261110
 camera:
   backend: orbbec
   expected_product_id: 2052
@@ -144,7 +146,9 @@ hardware:
   joint_command_mode: js
   # 按法兰接收时刻对实测关节反馈插值；接收时间不等于设备采样时间。
   joint_receive_offset_s: 0.0
-command_advance_s: 0.050
+# 按用户要求恢复原JS示教返回及等待位连接，不启用末段J精定位。
+return_wait_precision_enabled: false
+command_advance_s: 0.090
 # 使用同一目标实测点云的分位范围中心进行视觉卡尔曼测速。
 # 固定带速仅在显式传入 --fixed-belt-speed-m-s 时启用。
 velocity_source: pointcloud_xy_kalman
@@ -172,15 +176,15 @@ synchronized_duration_s: 0.0
 closure_policy: scheduled_attempt
 # 夹爪旋转与接入同时进行，不启用独立预转阶段。
 rotate_first_s: 0.0
-# 2026-11-04：按用户要求边转边接近1.2秒，仅使用该接入时长。
-prealign_orientation_s: 1.2
-synchronized_join_candidates_s: [1.2]
+# 2026-11-09：按用户要求边转边接近1.1秒，仅使用该接入时长。
+prealign_orientation_s: 1.1
+synchronized_join_candidates_s: [1.1]
 planning_knot_hz: 10 # 优先以10Hz求逆解；控制发送目标频率100Hz
 planning_knot_hz_fallback: 50 # 稀疏节点造成逆解/曲线/TCP误差失败时，对同一候选加密重试
 geometry_check_hz: 25 # 规划阶段几何和TCP参考采样频率；关节跨度大的区间继续细分
 # 每个候选重新预测接触位置；不把原接触时刻固定后拉伸关节曲线。
 approach_duration_candidates_s: [2.0, 3.0, 4.0, 5.5, 6.5]
-brake_duration_s: 0.5
+brake_duration_s: 0.9
 # 2026-10-30保存输入中，优化后的第二候选用时约2.5s；给每个候选3s。
 # 公共场景准备单独计时；全局8s及预约起点前15ms发送截止均继续生效。
 candidate_planning_budget_s: 3.0
@@ -189,6 +193,6 @@ pick_settings:
   speed_percent: 100
   lift_m: 0.05
   force_n: 2.0
-  min_force_n: 0.2
+  min_force_n: 0.5
   open_width_m: 0.1
-  full_plan_close_window_s: 0.1 # 同速跟随0.1秒；连续0.2秒夹持反馈确认在减速及终点到位检查期间继续
+  full_plan_close_window_s: 0.0 # 接触即闭爪并减速，无独立等速跟随；连续0.2秒夹持反馈确认在减速期间继续

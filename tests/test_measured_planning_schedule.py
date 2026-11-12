@@ -73,6 +73,9 @@ def test_recorded_16cm_target_fits_time_schedule_without_claiming_full_path(meas
     from nero_core.two_second.config import CellConfig
     from nero_core.two_second.synchronized_reference import schedule_forward_join
     cfg=CellConfig.load(Path(__file__).parents[1]/'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
+    # This frozen 2026-11-03 observation used the historical belt direction.
+    # Later site recalibration must not reinterpret its projected coordinates.
+    cfg=replace(cfg,direction=np.array([-.003579267858883172, -.9999935944002813, 0.]))
     result=schedule_forward_join(capture_s=16972.82088780403,
         grasp_position=[-.37628971397367683,.5642714108346515,-.11726616219762855],
         velocity=[-.0005722041257250607,-.1598652246700016,.006540835088000046],

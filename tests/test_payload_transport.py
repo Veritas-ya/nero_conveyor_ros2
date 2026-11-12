@@ -42,11 +42,12 @@ def test_invalid_payload_profile_is_rejected_before_opening_devices(site, value,
         CellConfig.load(path)
 
 
-def test_real_cell_reports_separate_8_capability_and_2_payload_request():
+def test_real_cell_reports_current_per_axis_capability_and_payload_request():
     config = CellConfig.load(Path(__file__).parents[1]/
         'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
-    np.testing.assert_array_equal(config.acceleration_limits, 8.)
-    np.testing.assert_array_equal(select_motion_profile(config, payload=True).acceleration_limits, 2.)
+    expected = [8., 8., 8., 8., 10., 10., 8.]
+    np.testing.assert_array_equal(config.acceleration_limits, expected)
+    np.testing.assert_array_equal(select_motion_profile(config, payload=True).acceleration_limits, expected)
     assert config.settings.speed_percent == 100 and config.settings.force_n == 2.
 
 
@@ -84,6 +85,9 @@ def test_native_payload_route_retimes_and_certifies_with_the_loaded_profile():
     from nero_core.two_second.planning import MeasuredPlanner
     config = CellConfig.load(Path(__file__).parents[1]/
         'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
+    # Exercise a deliberately lower payload request independently of site tuning.
+    config.raw.update(loaded_joint_acceleration_limits_rad_s2=[2.]*7,
+                      loaded_acceleration_limit_source='explicit_offline_test_profile')
     planner = MeasuredPlanner(config)
     planner.identity = (0, 1, 2)
     planner.plane = np.eye(4); planner.plane[2, 3] = -1.

@@ -69,7 +69,10 @@ class TwoSecondExecutor:
         self.gates = BaselinePolicyConfig()
         self.holding = PickCycle(self.device, planner.model, config.settings,
                                  self._emit, clock=clock, sleep=sleep,
-                                 heartbeat=lambda: self._active(self.owner, self.version, self.owner[0]))
+                                 heartbeat=lambda: self._active(self.owner, self.version, self.owner[0]),
+                                 allow_zero_close_window=(config.raw.get('trajectory_profile') == 'smooth'
+                                     and config.raw.get('intercept_strategy') == 'synchronized'
+                                     and config.raw.get('closure_policy') == 'scheduled_attempt'))
 
     def _emit(self, name, data):
         # Producers touch memory only; the optional sink enqueues to a writer.
@@ -236,28 +239,66 @@ class TwoSecondExecutor:
                     'speed_report': getattr(target, 'speed_report', None),
                     'candidate_tcp_base': [np.asarray(g).tolist() for g in target.grasps]})
                 measured = self.config.raw.get('planning_reserve_mode', 'fixed') == 'measured'
+                experiment = self.config.raw.get('timing_experiment')
+                retry_expired = measured if experiment is None else experiment['expiry_policy'] == 'replan'
+                bounded = measured or experiment is not None
+                delivery_limit = ((experiment['max_delivery_attempts'] if retry_expired else 1)
+                                  if experiment is not None else (4 if measured else 1))
                 planning_started = self.clock()
                 prepared = False
                 execution_begin = None
-                for delivery_attempt in range(4 if measured else 1):
-                    if measured and self.clock()-planning_started >= self.config.raw['planning_budget_s']:
+                for delivery_attempt in range(delivery_limit):
+                    if bounded and self.clock()-planning_started >= self.config.raw['planning_budget_s']:
                         raise PickRejected('实际发送前重规划预算耗尽')
-                    future = pool.submit(self.planner.intercept, target, state, cancelled=self.cancelled.is_set)
-                    plan = self._prepare(future, self.owner, version, target.epoch)
+                    arguments = {'cancelled': self.cancelled.is_set}
+                    if experiment is not None:
+                        arguments['experiment_deadline'] = planning_started+self.config.raw['planning_budget_s']
+                    try:
+                        future = pool.submit(self.planner.intercept, target, state, **arguments)
+                        plan = self._prepare(future, self.owner, version, target.epoch)
+                    except PickRejected as error:
+                        if experiment is not None:
+                            self._emit('experiment_plan_failed', {'identity': self.owner,
+                                'group': experiment['group'], 'delivery_attempt': delivery_attempt+1,
+                                'elapsed_since_submission_s': self.clock()-planning_started,
+                                'reason': str(error), 'details': error.details})
+                        raise
                     self._active(self.owner, version, target.epoch)
-                    if measured and self.clock()-planning_started >= self.config.raw['planning_budget_s']:
+                    if bounded and self.clock()-planning_started >= self.config.raw['planning_budget_s']:
                         raise PickRejected('实际发送前重规划预算耗尽')
                     if plan.target.identity != self.owner or plan.path.version != self.planner.version:
                         raise PickRejected('晚到的旧目标或旧版本规划')
-                    post_start = plan.path.diagnostics.get('measured_planning', {}).get(
+                    if 'execution_delay_window' in self.config.raw:
+                        from .execution_delay_window import verify_plan
+                        verify_plan(self.config, plan.path, plan.reference)
+                    post_start = plan.path.diagnostics.get('timing_experiment',
+                        plan.path.diagnostics.get('measured_planning', {})).get(
                         'completed_monotonic_s', self.clock())
+                    if experiment is not None:
+                        from .timing_experiment import plan_record
+                        try:
+                            record = plan_record(self.config, plan, self.clock(), delivery_attempt+1)
+                        except Exception as error:
+                            # Diagnostic collection cannot alter a checked motion.
+                            record = {'group': experiment['group'], 'error': str(error),
+                                      'delivery_attempt': delivery_attempt+1}
+                            self._emit('experiment_record_error', record)
+                        else:
+                            self._emit('experiment_plan_ready', record)
                     send_deadline = plan.reference.start_s-self.config.raw['command_advance_s']
                     def missed_delivery(reason):
-                        if not measured:
+                        if experiment is not None:
+                            self._emit('experiment_delivery_missed', {'identity': self.owner,
+                                'group': experiment['group'], 'reason': reason,
+                                'delivery_attempt': delivery_attempt+1,
+                                'post_planning_wall_s': max(0., self.clock()-post_start),
+                                'send_deadline_monotonic_s': send_deadline})
+                        if not retry_expired:
                             raise PickRejected(reason)
                         observed = max(0., self.clock()-post_start)
                         previous = float(getattr(self.planner, 'measured_post_planning_s', 0.))
-                        self.planner.measured_post_planning_s = max(previous, observed)
+                        if measured:
+                            self.planner.measured_post_planning_s = max(previous, observed)
                         self._emit('planning_delivery_missed', {'reason':reason,
                             'post_planning_wall_s':observed, 'send_deadline_monotonic_s':send_deadline,
                             'attempt':delivery_attempt+1})
@@ -310,6 +351,12 @@ class TwoSecondExecutor:
                     if measured:
                         self.planner.measured_post_planning_s = max(
                             self.planner.measured_post_planning_s, max(0., self.clock()-post_start))
+                    if (experiment is not None and
+                            self.clock()-planning_started >= self.config.raw['planning_budget_s']):
+                        self._emit('experiment_budget_exhausted', {'identity': self.owner,
+                            'group': experiment['group'], 'delivery_attempt': delivery_attempt+1,
+                            'elapsed_since_submission_s': self.clock()-planning_started})
+                        raise PickRejected('实验设备准备与交付已耗尽总规划预算')
                     self.trace.policy_origin = plan.reference.start_s
                     break
                 else:
