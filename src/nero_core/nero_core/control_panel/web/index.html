@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>NERO · 传送带抓取控制台</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<svg class="icon-library" aria-hidden="true"><defs>
+  <symbol id="i-arm" viewBox="0 0 24 24"><path d="M5 21h14M7 21v-4l5-3-4-6 3-3 7 6-2 3M8 8 5 6l1-4 5 1M15 14l3 2 3-3-2-3"/><circle cx="12" cy="14" r="2"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M8 5 9 3h6l1 2h4a1 1 0 0 1 1 1v13H3V6a1 1 0 0 1 1-1Z"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8Z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 2v9M6 5a9 9 0 1 0 12 0"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M8 3v5m8-5v5M6 8h12v3a6 6 0 0 1-6 6v5M4 8h16"/></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7Zm10 5v10l-10 5-10-5V7m10 5v10"/></symbol>
+  <symbol id="i-path" viewBox="0 0 24 24"><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M5 16V8a4 4 0 0 1 8 0v8a3 3 0 0 0 6 0V8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="m3 6 4 4-4 4m7 0h10M3 20h18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-gripper" viewBox="0 0 24 24"><path d="M12 3v6M8 3h8M5 9h14M5 9v8l-3 3m17-11v8l3 3M5 17h3m11 0h-3"/></symbol>
+</defs></svg>
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="NERO 抓取控制台"><span class="brand-mark"><svg><use href="#i-arm"/></svg></span><span>NERO<span class="brand-sub">ROBOTICS / WORKCELL</span></span></a>
+    <div class="nav-item"><svg><use href="#i-grid"/></svg>抓取控制台<span class="nav-indicator"></span></div>
+    <div class="sidebar-section-label">设备与任务 <span>CONTROL</span></div>
+    <div class="device-row"><span class="step-number">01</span><div><b>CAN 通讯</b><small id="can-description">正在读取接口状态</small></div><span id="can-dot" class="status-dot"></span></div>
+    <button class="button secondary full" id="can-button" data-action="can"><svg><use href="#i-plug"/></svg>启动 can0<span class="button-trailing">1 Mbit/s</span></button>
+    <div class="device-row next-step"><span class="step-number">02</span><div><b>机械臂驱动</b><small id="arm-description">等待使能检查</small></div><span id="arm-dot" class="status-dot"></span></div>
+    <button class="button secondary full" id="enable-button" data-action="enable"><svg><use href="#i-power"/></svg>机械臂使能</button>
+    <p class="small-note">使能七轴驱动；不发送运动或夹爪开合目标。</p>
+    <button class="button secondary full gripper-button" id="open-gripper-button" data-action="open_gripper"><svg><use href="#i-gripper"/></svg>打开夹爪<span class="button-trailing" id="open-gripper-width">100 mm</span></button>
+    <div class="sidebar-divider"></div>
+    <label class="field-label" for="preset">抓取算法</label>
+    <select id="preset" aria-label="抓取算法"><option value="single">固定位置单帧</option></select>
+    <div class="field-top"><label class="field-label" for="belt-speed">实测传送带速度</label><span id="speed-conversion">0.435 m/s</span></div>
+    <div class="speed-field"><input id="belt-speed" type="number" min="0.01" max="100" step="0.1" value="43.5" inputmode="decimal" aria-label="实测传送带速度 cm/s"><span>cm/s</span></div>
+    <p class="small-note speed-note">按现场实测填写，43.5 为初始示例。</p>
+    <div class="setting-line"><label for="continuous">连续抓取</label><label class="switch"><input id="continuous" type="checkbox" checked><span></span></label></div>
+    <div class="cycle-note" id="cycle-note">每轮示教投放后回等待位，继续下一件。</div>
+    <button class="button primary full" id="pick-button" data-action="pick"><svg><use href="#i-play"/></svg>开始真机抓取<svg class="end-icon"><use href="#i-arrow"/></svg></button>
+    <button class="button preview-button full" id="camera-button" data-action="camera"><svg><use href="#i-camera"/></svg>仅相机规划</button>
+    <button class="button observe-button full" id="observe-button" data-action="observe"><svg><use href="#i-target"/></svg>查看已有运行</button>
+    <button class="button stop-button full" id="stop-button" data-action="stop" disabled><svg><use href="#i-stop"/></svg><span id="stop-label">停止运行</span></button>
+    <p class="small-note stop-note">停止后等待原程序退出，再启动下一次。</p>
+    <div class="sidebar-bottom"><span class="local-dot"></span>本机控制 · 127.0.0.1<span id="sidebar-mode">LOCAL</span></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><div class="eyebrow">WORKCELL <span>/</span> CONVEYOR PICKING</div><h1>传送带抓取<span class="title-dot">.</span></h1><p>连接设备，查看工件，执行抓取。</p></div><div class="header-actions"><span id="mode-badge" class="badge neutral">现场模式</span><span class="connection-pill"><span id="connection-dot" class="status-dot"></span><span id="connection-text">正在连接界面</span></span><button id="refresh-button" class="icon-button" title="刷新状态" aria-label="刷新状态"><svg><use href="#i-refresh"/></svg></button></div></header>
+    <div class="banner hidden" id="demo-banner">离线演示模式 · 画面、点云、轨迹和设备状态均为模拟，所有操作不连接设备。</div>
+    <div class="banner error-banner hidden" id="error-banner" role="alert"><span id="error-text"></span><button id="dismiss-error" aria-label="关闭提示">×</button></div>
+    <div class="session-bar"><div><span id="session-dot" class="status-dot"></span><strong id="session-title">设备待连接</strong><span id="session-subtitle">先启动 can0 并使能机械臂，或直接进行仅相机规划。</span></div><span id="session-clock">—</span></div>
+    <section class="metrics" aria-label="规划指标">
+      <article class="metric"><span class="metric-label"><svg><use href="#i-cube"/></svg>工件点云</span><div><strong id="points-value">—</strong><span class="unit">点</span></div><small id="points-caption">等待有效工件</small></article>
+      <article class="metric"><span class="metric-label"><svg><use href="#i-path"/></svg>抓取轨迹</span><div><strong id="path-value" class="text-value">尚未生成</strong></div><small id="path-caption">完整规划通过后显示</small></article>
+      <article class="metric"><span class="metric-label"><svg><use href="#i-clock"/></svg>规划耗时</span><div><strong id="planning-value">—</strong><span class="unit">ms</span></div><small id="timing-caption">本次模型计算</small></article>
+      <article class="metric"><span class="metric-label"><svg><use href="#i-arrow"/></svg>发送提前量</span><div><strong id="advance-value">90</strong><span class="unit">ms</span></div><small>读取当前抓取配置</small></article>
+    </section>
+    <section class="visuals">
+      <article class="panel camera-panel"><div class="panel-heading"><h2><svg><use href="#i-camera"/></svg>相机画面</h2><div class="segmented" role="group" aria-label="画面来源"><button id="view-live" class="selected" aria-pressed="true">实时</button><button id="view-frozen" aria-pressed="false">冻结帧</button></div></div><div class="camera-stage"><img id="camera-image" alt="当前运行的相机画面" hidden><div id="camera-empty" class="empty-view"><span class="empty-icon"><svg><use href="#i-camera"/></svg></span><strong>等待相机画面</strong><p>点击“仅相机规划”或“开始真机抓取”</p><span>同一相机来源 · 不重复采集</span></div><div class="view-tag"><span id="camera-live-dot" class="status-dot"></span><span id="camera-tag">CAMERA OFFLINE</span></div><div class="camera-footer"><span id="frame-label">FRAME —</span><span id="frame-age">预览未开启</span></div></div><div class="panel-footnote"><span id="camera-note">实时 RGB 与冻结原始曝光分别展示。</span><button id="rearm-button" class="text-button" data-action="rearm" disabled>下一件 <svg><use href="#i-arrow"/></svg></button></div></article>
+      <article class="panel cloud-panel"><div class="panel-heading"><h2><svg><use href="#i-cube"/></svg>点云与抓取轨迹</h2><div class="view-controls"><button id="fit-button" class="icon-button" title="适应视图" aria-label="适应视图"><svg><use href="#i-target"/></svg></button><button id="top-button" class="text-button" title="切换俯视">俯视</button></div></div><div class="cloud-stage"><canvas id="cloud-canvas" aria-label="可拖动旋转、滚轮缩放的三维点云与 TCP 轨迹"></canvas><div class="cloud-topline"><span>ROBOT BASE / m</span><span id="cloud-count">等待点云</span></div><div id="cloud-empty" class="cloud-empty">等待工件点云与规划输出</div><div class="cloud-help">拖动旋转 · 滚轮缩放 · 双击复位</div><div class="axis-label">X <span>Y</span> <b>Z</b></div></div><div class="panel-footnote legend"><label><input id="show-scene" type="checkbox" checked><i class="legend-dot scene-dot"></i>场景</label><label><input id="show-object" type="checkbox" checked><i class="legend-dot object-dot"></i>冻结点云</label><label><input id="show-predicted" type="checkbox" checked><i class="legend-dot predicted-dot"></i>接触预测</label><label><input id="show-path" type="checkbox" checked><i class="legend-line"></i>TCP 轨迹</label></div></article>
+    </section>
+    <section class="detail-row"><div class="parameters"><span class="parameter-key">冻结位置</span><b id="freeze-value">入口上游 70～65 cm</b><span class="parameter-separator"></span><span class="parameter-key">接近 / 跟随 / 减速</span><b id="timing-value">1.1 / 0 / 0.9 s</b><span class="taught-tag"><svg><use href="#i-check"/></svg>示教投放与返回</span></div><p id="path-meaning">相机模式输出为模型规划结果；真机执行状态以运行日志和真实反馈为准。</p></section>
+    <section class="panel log-panel"><div class="panel-heading"><h2><svg><use href="#i-log"/></svg>运行日志<span id="log-count" class="counter">0</span></h2><button class="text-button" id="follow-log" aria-pressed="true"><span class="local-dot"></span>自动跟随</button></div><div id="logs" class="logs" role="log" aria-live="polite"><div class="log-empty"><span>—</span>控制界面已就绪，等待操作。</div></div><div class="log-footer"><span id="record-path" title="运行目录">本次运行记录将在启动后自动保存</span><button class="text-button" id="copy-path" disabled>复制路径</button></div></section>
+    <footer class="main-footer"><span>NERO WORKCELL <span>·</span> LOCAL OPERATOR CONSOLE</span><span id="footer-date"></span></footer>
+  </main>
+</div>
+</body>
+</html>

@@ -60,10 +60,12 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
     belt_speed.add_argument('--fixed-belt-speed-m-s', type=float,
         help='本次运行覆盖配置使用用户设定带速m/s；省略时使用配置指定的速度来源')
     parser.add_argument('--preview', action='store_true', help='共用当前相机来源，打开只读画面及碰撞预测窗口')
+    parser.add_argument('--web-preview', action='store_true', help='共享原子预览文件供本地网页读取，不启动额外相机或Qt窗口')
     parser.add_argument('--record-rgbd', action='store_true', help='异步记录同源RGB-D，供事后重建场景点云')
     parser.add_argument('--taught-transfer', type=Path, help='覆盖配置中的载物投放示教文件，须与 --taught-return 成对提供')
     parser.add_argument('--taught-return', type=Path, help='覆盖配置中的空爪返回示教文件，须与 --taught-transfer 成对提供')
     args = parser.parse_args(argv)
+    preview_enabled = args.preview or args.web_preview
     if args.check_config and args.execute:
         parser.error('--check-config 与 --execute 互斥')
     if args.count < 1:
@@ -321,8 +323,8 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             from .vision import LiveVision
         from .execution import TwoSecondExecutor
         from .visual_archive import VisualArchive
-        visuals = VisualArchive(args.output, journal.emit, live=args.preview,direction=config.direction,
-            path_model_factory=(lambda: calibrated_model(config)) if args.preview else None)
+        visuals = VisualArchive(args.output, journal.emit, live=preview_enabled,direction=config.direction,
+            path_model_factory=(lambda: calibrated_model(config)) if preview_enabled else None)
         if args.record_rgbd:
             from .rgbd_archive import RGBDArchive
             recorder = RGBDArchive(args.output)
@@ -346,7 +348,7 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
                     payload=kind == 'transfer', cancelled=cancelled.is_set)
                 timings[kind] = {'duration_s': prepared.duration, **prepared.diagnostics}
             journal.emit('taught_timing_prepared', segments=timings, hardware_connections=0)
-        if args.preview:
+        if preview_enabled:
             original_intercept = planner.intercept
             def intercept_with_visualization(*call_args, **call_kwargs):
                 plan = original_intercept(*call_args, **call_kwargs)
@@ -386,14 +388,14 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             resources.callback(camera.close)
             camera.start()  # exactly one SDK capture owner
             vision = LiveVision(camera, calibration, config, detector_model, hw.snapshot_nowait)
-            if args.preview or recorder is not None:
+            if preview_enabled or recorder is not None:
                 def offer_frame(frame, d2c):
-                    if args.preview:
+                    if preview_enabled:
                         visuals.offer_frame(frame, d2c)
                     if recorder is not None:
                         recorder.offer_frame(frame, d2c)
                 vision.frame_sink = offer_frame
-            if args.preview:
+            if preview_enabled:
                 vision.speed_sink = visuals.offer_speed
             resources.callback(vision.close)
             vision.start()
@@ -407,7 +409,7 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
                 result=result, reports=reports, executors=executors, set_phase=cycle_phase,
                 journal=journal, executor_factory=TwoSecondExecutor,
                 finish_attempt=save_attempt if args.continuous else None,
-                offer_target=visuals.offer_target if args.preview or args.record_rgbd else None)
+                offer_target=visuals.offer_target if preview_enabled or args.record_rgbd else None)
             executor = executors[-1] if executors else None
     except BaseException as error:
         executor = executors[-1] if executors else executor
