@@ -146,6 +146,8 @@ class LiveVision:
         self.consumed = set()
         self.freeze_position_missed = set()
         self.active_task = None
+        self.lookahead_enabled = False
+        self.recent_targets = []
         self.minimum_capture_s = float('-inf')
         self.reset_tracking = False
         self.thread = Thread(target=self._run, name='measured-two-second-vision')
@@ -171,6 +173,8 @@ class LiveVision:
 
     def consume(self, identity):
         with self.lock:
+            if self.lookahead_enabled and self.latest is not None and self.latest.identity == identity:
+                self.recent_targets = (self.recent_targets+[self.latest])[-4:]
             self.geometry_generation+=1
             self.consumed.add(identity)
             self.latest = None
@@ -179,12 +183,57 @@ class LiveVision:
     def resume_targets(self):
         """After a completed return, require a fresh exposure and new speed history."""
         with self.lock:
+            if self.lookahead_enabled:
+                # Preserve the next exposure and its original capture clock.
+                self.active_task = None
+                return
             self.geometry_generation+=1
             self.latest = self.active_task = None
             self.minimum_capture_s = time.monotonic()
             # Only the camera worker may mutate the meter/tracker.
             self.reset_tracking = True
             self.progress_snapshot = self.progress_entry = None
+
+    def enable_lookahead(self):
+        with self.lock:
+            self.lookahead_enabled = True
+
+    def capture_feedback(self, captured):
+        reader = getattr(self, 'capture_state_reader', None) if self.lookahead_enabled else None
+        return self.read_feedback() if reader is None else reader(captured)
+
+    def poll_pending(self):
+        """Read one next exposure without changing the execution owner."""
+        with self.lock:
+            if self.error is not None:
+                raise self.error
+            item = self.latest
+            return item if item is not None and item.identity not in self.consumed else None
+
+    def discard_pending(self, identity):
+        with self.lock:
+            self.consumed.add(identity)
+            if self.latest is not None and self.latest.identity == identity:
+                if self.lookahead_enabled:
+                    self.recent_targets = (self.recent_targets+[self.latest])[-4:]
+                self.latest = None
+                self.geometry_generation += 1
+
+    def repeats_recent_target(self, position, captured):
+        """Suppress one physical piece across exposure IDs or tracker ID churn."""
+        with self.lock:
+            recent = tuple(self.recent_targets)
+        for item in recent:
+            if item.epoch != self.clock_epoch:
+                continue
+            dt = captured-item.capture_s
+            if dt < 0:
+                continue
+            predicted = item.entry_position+item.velocity*dt
+            radius = max(.025, float(np.linalg.norm(np.ptp(item.points, axis=0)[:2]))*.5)
+            if np.linalg.norm(np.asarray(position)[:2]-predicted[:2]) <= radius:
+                return True
+        return False
 
     def diagnostics(self):
         """Small detached progress report; never used to authorize movement."""
@@ -211,7 +260,7 @@ class LiveVision:
                 'perception':self.perception_diagnostics,
                 'velocity_policy':velocity_policy(self.config),
                 'active_task': active_task,
-                'target_processing_paused': active_task is not None,
+                'target_processing_paused': active_task is not None and not self.lookahead_enabled,
                 'freeze_position_missed_targets': missed_count,
                 'meter_current': None if peer is None else peer.current,
                 'meter_frame_sequence': None if peer is None else peer.sequence,
@@ -310,7 +359,7 @@ class LiveVision:
         with self.lock:
             peer=self.progress_snapshot
             if (self.stop.is_set() or generation!=self.geometry_generation or
-                    self.clock_epoch!=item.epoch or self.active_task is not None or
+                    self.clock_epoch!=item.epoch or (self.active_task is not None and not self.lookahead_enabled) or
                     item.identity in self.consumed or item.capture_s<self.minimum_capture_s or
                     peer is None or peer.track_generation!=tracking_generation):
                 return
@@ -337,6 +386,7 @@ class LiveVision:
                 detection=detect_target(frame,d2c,fit_plane=fit_plane,green_belt_points=green_belt_points,
                     target_shape='simple',robot_model=self.geometry_model,robot_state=state,
                     measured_surface=surface,maximum_target_height_m=self.config.raw['maximum_target_height_m'],
+                    maximum_target_length_m=self.config.raw.get('maximum_target_length_m', .16),
                     scene_scope=self.config.raw.get('environment_collision_scope', 'observed_scene'))
         except TargetNotReady as error:
             progress.block('waiting_target_geometry','detection_'+error.details['reason'],
@@ -351,6 +401,9 @@ class LiveVision:
             if self.stop.is_set() or generation!=self.geometry_generation:return
         progress.annotate_frame(component_extraction=detection.get('component_extraction'))
         center=np.median(detection['object_points'],axis=0)
+        if self.lookahead_enabled and self.repeats_recent_target(center, captured):
+            progress.block('waiting_new_target', 'same_physical_workpiece')
+            return
         observed=np.asarray(track.observed_position_base,dtype=float)
         distance=float(np.linalg.norm(center[:2]-observed[:2]))
         if distance>gate:
@@ -414,7 +467,7 @@ class LiveVision:
                     received_monotonic_s=float(frame.header.received_time))
                 with self.lock:
                     active_task = self.active_task
-                if active_task is not None:
+                if active_task is not None and not self.lookahead_enabled:
                     # This strategy uses the accepted exposure and frozen
                     # velocity. Keep the single camera receiving and epoch
                     # cancellation live, without competing with planning or
@@ -475,6 +528,7 @@ class LiveVision:
                     self.perception_diagnostics={k:diagnostics[k] for k in (
                         'detection_mode','plane_calibration','processing_ms','registration_ms',
                         'detection_ms','tracking_ms','tracking_roi_source','tracking_roi_px',
+                        'detector_workspace_y_m',
                         'tracking_limit_coordinate_m','belt_surface_capture_sequence',
                         'native_roi_candidate_points','registered_valid_pixels','candidate_count',
                         'depth_admission','candidate_depth_diagnostics',
@@ -517,7 +571,7 @@ class LiveVision:
                 # geometry job needs this fresh encoder sample for self filtering.
                 self.progress.enter('pairing_feedback')
                 with self.progress.measure('feedback_pairing'):
-                    state=self.read_feedback()
+                    state=self.capture_feedback(captured)
                 if state is None:
                     self.progress.block('waiting_feedback','feedback_missing',capture_monotonic_s=captured)
                     continue

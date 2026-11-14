@@ -11,10 +11,14 @@ class CommandHistory:
         # Planning curve limits remain independent.
         self.check_command_acceleration = getattr(config, 'raw', {}).get(
             'runtime_command_acceleration_check_enabled', False)
+        self.check_command_velocity = getattr(config, 'raw', {}).get(
+            'runtime_command_velocity_check_enabled', True)
         self.q = self.dispatch = None
         self.velocity = np.zeros(7)
         self.previous_interval = None
         self.command_count = self.acceleration_limit_exceedances = 0
+        self.velocity_limit_exceedances = 0
+        self.peak_abs_command_velocity = np.zeros(7)
         self.last_command_acceleration = None
         self.peak_abs_command_acceleration = np.zeros(7)
 
@@ -34,7 +38,8 @@ class CommandHistory:
             # only the newest dt falsely rejects a bounded curve on uneven ticks.
             acceleration_dt = dt if self.previous_interval is None else .5*(dt+self.previous_interval)
             acceleration = (velocity-self.velocity)/acceleration_dt
-            bad_velocity = np.any(abs(velocity) > limits.velocity_limits+1e-8)
+            bad_velocity = (self.check_command_velocity and
+                            np.any(abs(velocity) > limits.velocity_limits+1e-8))
             bad_acceleration = (self.check_command_acceleration and
                                 np.any(abs(acceleration) > limits.acceleration_limits+1e-8))
             if not bad_velocity and not bad_acceleration:
@@ -56,7 +61,7 @@ class CommandHistory:
         limits = self.config if limits is None else limits
         dt = 1./self.config.settings.control_hz
         velocity = (np.asarray(q)-rest_anchor)/dt
-        if (np.any(abs(velocity) > limits.velocity_limits+1e-8) or
+        if ((self.check_command_velocity and np.any(abs(velocity) > limits.velocity_limits+1e-8)) or
                 (self.check_command_acceleration and
                  np.any(abs(velocity)/dt > limits.acceleration_limits+1e-8))):
             raise PickRejected('首个发送点无法从静止端点连续接入')
@@ -71,6 +76,8 @@ class CommandHistory:
             self.last_command_acceleration = acceleration.copy()
             self.peak_abs_command_acceleration = np.maximum(self.peak_abs_command_acceleration, abs(acceleration))
             limits = self.config if limits is None else limits
+            self.peak_abs_command_velocity = np.maximum(self.peak_abs_command_velocity, abs(velocity))
+            self.velocity_limit_exceedances += int(np.any(abs(velocity) > limits.velocity_limits+1e-8))
             self.acceleration_limit_exceedances += int(np.any(abs(acceleration) > limits.acceleration_limits+1e-8))
         self.velocity, self.previous_interval = velocity, interval
         self.q, self.dispatch = np.asarray(q).copy(), dispatch
@@ -78,9 +85,13 @@ class CommandHistory:
 
     def diagnostics(self):
         return {'source': 'host_dispatch_command_finite_difference',
+            'measured_actuator_velocity': False,
             'measured_actuator_acceleration': False,
+            'runtime_velocity_check_enabled': self.check_command_velocity,
             'runtime_acceleration_check_enabled': self.check_command_acceleration,
             'commands_recorded': self.command_count,
+            'commands_exceeding_planning_velocity_limit': self.velocity_limit_exceedances,
+            'peak_abs_command_velocity_rad_s': self.peak_abs_command_velocity.tolist(),
             'commands_exceeding_planning_acceleration_limit': self.acceleration_limit_exceedances,
             'last_command_acceleration_rad_s2': None if self.last_command_acceleration is None else self.last_command_acceleration.tolist(),
             'peak_abs_command_acceleration_rad_s2': self.peak_abs_command_acceleration.tolist()}

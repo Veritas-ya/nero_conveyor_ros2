@@ -57,7 +57,8 @@ class SingleExposureVision(LiveVision):
         # Same production rule: only the existing confirmed-return owner calls
         # this, and only exposures newer than that call may start another pick.
         super().resume_targets()
-        with self.lock:self.pending.clear()
+        if not self.lookahead_enabled:
+            with self.lock:self.pending.clear()
 
     def diagnostics(self):
         result=super().diagnostics()
@@ -96,7 +97,7 @@ class SingleExposureVision(LiveVision):
     def _submit_pending(self):
         if self.geometry_future is not None:return
         with self.lock:
-            if self.active_task is not None or self.latest is not None:return
+            if (self.active_task is not None and not self.lookahead_enabled) or self.latest is not None:return
             while self.pending:
                 item=self.pending.popleft()
                 frame,_,_,_,capture,generation=item
@@ -142,6 +143,7 @@ class SingleExposureVision(LiveVision):
             frame.header.sequence,center,velocity,grasps,np.asarray(detection['object_points']),
             detection,state,report,entry_position=center)
         progress.annotate_frame(point_count=len(item.points),seed_overlap_ratio=overlap,
+            local_processing=detection.get('local_processing'),
             freeze_capture_upstream_m=float(self.config.follow_bounds[0]-center@self.config.direction))
         progress.mark_ready()
         return generation,item
@@ -159,14 +161,14 @@ class SingleExposureVision(LiveVision):
             return
         with self.lock:
             if (self.stop.is_set() or generation!=self.geometry_generation or self.clock_epoch!=item.epoch
-                    or self.active_task is not None or item.identity in self.consumed
+                    or (self.active_task is not None and not self.lookahead_enabled) or item.identity in self.consumed
                     or item.capture_s<self.minimum_capture_s):return
             self.latest=item;self.pending.clear()
         self.progress.mark_ready()
 
     def _paired_state(self,captured):
         self.progress.enter('pairing_feedback')
-        with self.progress.measure('feedback_pairing'):state=self.read_feedback()
+        with self.progress.measure('feedback_pairing'):state=self.capture_feedback(captured)
         if state is None:
             self.progress.block('waiting_feedback','feedback_missing');return None
         stamps=[mapped_stamp(state,kind) for kind in ('joint','pose')]
@@ -184,7 +186,7 @@ class SingleExposureVision(LiveVision):
             source_device_s=raw.header.source_time,received_monotonic_s=raw.header.received_time)
         with self.lock:
             if raw.header.clock_epoch!=self.clock_epoch:return
-            if self.active_task is not None or self.latest is not None:
+            if (self.active_task is not None and not self.lookahead_enabled) or self.latest is not None:
                 self.progress.enter('task_active_camera_only');return
         frame=apply_runtime_depth_calibration(raw,self.calibration,self.d2c)
         try:captured=depth_capture_timing(frame)['depth_sample_monotonic_estimate']
@@ -218,11 +220,14 @@ class SingleExposureVision(LiveVision):
                 candidate_count=len(candidates),locator=report)
             return
         candidate=candidates[0]
+        if self.lookahead_enabled and self.repeats_recent_target(candidate.position, captured):
+            self.progress.block('waiting_new_target', 'same_physical_workpiece')
+            return
         velocity=prediction_velocity(self.config,None,surface.normal_base)
         try:self.entry_time(captured,candidate.position,velocity,time.monotonic())
         except EntryNotReady:return
         with self.lock:
-            if self.active_task is not None or self.latest is not None:return
+            if (self.active_task is not None and not self.lookahead_enabled) or self.latest is not None:return
             self.pending.append((frame,surface,candidate,deepcopy(state),captured,self.geometry_generation))
         self._submit_pending()
 

@@ -108,13 +108,28 @@ def test_check_only_cli_validates_override_without_device_imports(monkeypatch,ca
     site_data=json.loads(capsys.readouterr().out)
     assert site_data['velocity_policy']['source']==POINT_KALMAN
     assert site_data['velocity_policy']['fixed_belt_speed_m_s'] is None
+    assert not site_data['hardware_speed_ready']
     assert site_data['hardware_connections']==site_data['commands_sent']==0
     assert main(['--config',str(CONFIG),'--fixed-belt-speed-m-s','0.0595','--check-config'])==0
     data=json.loads(capsys.readouterr().out)
     assert data['velocity_policy']['source']==FIXED
     assert data['velocity_policy']['fixed_belt_speed_m_s']==.0595
+    assert data['hardware_speed_ready']
     assert data['hardware_connections']==data['commands_sent']==0
     assert main(['--config',str(CONFIG),'--fixed-belt-speed-m-s','0.0595','--count','2'])==0
+
+
+def test_hardware_execution_never_falls_back_to_visual_velocity(monkeypatch, capsys):
+    import builtins
+    from nero_core.two_second.main import main
+    original = builtins.__import__
+    def guarded(name, *args, **kwargs):
+        if 'nero_pick_hardware' in name or 'backends.orbbec' in name:
+            pytest.fail('missing fixed speed must be rejected before device imports')
+        return original(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, '__import__', guarded)
+    assert main(['--config', str(CONFIG), '--execute']) == 2
+    assert '真机抓取不使用视觉测速' in capsys.readouterr().out
 
 
 @pytest.mark.parametrize('speed', ['4.53', '12', '30', '43.5', '50.7', '100'])

@@ -215,6 +215,27 @@ class Hardware:
         finally:
             self.lock.release()
 
+    def snapshot_for_capture(self, captured):
+        """Read-only self-filter joints, bracketed at the exposure's host time.
+
+        No extrapolation or new CAN requests. This is receive-boundary
+        interpolation, not an encoder-internal sample-time measurement.
+        The result is scene evidence and must never authorize robot motion.
+        """
+        state = self.snapshot_nowait()
+        if state is None or not np.isfinite(captured) or not self.lock.acquire(blocking=False):
+            return None
+        try:
+            joints, evidence = self._joint_feedback_history.at(captured)
+            if joints is None or evidence['maximum_bracket_span_s'] > .05:
+                return None
+            state = dict(state)
+            state.update(joints=list(joints), capture_joint_pairing=dict(evidence),
+                capture_state_role='self_filter_only_not_motion_feedback')
+            return state
+        finally:
+            self.lock.release()
+
     def snapshot_teaching_joints(self):
         """Passive joint-only feedback; permits the controller's teach mode.
 

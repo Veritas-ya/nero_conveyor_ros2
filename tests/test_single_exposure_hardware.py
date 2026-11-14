@@ -235,7 +235,8 @@ def test_execute_entry_changes_only_vision_and_reuses_original_cycle_executor(si
     from nero_core.two_second.execution import TwoSecondExecutor
     from nero_core.two_second import cycle_loop,planning,vision
     path,raw=site
-    raw.update(trajectory_profile='smooth',intercept_strategy='synchronized',prealign_orientation_s=1.2,
+    raw.update(continuous_lookahead_enabled=False,
+        trajectory_profile='smooth',intercept_strategy='synchronized',prealign_orientation_s=1.2,
         freeze_position_upstream_m=.45,freeze_position_tolerance_m=.02,maximum_measured_speed_m_s=1.)
     path.write_text(yaml.safe_dump(raw))
     calls=[]
@@ -253,17 +254,26 @@ def test_execute_entry_changes_only_vision_and_reuses_original_cycle_executor(si
     class Planner:
         def __init__(self,*args):self.model=NS()
         def diagnostics(self):return {}
+        def intercept(self,*args,**kwargs):raise AssertionError('fake cycle must not plan')
     class Vision:
         def __init__(self,camera,calibration,config,model,feedback):
             calls.append('single_exposure_vision_constructed')
             assert config.raw['freeze_source']=='single_exposure_native_depth'
             assert feedback()['width_m']==.1
         def start(self):return self
+        def _prepare_single(self,*args):raise AssertionError('fake cycle must not detect')
         def close(self):calls.append('single_exposure_vision_closed')
         def diagnostics(self):return {'freeze_source':'single_exposure_native_depth'}
     def forbidden(*args,**kwargs):raise AssertionError('old tracking vision must not be constructed')
     def cycles(config,planner,device,acquisition,**kwargs):
-        assert kwargs['executor_factory'] is TwoSecondExecutor
+        from functools import partial
+        factory = kwargs['executor_factory']
+        if isinstance(factory, partial):
+            assert factory.func is TwoSecondExecutor
+            assert factory.args == ()
+            assert factory.keywords == {'sweep_service': None, 'carry_service': None}
+        else:
+            assert factory is TwoSecondExecutor
         assert config.raw['prealign_orientation_s']==1.2
         calls.append('original_cycle_loop_received_original_executor')
         kwargs['result'].update(status='requested_feedback_cycles_completed',completed_feedback_cycles=1)

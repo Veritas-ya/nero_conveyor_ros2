@@ -51,6 +51,15 @@ def test_config_requires_actual_site_values_and_resolves_paths(site):
         CellConfig.load(template)
 
 
+@pytest.mark.parametrize('bounds', [[1.1, -.7], [0., 0.], [0., float('nan')], [0.], None])
+def test_detector_y_bounds_reject_invalid_values(site, bounds):
+    path, data = site
+    data['perception_detector_workspace_y_m'] = bounds
+    path.write_text(yaml.safe_dump(data))
+    with pytest.raises((ValueError, TypeError), match='perception_detector_workspace_y_m'):
+        CellConfig.load(path)
+
+
 @pytest.mark.parametrize('value', [False, True, 'true', 'false', 1, None])
 def test_workpiece_recovery_policy_requires_explicit_boolean(site, value):
     path, data = site
@@ -131,6 +140,14 @@ def test_config_accepts_sourced_per_joint_cap_and_rejects_excess(site):
 def test_runtime_acceleration_policy_requires_explicit_boolean(site):
     path, data = site
     data['runtime_command_acceleration_check_enabled'] = 'false'
+    path.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match='布尔值'):
+        CellConfig.load(path)
+
+
+def test_runtime_velocity_policy_requires_explicit_boolean(site):
+    path, data = site
+    data['runtime_command_velocity_check_enabled'] = 'false'
     path.write_text(yaml.safe_dump(data))
     with pytest.raises(ValueError, match='布尔值'):
         CellConfig.load(path)
@@ -459,7 +476,8 @@ def test_measured_target_copies_input_and_keeps_relative_grasp():
 
 @pytest.mark.parametrize('broken_log_sink', [False, True])
 @pytest.mark.parametrize('unconfirmed', [False, True])
-def test_full_cycle_wiring_returns_to_wait_and_never_claims_physical_success(monkeypatch, broken_log_sink, unconfirmed):
+@pytest.mark.parametrize('prefetched', [False, True])
+def test_full_cycle_wiring_returns_to_wait_and_never_claims_physical_success(monkeypatch, broken_log_sink, unconfirmed, prefetched):
     """Ideal feedback proves stage order, not routes, contact or physical lifts."""
     from concurrent.futures import Future
     from nero_core.two_second.planning import InterceptPlan
@@ -492,6 +510,17 @@ def test_full_cycle_wiring_returns_to_wait_and_never_claims_physical_success(mon
         executor.planner.version+=1
         return TimedPath(lambda t,d=0:np.zeros(7),identity,executor.planner.version,stage,1.,0.)
     executor.planner.intercept=intercept
+    if prefetched:
+        from nero_core.two_second.return_lookahead import PreparedIntercept
+        plan=intercept(target,device.snapshot())
+        executor.planner.identity=identity
+        executor.planner.scene_revision=1
+        executor.epoch=lambda:0
+        executor.prefetched_intercept=PreparedIntercept(target,executor.planner,plan,
+            device.snapshot(),(0,0,0),clock())
+        clock.sleep(.5)  # Capture older than initial admission; absolute plan still valid.
+        def forbidden_replan(*a,**kw):pytest.fail('certified next trajectory should be reused')
+        executor.planner.intercept=forbidden_replan
     executor.planner.route=route
     executor.planner.attach_measured=lambda *a:None
     executor.planner.validate_release_opening=lambda *a:None
@@ -595,8 +624,9 @@ def test_hardware_site_camera_and_provenance_are_self_contained(site_name):
     model.set_state(np.deg2rad(expected_joints_deg),cfg.settings.open_width_m)
     expected=model.tcp().copy()
     old_direction = np.asarray(json.loads((config/'calibration/belt_direction_20261109.json').read_text())['belt_direction_base'])
-    displacement=-.10*old_direction-.15*cfg.direction+np.array([0.,0.,.05])
-    fitted = json.loads((config/'calibration/belt_direction_20261111_three_pass.json').read_text())
+    wait_direction = np.asarray(json.loads((config/'calibration/belt_direction_20261111_three_pass.json').read_text())['belt_direction_base'])
+    displacement=-.10*old_direction-.15*wait_direction+np.array([0.,0.,.05])
+    fitted = json.loads((config/'calibration/belt_direction_20261113_single_pass.json').read_text())
     np.testing.assert_allclose(cfg.direction, fitted['belt_direction_base'], atol=1e-12)
     expected[:3,3]+=displacement
     np.testing.assert_allclose(current,expected,atol=1e-8)

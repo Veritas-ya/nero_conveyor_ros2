@@ -32,7 +32,7 @@ def test_smooth_config_rejects_invalid_scheduling(site, field, value):
 
 @pytest.mark.parametrize('policy,profile,strategy,brake,allowed', [
     ('scheduled_attempt', 'smooth', 'synchronized', .8, True),
-    ('scheduled_attempt', 'smooth', 'synchronized', .199, False),
+    ('scheduled_attempt', 'smooth', 'synchronized', .099, False),
     ('feedback', 'smooth', 'synchronized', .8, False),
     ('scheduled_attempt', 'smooth', 'classic', .8, False),
     ('scheduled_attempt', 'legacy', 'classic', .8, False)])
@@ -227,7 +227,11 @@ def test_one_stream_confirms_grip_before_braking_and_sends_rest_endpoint(monkeyp
         assert len(attachments) == (0 if empty else 1)
         if attachments:
             brake_time = next(t for t, p in phases if p == 'brake')
-            assert (attachments[0][0] > brake_time) if short_follow is not None and short_follow < GRIP_CONFIRMATION_DWELL_S else (attachments[0][0] < brake_time)
+            # At the boundary the first braking sample may itself confirm grip.
+            if short_follow is not None and short_follow <= GRIP_CONFIRMATION_DWELL_S:
+                assert attachments[0][0] >= brake_time-1e-9
+            else:
+                assert attachments[0][0] < brake_time
         assert phases[-1][0]+.1-1. >= path.duration
         np.testing.assert_allclose(e.rest_anchor, path.q1)
         assert e.command_history.dispatch == phases[-1][0]

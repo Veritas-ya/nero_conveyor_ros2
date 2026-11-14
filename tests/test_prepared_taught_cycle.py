@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS
 import numpy as np
 import pytest
 
-from nero_core.two_second.prepared_cycle import prepare_cycle, concatenate, nominal_state, PreparedCycle
+from nero_core.two_second.prepared_cycle import prepare_cycle, concatenate, nominal_state, PreparedCycle, direct_return
 from nero_core.two_second.taught import TaughtSegment, prepare_taught_timing, certify_taught
 from nero_core.two_second.trajectory import retime_samples, extrema
 from nero_core.two_second.taught_timing import limit_jerk
@@ -31,6 +31,7 @@ def fixture():
     model=Model();model.set_state(q(0.),.04)
     class Planner:
         def __init__(self):
+            self.config=cfg
             self.model=model;self.identity=(0,1,2);self.version=0;self.scene_revision=7
             self.payload_local=np.ones((3,3));self.payload_tree=object();self.capture_tcp=np.eye(4)
             self.released_points=None;self.released_tree=None;self.support=np.array([0.,0.,1.])
@@ -62,6 +63,146 @@ def test_prepared_chain_checks_transport_and_return_and_restores_live_payload():
     assert ('check','taught_return',False) in p.calls
     np.testing.assert_allclose(bundle.carry.q1,cfg.raw['taught_segments']['transfer'].joints[-1],atol=1e-12)
     np.testing.assert_allclose(bundle.returning.q1,cfg.standby,atol=1e-12)
+
+
+def test_experimental_direct_drop_uses_one_loaded_route_to_taught_endpoint():
+    cfg,p,q=fixture()
+    cfg.raw.update(experimental_direct_drop_guard={'experiment':True},taught_return_strategy='direct_to_wait')
+    bundle=prepare_cycle(p,cfg,nominal_state(p.model,q(0.),.04),q(0.),cancelled=lambda:False)
+    assert [x['stage'] for x in bundle.carry.diagnostics['pieces']]==['lift','direct_drop']
+    assert 'direct_drop' in p.calls and 'transfer_connect' not in p.calls
+    assert ('check','taught_transfer',True) not in p.calls
+    np.testing.assert_allclose(bundle.carry.q1,cfg.raw['taught_segments']['transfer'].joints[-1],atol=1e-12)
+    np.testing.assert_allclose(bundle.returning.q1,cfg.standby,atol=1e-12)
+
+
+def test_direct_drop_failure_cannot_fall_back_to_taught_path():
+    cfg,p,q=fixture();original=p.payload_local
+    cfg.raw.update(experimental_direct_drop_guard={'experiment':True},taught_return_strategy='direct_to_wait')
+    route=p.route
+    def reject(*args, **kwargs):
+        if kwargs['stage']=='direct_drop':
+            raise PickRejected('直接投放不可行')
+        return route(*args, **kwargs)
+    p.route=reject
+    with pytest.raises(PickRejected,match='直接投放不可行'):
+        prepare_cycle(p,cfg,nominal_state(p.model,q(0.),.04),q(0.),cancelled=lambda:False)
+    assert 'transfer_connect' not in p.calls
+    assert p.payload_local is original
+
+
+def test_direct_return_plans_one_path_to_current_standby_without_old_demonstration():
+    cfg,p,q=fixture()
+    cfg.standby=q(-.2)
+    cfg.raw['taught_return_strategy']='direct_to_wait'
+    # The direct policy cannot depend on an obsolete demonstration or its end.
+    del cfg.raw['taught_segments']['return']
+    bundle=prepare_cycle(p,cfg,nominal_state(p.model,q(0.),.04),q(0.),cancelled=lambda:False)
+    assert [x['stage'] for x in bundle.returning.diagnostics['pieces']]==['return']
+    assert p.calls.count('return')==1 and 'return_connect' not in p.calls
+    assert ('check','taught_return',False) not in p.calls
+    np.testing.assert_allclose(bundle.returning.q0,cfg.raw['taught_segments']['transfer'].joints[-1],atol=1e-12)
+    np.testing.assert_allclose(bundle.returning.q1,cfg.standby,atol=1e-12)
+
+
+def test_direct_return_failure_is_not_replaced_with_old_route():
+    cfg,p,q=fixture();cfg.raw['taught_return_strategy']='direct_to_wait'
+    original=p.route
+    def reject_return(*args, **kwargs):
+        if kwargs['stage']=='return':
+            raise PickRejected('直接回位不可行')
+        return original(*args,**kwargs)
+    p.route=reject_return
+    with pytest.raises(PickRejected,match='直接回位不可行'):
+        prepare_cycle(p,cfg,nominal_state(p.model,q(0.),.04),q(0.),cancelled=lambda:False)
+    assert ('check','taught_return',False) not in p.calls
+
+
+def test_adaptive_taught_entry_certifies_candidates_and_keeps_drop():
+    cfg,p,q=fixture();cfg.raw.update(taught_entry_search_enabled=True,taught_entry_indices=[0,1,2],
+                                      taught_return_strategy='direct_to_wait')
+    bundle=prepare_cycle(p,cfg,nominal_state(p.model,q(0.),.04),q(0.),cancelled=lambda:False)
+    pieces=bundle.carry.diagnostics['pieces']
+    selection=pieces[1]['diagnostics']['taught_entry_selection']
+    assert len(selection['candidate_evidence'])==3
+    assert all(x['status']=='certified' for x in selection['candidate_evidence'])
+    chosen=next(x for x in selection['candidate_evidence'] if x['index']==selection['selected_index'])
+    assert chosen['rank_score']==min(x['rank_score'] for x in selection['candidate_evidence'])
+    assert selection['connection_rest_to_rest'] and selection['not_continuous_nonzero_speed_blending']
+    np.testing.assert_allclose(bundle.carry.q1,cfg.raw['taught_segments']['transfer'].joints[-1],atol=1e-12)
+    assert p.calls.count(('check','taught_transfer',True))==3
+
+
+def test_adaptive_taught_entry_skips_failed_candidate_but_propagates_cancellation():
+    from nero_core.two_second.taught_entry import prepare_entries, choose_entry
+    cfg,p,q=fixture();cfg.raw.update(taught_entry_indices=[0,1,2])
+    entries=prepare_entries(cfg,cfg.raw['taught_segments']['transfer'],p.model)
+    initial=nominal_state(p.model,q(0.),.04);original=p.route
+    def rejected(*args,**kw):
+        if np.allclose(kw['goal_joints'],entries[1][1].joints[0]):
+            raise PickRejected('candidate blocked')
+        return original(*args,**kw)
+    p.route=rejected
+    connection,transfer=choose_entry(p,cfg,initial,q(0.),entries,cancelled=lambda:False)
+    report=connection.diagnostics['taught_entry_selection']
+    assert next(x for x in report['candidate_evidence'] if x['index']==1)['status']=='rejected'
+    assert report['selected_index'] in (0,2)
+    with pytest.raises(PickRejected,match='取消'):
+        choose_entry(p,cfg,initial,q(0.),entries,cancelled=lambda:True)
+
+
+def test_adaptive_entry_prewarm_skips_bad_alternative_but_not_baseline(monkeypatch):
+    from nero_core.two_second import taught_entry
+    cfg,p,q=fixture();cfg.raw['taught_entry_indices']=[0,1,2]
+    original=taught_entry.prepare_taught_timing
+    def one_bad(config,segment,model,**kwargs):
+        if segment.joints.shape[0]==5:
+            raise PickRejected('alternative too slow')
+        return original(config,segment,model,**kwargs)
+    monkeypatch.setattr(taught_entry,'prepare_taught_timing',one_bad)
+    entries=taught_entry.prepare_entries(cfg,cfg.raw['taught_segments']['transfer'],p.model)
+    assert [entry[0] for entry in entries]==[0,2]
+    assert cfg.raw['_taught_entry_prewarm_rejections'][0]['index']==1
+    monkeypatch.setattr(taught_entry,'prepare_taught_timing',lambda *a,**kw: (_ for _ in ()).throw(PickRejected('bad baseline')))
+    with pytest.raises(PickRejected,match='baseline'):
+        taught_entry.prepare_entries(cfg,cfg.raw['taught_segments']['transfer'],p.model)
+
+
+def test_direct_return_reuses_only_curve_and_rechecks_each_new_scene():
+    cfg,p,q=fixture(); cfg.raw['taught_return_strategy']='direct_to_wait'
+    start=q(.3)
+    first=direct_return(p,cfg,start,.1,cancelled=lambda:False)
+    assert not first.diagnostics['route_template_reused']
+    p.scene_revision += 1; p.identity=(0,2,3)
+    second=direct_return(p,cfg,start,.1,cancelled=lambda:False)
+    assert second.diagnostics['route_template_reused']
+    assert second.identity==p.identity
+    assert ('check','return',False) in p.calls
+    assert p.calls.count('return')==1
+    np.testing.assert_allclose(second.q1,cfg.standby,atol=1e-12)
+    cfg.standby=q(-.1)
+    third=direct_return(p,cfg,start,.1,cancelled=lambda:False)
+    assert not third.diagnostics['route_template_reused']
+    assert p.calls.count('return')==2
+    np.testing.assert_allclose(third.q1,cfg.standby,atol=1e-12)
+
+
+def test_cached_direct_return_replans_if_new_scene_rejects_candidate():
+    cfg,p,q=fixture(); start=q(.3)
+    direct_return(p,cfg,start,.1,cancelled=lambda:False)
+    def changed(*a,**kw): raise PickRejected('场景已改变')
+    p.check_path=changed
+    new=direct_return(p,cfg,start,.1,cancelled=lambda:False)
+    assert not new.diagnostics['route_template_reused']
+    assert p.calls.count('return')==2
+
+
+def test_cached_direct_return_cancellation_never_falls_back():
+    cfg,p,q=fixture(); start=q(.3)
+    direct_return(p,cfg,start,.1,cancelled=lambda:False)
+    with pytest.raises(PickRejected,match='取消'):
+        direct_return(p,cfg,start,.1,cancelled=lambda:True)
+    assert p.calls.count('return')==1
 
 
 def test_timing_cache_reuses_curve_but_checks_new_payload_every_time(monkeypatch):
@@ -195,6 +336,9 @@ def test_executor_uses_prepared_paths_and_checks_actual_release_before_return(mo
         e._prepared_taught_cycle(pool,device.snapshot(),NS(epoch=0))
     assert order.index('prepare_all')<order.index('prepared_taught_carry')
     assert order.index('actual_release_estimate')<order.index('check_actual_return')<order.index('prepared_taught_return')
+    assert order.count('prepared_taught_carry')==1
+    assert [s for s in order if s.startswith('prepared_taught_')]==[
+        'prepared_taught_carry','prepared_taught_return']
 
 
 def test_held_recovery_uses_taught_chain_instead_of_other_bin_route(recovery, monkeypatch):

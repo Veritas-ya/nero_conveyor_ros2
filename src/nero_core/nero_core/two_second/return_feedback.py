@@ -1,4 +1,4 @@
-"""Bounded fresh-packet recheck of FK mismatches during empty return only."""
+"""Bounded fresh-packet recheck of FK mismatches during transport/return."""
 from mujoco_conveyor_sorting.runtime.feedback_clock import mapped_stamp
 from mujoco_conveyor_sorting.runtime.joint_stream_sender import FeedbackRecheckRequired
 from mujoco_conveyor_sorting.runtime.single_pick import PickRejected
@@ -6,6 +6,8 @@ from mujoco_conveyor_sorting.runtime.single_pick import PickRejected
 
 RETURN_STAGES = frozenset(('return', 'return_connect', 'taught_return', 'recovery_return',
                           'prepared_taught_return', 'prepared_taught_recovery_return'))
+TRANSPORT_STAGES = frozenset(('lift','transfer','transfer_connect','taught_transfer','direct_drop',
+    'prepared_taught_carry','prepared_taught_recovery_carry'))
 
 
 class ReturnFeedbackCheck:

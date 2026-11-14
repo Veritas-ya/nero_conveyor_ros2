@@ -198,6 +198,38 @@ def test_successful_vision_still_produces_same_exposure_target(monkeypatch):
     assert not vision.diagnostics()['blocker_counts']
 
 
+def test_frozen_task_survives_later_tracker_id_change(monkeypatch):
+    from nero_core.two_second.execution import TwoSecondExecutor
+    vision = vision_fixture(monkeypatch, 'ready')
+    vision.config.raw.update(velocity_source='operator_fixed_belt_speed', fixed_belt_speed_m_s=.1)
+    vision.enable_lookahead()
+    try:
+        vision._run()
+        frozen = vision.poll()
+        assert frozen is not None and frozen.identity == (0, 1, 1)
+        points = frozen.points.copy()
+        grasps = [g.copy() for g in frozen.grasps]
+        capture_s = frozen.capture_s
+        vision.consume(frozen.identity)
+        old_peer = vision.progress_snapshot
+        later_track = replace(old_peer.tracks[0], track_id=2)
+        vision.progress_snapshot = replace(old_peer, sequence=29, tracks=(later_track,))
+        owner = SimpleNamespace(cancelled=Event(), owner=frozen.identity, version=1,
+                                epoch=lambda: vision.clock_epoch)
+        TwoSecondExecutor._active(owner, frozen.identity, 1, frozen.epoch)
+        assert vision.active_task == frozen.identity
+        assert frozen.capture_s == capture_s and frozen.identity == (0, 1, 1)
+        np.testing.assert_array_equal(frozen.points, points)
+        for actual, original in zip(frozen.grasps, grasps):
+            np.testing.assert_array_equal(actual, original)
+        # A later ID at the predicted position is not a new physical piece.
+        dt = .73
+        assert vision.repeats_recent_target(frozen.entry_position + frozen.velocity * dt,
+                                            frozen.capture_s + dt)
+    finally:
+        vision.close()
+
+
 def test_pointcloud_speed_flows_from_same_exposure_to_frozen_target(monkeypatch):
     vision=vision_fixture(monkeypatch,'ready')
     vision.config.raw['velocity_source']='pointcloud_xy_kalman'
@@ -401,8 +433,18 @@ def wire_offline_entry(monkeypatch, mode, cancel_signal=signal.SIGINT):
             self.progress.frame(sequence=self.count, clock_epoch=0)
             if mode in ('planning_fail','start_drift'):
                 now=time.monotonic()
+                from mujoco_conveyor_sorting.runtime.types import RGBDFrame,CameraIntrinsics,SampleHeader
+                frame=RGBDFrame(header=SampleHeader(now-.001,now,1,source_time=12.,clock_epoch=0),
+                    depth_m=np.ones((2,2),np.float32),rgb=np.zeros((2,2,3),np.uint8),
+                    depth_intrinsics=CameraIntrinsics(2,2,1.,1.,1.,1.),
+                    camera_to_world_cv=np.eye(4),source='offline_test')
                 return SimpleNamespace(identity=(0,1,1),capture_s=now-.001,received_s=now,device_s=12.,
-                    epoch=0,sequence=1,speed_report={'source':'test_double'},grasps=(np.eye(4),))
+                    epoch=0,sequence=1,speed_report={'source':'test_double'},grasps=(np.eye(4),),
+                    center=np.array([0.,0.,1.]),entry_position=np.array([0.,0.,1.]),
+                    velocity=np.array([.0595,0.,0.]),points=np.array([[0.,0.,1.]]),
+                    state={'joints':config.standby.tolist(),'width_m':.1},
+                    detection={'frame':frame,'depth_to_color_cv':np.eye(4),
+                               'belt_region':{'plane_to_base':np.eye(4)}})
             self.progress.block('waiting_qualified_speed','no_tracks')
             if self.count == 3: signal.raise_signal(cancel_signal)
     monkeypatch.setattr(importlib.import_module('nero_core.two_second.vision'),'LiveVision',Vision)
@@ -416,7 +458,7 @@ def wire_offline_entry(monkeypatch, mode, cancel_signal=signal.SIGINT):
 def test_entry_saves_startup_cancel_and_planning_failures_without_devices(tmp_path,monkeypatch,mode):
     entry, path, calls = wire_offline_entry(monkeypatch,mode)
     output=tmp_path/mode
-    assert entry.main(['--config',str(path),'--execute','--output',str(output)]) == 1
+    assert entry.main(['--config',str(path),'--execute','--belt-speed-cm-s','5.95','--output',str(output)]) == 1
     summary=json.loads((output/'summary.json').read_text())
     rows=[json.loads(line) for line in (output/'events.jsonl').read_text().splitlines()]
     assert rows[0]['event']=='run_started' and rows[-1]['event']=='run_finished'
@@ -474,7 +516,7 @@ def test_entry_saves_startup_cancel_and_planning_failures_without_devices(tmp_pa
 def test_sigterm_also_flushes_waiting_diagnostics(tmp_path,monkeypatch):
     entry,path,_=wire_offline_entry(monkeypatch,'waiting',cancel_signal=signal.SIGTERM)
     output=tmp_path/'sigterm'
-    assert entry.main(['--config',str(path),'--execute','--output',str(output)])==1
+    assert entry.main(['--config',str(path),'--execute','--belt-speed-cm-s','5.95','--output',str(output)])==1
     result=json.loads((output/'summary.json').read_text())
     assert result['received_signal']=='SIGTERM' and result['status']=='cancelled'
     assert result['vision_diagnostics']['last_blocker']['reason']=='no_tracks'
@@ -489,7 +531,7 @@ def test_cancel_after_readiness_never_starts_camera(tmp_path,monkeypatch):
         return result
     monkeypatch.setattr(entry,'prepare_start_state',readiness)
     output=tmp_path/'cancel_before_camera'
-    assert entry.main(['--config',str(path),'--execute','--output',str(output)])==1
+    assert entry.main(['--config',str(path),'--execute','--belt-speed-cm-s','5.95','--output',str(output)])==1
     assert 'construct_test_camera' not in calls
     summary=json.loads((output/'summary.json').read_text())
     assert summary['status']=='cancelled'
@@ -498,13 +540,15 @@ def test_cancel_after_readiness_never_starts_camera(tmp_path,monkeypatch):
 def test_execute_terminal_is_concise_and_full_diagnostics_stay_on_disk(tmp_path,monkeypatch,capsys):
     entry,path,calls=wire_offline_entry(monkeypatch,'planning_fail')
     output=tmp_path/'concise_execution'
-    assert entry.main(['--config',str(path),'--execute','--output',str(output)])==1
+    assert entry.main(['--config',str(path),'--execute','--belt-speed-cm-s','5.95','--output',str(output)])==1
     lines=capsys.readouterr().out.splitlines()
     # Preparing both taught timings adds one concise startup status. Keep the
     # existing budget for the remaining steps and full diagnostics on disk.
     timing_lines=[line for line in lines if line.startswith('[示教]') and '时序已预计算' in line]
     assert len(timing_lines)==1
-    assert len(lines)-len(timing_lines)<=15 and all(line.startswith('[') and '{' not in line for line in lines)
+    recording_lines=[line for line in lines if line.startswith('[实验记录]')]
+    assert len(recording_lines)==1
+    assert len(lines)-len(timing_lines)-len(recording_lines)<=15 and all(line.startswith('[') and '{' not in line for line in lines)
     assert any('[轨迹] 正在' in line for line in lines)
     assert not any('[轨迹] 已得到' in line for line in lines)
     assert any('[停止] 恢复状态检查' in line for line in lines)
@@ -522,7 +566,7 @@ def test_preview_child_is_passive_and_does_not_add_camera_or_can_connections(tmp
         return SimpleNamespace(pid=12345,poll=lambda:None)
     monkeypatch.setattr(entry.subprocess,'Popen',spawn)
     output=tmp_path/'preview_wiring'
-    assert entry.main(['--config',str(path),'--execute','--preview','--output',str(output)])==1
+    assert entry.main(['--config',str(path),'--execute','--belt-speed-cm-s','5.95','--preview','--output',str(output)])==1
     assert len(children)==1 and '--follow-run' in children[0]
     assert '--execute' not in children[0] and '--read-robot-feedback' not in children[0]
     assert calls.count('construct_test_camera')==calls.count('construct_test_device')==1

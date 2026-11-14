@@ -1,0 +1,22 @@
+# 实验资料：机器人界面显示法兰位姿；操作者以两指中点对准四个角。
+# 以下高度由名义夹爪模型换算，非现场物理 TCP 或框沿精密标定。
+source: operator_fingertip_model_estimate
+base_frame: robot_base
+tcp_sha256: 4c0d2e9e1bb46bde0dc14f290bd80934401170707b4f636a887c8f39759f5324
+robot_model_sha256: 5d3fe32782f9bbbe86b480f78df9ad208a19f4d30078b02f4ce0e7402b5d47e0
+taught_transfer_sha256: 3e30e72152a56f8ebd2f9d897e2da8f4a7a9728467a0d111a7af40fb20e893ee
+drop_tcp_xyz_base_m: [0.08217134537533535, -0.41548173400451804, 0.21406591228692304]
+radius_m: 0.20
+rim_z_m: 0.14610894293727378
+margin_m: 0.01
+height_selection: maximum_of_four_nominal_midpoint_heights
+four_corner_joint_degrees:
+  - [-74.078, -75.105, 114.079, -10.683, 66.121, 25.438, 97.559]
+  - [15.913, -36.754, 99.709, 102.309, 27.839, -6.849, 70.408]
+  - [-84.899, -63.222, 125.655, 26.387, 52.790, 2.148, 95.290]
+  - [-15.853, -11.440, 83.334, 121.045, 11.455, -6.977, 73.320]
+source_image_sha256:
+  - 0148452c0149f806da737097933d80d4c7a050cf79e7ba473a0e0afe91b24451
+  - 6871c946255898127e9971fa3429381f95abaa4349d22cd976f99d13f70c1c49
+  - e72ee01b70d962685b70427d04668a54df651115c66f08de612e3572b115f350
+  - e2f38c1b330e32565b7802990601be36683c1e6a6d0b011f8187e965fa32eac9

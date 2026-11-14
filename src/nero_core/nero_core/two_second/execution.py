@@ -47,8 +47,12 @@ class TwoSecondExecutor:
     New visual estimates cannot replace the frozen per-task reference.
     """
     def __init__(self, config, planner, device, *, epoch=lambda: None,
-                 cancelled=None, clock=time.monotonic, sleep=time.sleep, event_sink=None):
+                 cancelled=None, clock=time.monotonic, sleep=time.sleep, event_sink=None,
+                 sweep_service=None, carry_service=None):
         self.config, self.planner = config, planner
+        self.sweep_service = sweep_service
+        self.carry_service = carry_service
+        self.carry_prediction = None
         self.epoch, self.clock, self.sleep = epoch, clock, sleep
         self.cancelled = Event() if cancelled is None else cancelled
         self.trace = ExecutionTrace(mode='hardware', clock=clock)
@@ -66,6 +70,8 @@ class TwoSecondExecutor:
         self.events = []
         self.event_sink = event_sink
         self.event_logging_errors = []
+        self.return_started = None
+        self.prefetched_intercept = None
         self.gates = BaselinePolicyConfig()
         self.holding = PickCycle(self.device, planner.model, config.settings,
                                  self._emit, clock=clock, sleep=sleep,
@@ -87,6 +93,8 @@ class TwoSecondExecutor:
 
     def cancel(self):
         self.cancelled.set()
+        if self.carry_service is not None:
+            self.carry_service.discard()
         with self.command_lock:
             self.version += 1
         if self.sender is not None:
@@ -114,10 +122,14 @@ class TwoSecondExecutor:
             hold.check()
         return future.result()
 
-    def _stream(self, path, *, origin, epoch, reference=None, carrying=False):
+    def _stream(self, path, *, origin, epoch, reference=None, carrying=False, release_on_arrival=False):
         from .streaming import stream
+        if (self.return_started is not None and reference is None and not carrying
+                and np.max(abs(path.q1-self.config.standby)) < 1e-8):
+            self.return_started(identity=self.owner, expected_ready_s=
+                origin+path.duration+self.config.raw['lookahead_return_margin_s'])
         return stream(self, path, origin=origin, epoch=epoch, sender_factory=JointStreamSender,
-                      reference=reference, carrying=carrying)
+                      reference=reference, carrying=carrying, release_on_arrival=release_on_arrival)
 
     def _route(self, pool, state, *, stage, goal, joints, carrying, epoch, version):
         arguments = dict(stage=stage, goal_pose=goal, goal_joints=joints,
@@ -140,6 +152,25 @@ class TwoSecondExecutor:
                 payload=carrying, cancelled=self.cancelled.is_set, clock=self.clock)
             return self._prepare(future, self.owner, version, epoch, hold=hold)
 
+    def start_carry_prediction(self, path, reference):
+        """Called by the stream supervisor after sender start, never by sender."""
+        if (self.carry_service is None or reference is None
+                or not hasattr(reference, 'follow_end_s') or self.carry_prediction is not None):
+            return
+        began = self.clock()
+        try:
+            token, future = self.carry_service.submit(self.planner, path, reference)
+        except Exception as error:
+            self._emit('carry_prediction_unavailable', {'error':str(error)})
+            return
+        self.carry_prediction = (token, future, path.version)
+        self._emit('carry_prediction_started', {'source_version':path.version,
+            'identity':path.identity, 'scene_revision':self.planner.scene_revision,
+            'predicted_brake_end_monotonic_s':reference.start_s+path.duration,
+            'predicted_start_joints_rad':path.q1.tolist(),
+            'start_source':'certified_brake_endpoint', 'payload_is_prediction':True,
+            'submission_wall_s':self.clock()-began})
+
     def _prepared_taught_cycle(self, pool, state, target, *, recovery=False):
         from .stationary_hold import StationaryHold
         from .prepared_cycle import prepare_cycle
@@ -147,16 +178,47 @@ class TwoSecondExecutor:
         prefix = 'prepared_taught_recovery' if recovery else 'prepared_taught'
         self.stage = 'planning_'+prefix+'_cycle'
         self._emit('taught_cycle_preparing', {'recovery': recovery,
+            'using_prediction':not recovery and self.carry_prediction is not None,
             'taught_transfer': self.config.raw['taught_segments']['transfer'].summary()})
         owner_version = self.version
         with StationaryHold(self, JointStreamSender, epoch=target.epoch, carrying=True) as hold:
-            future = pool.submit(prepare_cycle, self.planner, self.config, state,
-                self.rest_anchor.copy(), cancelled=self.cancelled.is_set, recovery=recovery)
-            bundle = self._prepare(future, self.owner, owner_version, target.epoch, hold=hold)
+            bundle = None
+            if not recovery and self.carry_prediction is not None:
+                from .carry_lookahead import revalidate_cycle
+                token, prediction, source_version = self.carry_prediction
+                began = self.clock()
+                ready_before_wait = prediction.done()
+                if ready_before_wait:
+                    result = self._prepare(prediction, self.owner, owner_version, target.epoch, hold=hold)
+                else:
+                    self.carry_service.discard()
+                    result = {'ok':False, 'error':'到实际减速终点仍未交付预规划，按实际载物状态重算'}
+                self._emit('carry_prediction_completed', {k:v for k,v in result.items()
+                    if k not in ('bundle','predicted_start_joints')})
+                future = pool.submit(revalidate_cycle, self.planner, state, self.rest_anchor.copy(),
+                    result, token=token, source_version=source_version, cancelled=self.cancelled.is_set,
+                    defer_return_validation=True)
+                try:
+                    bundle, evidence = self._prepare(future, self.owner, owner_version, target.epoch, hold=hold)
+                except PickRejected as error:
+                    self._active(self.owner, owner_version, target.epoch)
+                    hold.check()
+                    self._emit('carry_prediction_replanned', {'reason':str(error),
+                        'details':error.details, 'elapsed_s':self.clock()-began})
+                else:
+                    self._emit('carry_prediction_accepted', {**evidence,
+                        'ready_before_wait':ready_before_wait,
+                        'wait_and_validation_wall_s':self.clock()-began})
+            if bundle is None:
+                future = pool.submit(prepare_cycle, self.planner, self.config, state,
+                    self.rest_anchor.copy(), cancelled=self.cancelled.is_set, recovery=recovery)
+                bundle = self._prepare(future, self.owner, owner_version, target.epoch, hold=hold)
         self._emit('taught_cycle_prepared', {'recovery': recovery,
             'carry_duration_s': bundle.carry.duration, 'return_duration_s': bundle.returning.duration,
             'carry_pieces': bundle.carry.diagnostics['pieces'],
             'return_pieces': bundle.returning.diagnostics['pieces'],
+            'drop_orientation_schedule':bundle.carry.diagnostics.get('drop_orientation_schedule'),
+            'continuous_carry':bundle.carry.diagnostics.get('continuous_carry'),
             'internal_planning_stops': 0})
         def activate(path):
             self._active(bundle.identity, owner_version, target.epoch)
@@ -166,7 +228,7 @@ class TwoSecondExecutor:
             return replace(path, version=self.planner.version)
         carry = activate(bundle.carry)
         state = self._stream(carry, origin=self.clock()+self.config.raw['command_advance_s'],
-            epoch=target.epoch, carrying=True)
+            epoch=target.epoch, carrying=True, release_on_arrival=True)
         self.holding.check_holding(state)
         self.stage = 'recovery_release' if recovery else 'release'
         returning = None
@@ -183,6 +245,14 @@ class TwoSecondExecutor:
             epoch=target.epoch, carrying=False)
 
     def run(self, target):
+        try:
+            return self._run_with_recovery(target)
+        finally:
+            if self.carry_service is not None:
+                self.carry_service.discard()
+            self.carry_prediction = None
+
+    def _run_with_recovery(self, target):
         from .recovery import recover_attempt, RecoveryFailed
         try:
             report = self._run_attempt(target)
@@ -199,6 +269,9 @@ class TwoSecondExecutor:
             failure = PickRejected('本次抓取未确认夹持，取消并回等待位')
         # _run_attempt has joined its sender and all planner workers here.
         # A failed attempt must never set the shared user-cancellation event.
+        if self.carry_service is not None:
+            self.carry_service.discard()
+        self.carry_prediction = None
         try:
             return recover_attempt(self, target, failure)
         except BaseException as error:
@@ -223,7 +296,22 @@ class TwoSecondExecutor:
         state = self.device.snapshot()
         self.planner.model.check_feedback(state)
         validate_start_state(self.config, state, tolerance_rad=TRAJECTORY_ARRIVAL_TOLERANCE_RAD)
-        if not 0 <= self.clock()-target.capture_s <= self.config.raw['maximum_observation_age_s']:
+        prefetched = self.prefetched_intercept
+        if prefetched is not None:
+            prefetched.validate(self.config, self.epoch(), self.clock())
+            if prefetched.target is not target or prefetched.planner is not self.planner:
+                raise PickRejected('预取轨迹不属于本次执行器')
+            from .streaming import fresh_feedback
+            fresh_feedback(state, self.clock(), self.feedback_stamps)
+            if np.max(abs(np.asarray(state['joints'])-prefetched.plan.path.q0)) > .005:
+                # Recompute from measured joints using the original exposure.
+                # The speculative standby waypoint is not device evidence.
+                self._emit('lookahead_start_replan', {'identity': target.identity,
+                    'reason': 'actual_wait_differs_from_planned_start',
+                    'joint_error_rad': (np.asarray(state['joints'])-prefetched.plan.path.q0).tolist()})
+                prefetched = None
+        if (self.prefetched_intercept is None and
+                not 0 <= self.clock()-target.capture_s <= self.config.raw['maximum_observation_age_s']):
             raise PickRejected('目标曝光已过期')
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix='two-second-planner') as pool:
             try:
@@ -231,6 +319,8 @@ class TwoSecondExecutor:
                 self._emit('planning_submitted', {'identity': self.owner, 'trajectory_generation': version,
                     'capture_monotonic_s': target.capture_s,
                     'submission_monotonic_s': self.clock(),
+                    'preplanned': prefetched is not None,
+                    'original_submission_monotonic_s': None if prefetched is None else prefetched.submitted_s,
                     'start_joints_rad': list(state['joints']),
                     'start_tcp_base': self.planner.model.tcp().tolist(),
                     'target_center_base_m': getattr(target, 'center', None),
@@ -254,8 +344,18 @@ class TwoSecondExecutor:
                     if experiment is not None:
                         arguments['experiment_deadline'] = planning_started+self.config.raw['planning_budget_s']
                     try:
-                        future = pool.submit(self.planner.intercept, target, state, **arguments)
-                        plan = self._prepare(future, self.owner, version, target.epoch)
+                        if delivery_attempt == 0 and prefetched is not None:
+                            plan = prefetched.plan
+                            self._emit('lookahead_plan_adopted', {'identity': target.identity,
+                                'original_capture_monotonic_s': target.capture_s,
+                                'prepared_monotonic_s': prefetched.ready_s,
+                                'original_submission_monotonic_s': prefetched.submitted_s,
+                                'actual_start_joints_rad': list(state['joints']),
+                                'send_margin_s': plan.reference.start_s-
+                                    self.config.raw['command_advance_s']-self.clock()})
+                        else:
+                            future = pool.submit(self.planner.intercept, target, state, **arguments)
+                            plan = self._prepare(future, self.owner, version, target.epoch)
                     except PickRejected as error:
                         if experiment is not None:
                             self._emit('experiment_plan_failed', {'identity': self.owner,
@@ -268,6 +368,9 @@ class TwoSecondExecutor:
                         raise PickRejected('实际发送前重规划预算耗尽')
                     if plan.target.identity != self.owner or plan.path.version != self.planner.version:
                         raise PickRejected('晚到的旧目标或旧版本规划')
+                    if 'phase_timing' in self.config.raw:
+                        from .phase_timing import verify_plan
+                        verify_plan(self.config, plan.path, plan.reference, for_execution=True)
                     if 'execution_delay_window' in self.config.raw:
                         from .execution_delay_window import verify_plan
                         verify_plan(self.config, plan.path, plan.reference)
@@ -412,7 +515,8 @@ class TwoSecondExecutor:
                     if np.max(abs(np.asarray(current['joints'])-np.asarray(state['joints']))) > .005:
                         raise PickRejected('搬运规划期间反馈起点改变')
                     return self._stream(path, origin=self.clock()+self.config.raw['command_advance_s'],
-                                        epoch=target.epoch, carrying=carrying)
+                                        epoch=target.epoch, carrying=carrying,
+                                        release_on_arrival=stage in ('transfer','taught_transfer'))
 
                 taught = (self.config.raw.get('taught_segments')
                           if self.config.raw.get('taught_playback_enabled', True) else None)
@@ -450,7 +554,7 @@ class TwoSecondExecutor:
         self.holding.check_holding(state)
         from .release import release_at_rest
         state = release_at_rest(self, state, epoch=target.epoch, sender_factory=JointStreamSender)
-        if taught:
+        if taught and self.config.raw.get('taught_return_strategy', 'recorded_then_wait') != 'direct_to_wait':
             state = do_route(state, 'return_connect', joints=taught['return'].joints[0])
             state = do_route(state, 'taught_return', taught=taught['return'])
         return do_route(state, 'return', joints=self.config.standby)

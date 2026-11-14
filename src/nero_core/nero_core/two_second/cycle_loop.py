@@ -4,7 +4,7 @@ import time
 
 def run_pick_cycles(config, planner, device, vision, *, count, cancelled, result, reports,
                     executors, set_phase, journal, executor_factory, offer_target=None,
-                    clock=time.monotonic, finish_attempt=None):
+                    clock=time.monotonic, finish_attempt=None, lookahead=None):
     if count is not None and (isinstance(count,bool) or not isinstance(count,int) or count<1):
         raise ValueError('count must be positive, or None for continuous operation')
     if count is None and finish_attempt is None:
@@ -21,9 +21,28 @@ def run_pick_cycles(config, planner, device, vision, *, count, cancelled, result
             vision.resume_targets()
         set_phase('waiting_for_qualified_target', cycle_index=attempt)
         last_not_accepted = None
+        prefetched = None
         while not cancelled.is_set():
-            target = vision.poll()
-            if target is not None and 0 <= clock()-target.capture_s <= config.raw['maximum_observation_age_s']:
+            if lookahead is not None and attempt > 1:
+                # Read-only mailbox publication on the owning thread. A busy
+                # parser supplies no update; cached timestamps still expire.
+                snapshot = getattr(device, 'snapshot_nowait', device.snapshot)()
+                if snapshot is not None:
+                    lookahead.update_wait_state(snapshot)
+                prefetched = lookahead.poll_ready()
+                target = None if prefetched is None else prefetched.target
+            else:
+                target = vision.poll()
+            if target is not None and (prefetched is not None or
+                    0 <= clock()-target.capture_s <= config.raw['maximum_observation_age_s']):
+                if prefetched is not None:
+                    from mujoco_conveyor_sorting.runtime.single_pick import PickRejected
+                    try:
+                        lookahead.claim(prefetched, planner)
+                    except PickRejected as error:
+                        lookahead.discard_ready(prefetched, error)
+                        continue
+                    planner = prefetched.planner
                 break
             if target is not None and target.sequence != last_not_accepted:
                 journal.emit('ready_target_not_accepted', cycle_index=attempt,
@@ -38,6 +57,8 @@ def run_pick_cycles(config, planner, device, vision, *, count, cancelled, result
             result['status']='cancelled'
             return
         vision.consume(target.identity)
+        if lookahead is not None:
+            lookahead.begin_cycle(target.identity)
         if offer_target is not None:
             offer_target(target)
         set_phase('planning_and_execution', cycle_index=attempt, target_identity=target.identity)
@@ -55,9 +76,15 @@ def run_pick_cycles(config, planner, device, vision, *, count, cancelled, result
             cancelled=cancelled,
             event_sink=lambda row, index=attempt: journal.emit('execution_event', cycle_index=index, record=row))
         executor.cycle_index=attempt
+        if lookahead is not None:
+            executor.return_started = lookahead.return_started
+            executor.prefetched_intercept = prefetched
         executors.append(executor)
         cycle_begin = clock()
         report = executor.run(target)
+        if (lookahead is not None and report.get('returned_to_wait') and
+                report['status'] in ('attempt_cancelled_returned_to_wait', 'cycle_completed_from_feedback')):
+            lookahead.confirm_return(device.snapshot())
         report['cycle_wall_s'] = clock()-cycle_begin
         reports.append(report)
         if finish_attempt is not None:

@@ -101,6 +101,30 @@ def test_stream_integration_rechecks_return_and_keeps_all_sends_outside_bad_feed
     np.testing.assert_allclose(e.command_history.q, .3, atol=1e-12)
 
 
+@pytest.mark.parametrize('persistent',[False,True])
+def test_loaded_transport_rechecks_without_sending_bad_packet_or_extending_deadline(persistent):
+    from dataclasses import replace
+    from test_hardware_sim_selfcheck import moving_executor
+    e,device,clock,path=moving_executor([0.])
+    e.holding.check_holding=lambda state:None
+    sent=[];move=device.move_joints
+    def send(q):sent.append(clock());return move(q)
+    device.move_joints=send
+    def check(state):
+        if clock()>=1.4 and (persistent or clock()<1.418):raise mismatch()
+    e.planner.model.check_feedback=check
+    if persistent:
+        with pytest.raises(PickRejected):
+            e._stream(replace(path,stage='prepared_taught_carry'),origin=1.1,epoch=0,carrying=True)
+        assert not any(t>=1.4 for t in sent)
+        assert clock()<1.45
+    else:
+        e._stream(replace(path,stage='prepared_taught_carry'),origin=1.1,epoch=0,carrying=True)
+        assert not any(1.4<=t<1.418 for t in sent)
+        assert any(x['event']=='transport_feedback_rechecked' for x in e.events)
+        np.testing.assert_allclose(e.command_history.q,.3,atol=1e-12)
+
+
 def test_user_cancel_while_reading_new_feedback_sends_nothing():
     clock = Clock(); sent = []
     gate = ReturnFeedbackCheck(lambda s: (_ for _ in ()).throw(mismatch()), clock, enabled=True)

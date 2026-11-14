@@ -58,6 +58,30 @@ def test_configured_taught_pair_is_loaded_without_cli_flags(site, tmp_path, caps
     assert result['hardware_connections'] == result['commands_sent'] == 0
 
 
+def test_direct_return_loads_only_transfer_even_if_old_return_is_missing(site, tmp_path, capsys):
+    from nero_core.two_second.main import main
+    path, data = site
+    cfg = CellConfig.load(path)
+    transfer = make_segment(tmp_path, cfg, 'transfer')
+    data.update(trajectory_profile='smooth', taught_transfer_file=transfer.name,
+                taught_return_file='old_missing_return.json', taught_return_strategy='direct_to_wait')
+    path.write_text(yaml.safe_dump(data))
+    assert main(['--config', str(path), '--check-config']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['taught_return_strategy'] == 'direct_to_wait'
+    assert set(result['taught_segments']) == {'transfer'}
+    assert result['hardware_connections'] == result['commands_sent'] == 0
+
+
+@pytest.mark.parametrize('indices', [[1,2], [0,0], [0,-1], [0,True], list(range(6))])
+def test_adaptive_taught_entry_config_requires_distinct_bounded_indices(site, indices):
+    path, data = site
+    data['taught_entry_indices'] = indices
+    path.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match='taught_entry_indices'):
+        CellConfig.load(path)
+
+
 def test_cli_pair_overrides_missing_configured_defaults(site, tmp_path, capsys):
     from nero_core.two_second.main import main
     path, data = site

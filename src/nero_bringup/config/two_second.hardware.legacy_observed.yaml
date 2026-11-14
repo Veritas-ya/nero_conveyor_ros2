@@ -5,12 +5,20 @@ strategy: two_second
 # 投放从原录制第25点（1.194923s）接入，后续42个采样点保持原样；返回仍到当前等待位。
 # 截取依据：三次实测载物/带面离线复现及完整后段认证，见 runs/diagnostics/taught_trim_entry_20261105。
 taught_playback_enabled: true
+# 投放后从示教投放终点直接规划到当前等待位，不经过旧返回示教终点。
+taught_return_strategy: direct_to_wait
 # 两个 180° 对称 OBB 抓姿优先选靠近已启用搬运示教轨迹起点 TCP 方向的候选。
 obb_grasp_orientation_reference: taught_transfer_start
 # 保留示教空间路径，按各段可用速度变速；最终按整条多项式极值复核q/v/a。
 taught_transfer_timing_policy: path_preserving_variable_speed
 # 执行前准备并检查整段搬运/返回；示教时序在启动时计算一次。
 prepared_taught_cycle_enabled: true
+carry_lookahead_enabled: true  # 从抓取减速终点预测搬运，实际夹持后复核
+direct_drop_orientation_first: true  # 直接投放：在接近料框之前完成姿态，末段保持方向
+direct_drop_continuous_carry: true  # 抬升、转向搬运、投放接近统一平滑和定时，一次连续发送
+# 料框几何和现场载物验证完成前保持关闭；0 是原投放轨迹入口。
+taught_entry_search_enabled: false
+taught_entry_indices: [0, 5, 10, 15]
 # 上位机平滑请求，非厂家能力值；加速度边界为J5 10 rad/s²、其他轴8 rad/s²。
 taught_joint_jerk_limit_rad_s3: 500.0
 # 用户2026-11-05要求投放示教段最多1.5秒；该段单独放宽软件平滑请求。
@@ -46,11 +54,11 @@ joint_names:
 - joint7
 # 用户2026-11-09：J6规划使用模型原始范围-44°～+57°，其他轴保留0.02rad余量。
 joint_position_margins_rad: [0.02, 0.02, 0.02, 0.02, 0.02, 0.0, 0.02]
-# 2026-11-11：三次相机过件轨迹等权拟合的XY方向；共同相机标定误差尚未独立验证。
-# 来源：calibration/belt_direction_20261111_three_pass.json；Z由每次实测带面补足。
+# 2026-11-13：按用户要求采用单次相机过件轨迹拟合的XY方向；标定误差尚未独立验证。
+# 来源：calibration/belt_direction_20261113_single_pass.json；Z由每次实测带面补足。
 belt_direction_base:
-- -0.05305147034336377
-- -0.9985917792042989
+- -0.058125129686832325
+- -0.998309305425372
 - 0.0
 maximum_target_height_m: 0.12  # 用户给出的工件高度上限，单位 m
 # 沿用Nero7感知预览的RGB-D融合检测与原ID/卡尔曼；多帧绿色带面实测校核后才发布目标。
@@ -90,6 +98,8 @@ joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 10.0, 10.0, 8.0]
 # 用户要求停止依据发送指令差分加速度触发上位机停机；规划曲线限值仍生效。
 # 厂家控制器在 JS 模式下的保护动作尚未独立验证。
 runtime_command_acceleration_check_enabled: false
+# 相邻指令差分仅记录诊断，不作为执行速度门槛；轨迹规划速度限制仍生效。
+runtime_command_velocity_check_enabled: false
 # 抬升与载物转运同步本次J5、J6上限10 rad/s²，其他轴保留8 rad/s²。
 # 这是上位机分阶段规划约束，不改厂家固件限值，夹爪仍2N。
 loaded_joint_acceleration_limits_rad_s2: [8.0, 8.0, 8.0, 8.0, 10.0, 10.0, 8.0]
@@ -186,6 +196,11 @@ brake_duration_s: 0.9
 # 2026-10-30保存输入中，优化后的第二候选用时约2.5s；给每个候选3s。
 # 公共场景准备单独计时；全局8s及预约起点前15ms发送截止均继续生效。
 candidate_planning_budget_s: 3.0
+# 发送端按完整已检查曲线插值；运行扫掠在独立进程以20 Hz监测。
+# 已完成检查所用反馈超过200 ms或检查失败时取消本次轨迹，沿用恢复逻辑。
+runtime_sweep_mode: process_periodic
+runtime_sweep_hz: 20.0
+runtime_sweep_max_age_s: 0.2
 pick_settings:
   control_hz: 100
   speed_percent: 100

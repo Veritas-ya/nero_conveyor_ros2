@@ -155,7 +155,7 @@ def replay(run, config, *, candidate_index=None, start_from_standby=False):
     report['planner']=planner.diagnostics()
     if planner.scene_report is not None:
         summary=json.loads((run/'summary.json').read_text())
-        logged=[f['details']['points_base_m'][0] for f in summary['details'].get('failures',[])
+        logged=[f['details']['points_base_m'][0] for f in summary.get('details',{}).get('failures',[])
                 if (f.get('details') or {}).get('kind')=='scene_collision']
         if logged:
             distances,_=planner.model.tree.query(logged)

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "measurement_type": "camera_only_single_pass_obb_center_motion",
+  "measured_date": "2026-11-13",
+  "camera_calibration_id": "eye-to-hand-20261109T050509513859Z",
+  "belt_direction_base": [
+    -0.058125129686832325,
+    -0.998309305425372,
+    0.0
+  ],
+  "previous_direction_base": [
+    -0.05305147034336377,
+    -0.9985917792042989,
+    0.0
+  ],
+  "angle_from_previous_deg": -0.29114976577658175,
+  "selection": "422/432 excluded during placing/entry; 502–542 exclude occlusion and misidentified robot; 662+ exclude item leaving frame",
+  "retained_frame_sequences": [
+    442,
+    452,
+    462,
+    472,
+    482,
+    492,
+    552,
+    562,
+    572,
+    582,
+    592,
+    602,
+    612,
+    622,
+    632,
+    642,
+    652
+  ],
+  "retained_frame_count": 17,
+  "observed_distance_m": 1.5681182666207756,
+  "fit_lateral_rms_mm": 1.9985530387628736,
+  "visual_speed_cm_s": 22.403022775729838,
+  "belt_plane_observation": {
+    "equation": "z_base = a*x_base + b*y_base + c; metres",
+    "abc": [
+      0.007199910002951865,
+      0.013132503329778597,
+      -0.11941365148235557
+    ],
+    "normal_base": [
+      -0.00719910266400604,
+      -0.013131030758400627,
+      0.999887868189256
+    ],
+    "tilt_from_base_xy_deg": 0.858037178649248,
+    "inlier_fraction": 0.8686666666666667,
+    "inlier_rms_m": 0.0019316782166775087,
+    "ransac_seed": 42,
+    "inlier_threshold_z_m": 0.004
+  },
+  "measurement_report_path": "/home/ubuntu22/nero_conveyor_ros2/runs/belt_camera_recalibration_20261113_103209/calibration_report.json",
+  "measurement_report_sha256": "18f383ff8e62c37e329a463c24fba3e5182cd3975c3a8810ef970d7a91211f44",
+  "detection_report_path": "/home/ubuntu22/nero_conveyor_ros2/runs/belt_camera_recalibration_20261113_103209/fullbelt_detection.json",
+  "detection_report_sha256": "3eee8c85e7d8fe6117ceb69f6a1f787641b02c3d89dc76d98c952f92f5a2944f",
+  "calibration_limitations": "Single object pass, selected visible RGB-D OBB centers and common camera calibration; robot self-filter was not applied; not surveyed absolute ground truth. The belt plane is measured dynamically, this file configures the XY direction only.",
+  "robot_connections": 0,
+  "robot_commands": 0
+}

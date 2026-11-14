@@ -203,7 +203,9 @@ def _project_rgb_labels(frame, depth_to_color, labels, *, depth=None, pixel_mask
             result[requested_rows[inside], requested_cols[inside]] = labels[pixels[:, 1], pixels[:, 0]]
             return result
     with _timed(timings_s, 'deprojection'):
-        camera = _deproject_pixels(depth, valid, rows, cols, frame.depth_intrinsics)
+        y0, x0 = getattr(frame, '_depth_pixel_origin', (0,0))
+        intrinsic = getattr(frame, '_uncropped_depth_intrinsics', frame.depth_intrinsics)
+        camera = _deproject_pixels(depth, valid, rows+y0, cols+x0, intrinsic)
     with _timed(timings_s, 'd2c'):
         color = camera @ depth_to_color[:3, :3].T + depth_to_color[:3, 3]
     matrix = frame.color_intrinsics.matrix

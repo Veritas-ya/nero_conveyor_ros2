@@ -183,7 +183,8 @@ def frame_points(frame):
 def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagnostic=None,
                   target_shape='geometry', shape_recognizer=None,
                   robot_model=None, robot_state=None, maximum_target_height_m=None,
-                  measured_surface=None, scene_scope='observed_scene',target_seed_pixel_indices=None):
+                  measured_surface=None, scene_scope='observed_scene',target_seed_pixel_indices=None,
+                  maximum_target_length_m=.16):
     """Reuse the existing foreground component detector; do not guess a class.
 
     A measured belt search region is reused within the same camera session;
@@ -231,11 +232,14 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
     maximum_height = .12 if maximum_target_height_m is None else float(maximum_target_height_m)
     if not np.isfinite(maximum_height) or maximum_height <= .012:
         raise ValueError('目标检测高度上限须高于原12mm检测下限')
+    if (isinstance(maximum_target_length_m, bool) or not isinstance(maximum_target_length_m, (int, float))
+            or not np.isfinite(maximum_target_length_m) or not .015 <= maximum_target_length_m <= .30):
+        raise ValueError('目标长边上限须为0.015至0.30米')
     pipeline = DepthGeometryVisionPipeline(
         [GeometryPrototype(category_id=0, dimensions=(.05, .05, .05), symmetric=True)],
         support_plane_height=0, roi_x=[lower[0], upper[0]], roi_y=[lower[1], upper[1]],
         minimum_height=.012, maximum_height=maximum_height, minimum_mask_pixels=70,
-        minimum_footprint=.012, maximum_footprint=.16)
+        minimum_footprint=.012, maximum_footprint=maximum_target_length_m)
     clean_mask = None
     rejected_target_depth = np.zeros(frame.depth_m.shape, dtype=bool)
     target_filter = None
@@ -332,6 +336,7 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
         raise TargetNotReady(f'带面内检测到{len(candidates)}个候选，需保留一个独立工件',
                              reason='no_workpiece' if not candidates else 'multiple_candidates',
                              details={'candidate_count': len(candidates), 'target_cloud_filter': target_filter,
+                                      'component_size_diagnostics':pipeline.last_component_workload,
                                       'target_self_filter': target_self_filter,
                                       **({'same_exposure_seed_selection':seed_selection} if seed_selection else {})})
     c = candidates[0]
@@ -433,7 +438,8 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
     if not .035 <= height <= .11 or not .015 <= min(extent) <= max(extent) <= pipeline.maximum_footprint:
         raise TargetNotReady(f'工件尺寸不适合本测试：高{height*1000:.1f} mm，外形{extent*1000} mm',
                              reason='target_size', details={'height_m': height,
-                                 'footprint_m': extent.tolist(), 'height_range_m': [.035, .11]})
+                                 'footprint_m': extent.tolist(), 'height_range_m': [.035, .11],
+                                 'maximum_target_length_m':pipeline.maximum_footprint})
     center_plane = np.asarray(cylinder['center_xy_m']) if cylinder['accepted'] else c.position[:2]
     # Simple test: use the upper depth points for location, so low boundary
     # tails do not shift the target. No circle fit or shape-quality gate.
@@ -524,6 +530,8 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
         raise ValueError('unknown scene scope')
     scene_pixel_indices = np.flatnonzero(scene_mask)
     return {'grasp': grasp, 'center': center, 'height': height, 'width': grasp_width,
+            'maximum_target_length_m':maximum_target_length_m,
+            'component_size_diagnostics':pipeline.last_component_workload,
             'footprint_m': extent.tolist(), 'open_clearance_per_side_m': (opening-grasp_width)/2,
             'shape_consistency': shape,
             'cylinder_fit': cylinder,
@@ -539,6 +547,7 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
             'visible_target_rgb_mask': visible_rgb_mask, 'visible_target_completion': visible_completion,
             'target_cloud_filter': target_filter,
             'target_self_filter': target_self_filter,
+            '_rejected_target_depth_mask':rejected_target_depth,
             **({'same_exposure_seed_selection':seed_selection} if seed_selection else {}),
             'camera_origin_base_m': frame.camera_to_world_cv[:3, 3].copy(),
             'orientation_confidence': 0. if cylinder['accepted'] else localization_confidence,
@@ -1391,10 +1400,16 @@ class RobotModel:
                     raise PickRejected(f'模型自碰撞：{self.model.geom(geom1).name}/{self.model.geom(geom2).name}')
         target_candidates = (self.target_broadphase_candidates(self.target, .004)
                              if len(self.target) else frozenset())
-        for g, (_, radius) in self.meshes.items():
+        geometries = tuple(self.meshes)
+        # One batched query has the same balls, radii and geometry order as
+        # the per-mesh queries. Avoid twelve Python/KD-tree crossings for
+        # every state in the measured-to-command runtime sweep.
+        neighbors = (self.tree.query_ball_point(
+            self.data.geom_xpos[list(geometries)],
+            [self.collision_radii[g]+1e-9 for g in geometries], return_sorted=False)
+            if check_scene and geometries else [[] for _ in geometries])
+        for g, ids in zip(geometries, neighbors):
             margin = self.scene_collision_margin(g)
-            ids = (self.tree.query_ball_point(self.data.geom_xpos[g], self.collision_radii[g]+1e-9)
-                   if check_scene else [])
             if ids:
                 nearby = self.scene[ids]
                 colliding = nearby[self.inside_geom(nearby, g, margin)]

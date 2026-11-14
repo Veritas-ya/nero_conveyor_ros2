@@ -11,7 +11,8 @@ from vendor.nero7_speed_reference.nero7_perception.detection import color_masks
 
 
 class MeasuredWorkpieceAdmission:
-    def __init__(self, surface, maximum_height_m, *, include_speed_position=False):
+    def __init__(self, surface, maximum_height_m, *, include_speed_position=False,
+                 maximum_target_length_m=.16):
         self.surface=surface
         self.include_speed_position=bool(include_speed_position)
         bounds=surface.bounds_xy_m
@@ -20,7 +21,7 @@ class MeasuredWorkpieceAdmission:
             [GeometryPrototype(category_id=0,dimensions=(.05,.05,.05),symmetric=True)],
             support_plane_height=0.,roi_x=bounds[0],roi_y=bounds[1],
             minimum_height=.012,maximum_height=maximum_height_m,minimum_mask_pixels=70,
-            minimum_footprint=.012,maximum_footprint=.16,classification_enabled=False)
+            minimum_footprint=.012,maximum_footprint=maximum_target_length_m,classification_enabled=False)
 
     def filter(self, detections, mask, depth, camera, color_to_base, frame, parameters,
                *, robot_model=None, robot_state=None):
@@ -68,6 +69,7 @@ class MeasuredWorkpieceAdmission:
                 tuple(map(float,part.position[:2])),True)>.025]
             if len(parts)!=1:
                 row.update(reason='未通过原有带面边界、连通点数或物理尺寸检查',
+                           component_size_diagnostics=self.pipeline.last_component_workload,
                            depth_workpiece_components=len(parts));decisions.append(row);continue
             row.update(accepted=True,reason='实测带面高度与原有工件几何检查通过',
                 valid_depth_points=int(parts[0].mask.sum()),height_m=float(parts[0].height)

@@ -17,12 +17,19 @@ def make_meter(config, surface, *, previous=None):
                                       if is_fixed(config) else None),
         pointcloud_speed=config.raw.get('velocity_source')=='pointcloud_xy_kalman')
     meter.parameters['isolate_boundary_depth_gaps'] = config.raw.get('isolate_boundary_depth_gaps', False)
+    meter.parameters['split_mixed_belt_candidates'] = config.raw.get('split_mixed_belt_candidates', False)
+    detector_y = config.raw.get('perception_detector_workspace_y_m')
+    if detector_y is not None:
+        # This is the detector's base-frame observation range. Motion and
+        # grasp workspaces remain separately enforced by their own settings.
+        meter.parameters['workspace_y'] = list(detector_y)
     if mode!='legacy_depth':
         # Only the upstream base-height modes interpret this as vertical metres.
         meter.parameters['block_height_max']=config.raw['maximum_target_height_m']
     from mujoco_conveyor_sorting.runtime.workpiece_admission import MeasuredWorkpieceAdmission
     meter.candidate_filter=MeasuredWorkpieceAdmission(surface,config.raw['maximum_target_height_m'],
-        include_speed_position=meter.pointcloud_speed).filter
+        include_speed_position=meter.pointcloud_speed,
+        maximum_target_length_m=config.raw.get('maximum_target_length_m', .16)).filter
     if previous is not None:
         # A changed calibration can rebuild the adapter without changing the
         # device epoch. Its IDs must still differ from already consumed tasks.

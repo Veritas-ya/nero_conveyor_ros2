@@ -139,6 +139,22 @@ class _CroppedCamera:
         return self.camera.grid_rays()[self.v0:self.v0+self.height,self.u0:self.u0+self.width]
 
 
+@dataclass(frozen=True)
+class _FrameHeightPlane:
+    """Reuse the same crop's measured height for candidate splitting and detection."""
+    plane: object
+    height: np.ndarray
+
+    def height_image(self, depth, camera, transform):
+        camera.check_grid(depth, camera.frame_id)
+        if depth.shape != self.height.shape:
+            raise ValueError('cached belt height grid mismatch')
+        return self.height
+
+    def z_at(self, x, y):
+        return self.plane.z_at(x, y)
+
+
 @dataclass
 class _CroppedPlane:
     plane: BeltPlane
@@ -490,6 +506,15 @@ class Nero7BeltVelocityMeter:
                 _CroppedPlane(self._plane,depth,self.roi_px,x0,y0),parameters,
                 refit=self._frame_count%self.parameters['plane_refresh_every']==0)
         else:
+            plane = self._fused.plane
+            if parameters.get('split_mixed_belt_candidates', False) and parameters['detection_mode']=='rgb_depth':
+                from .nero7_height_split import split_mixed_belt_candidates
+                height = plane.height_image(depth[crop], camera, color_to_base)
+                plane = _FrameHeightPlane(plane, height)
+                color, split = split_mixed_belt_candidates(color, depth[crop], height, parameters)
+                self._candidate_depth_diagnostics['split_mixed_belt_candidates'] = [
+                    {**item, 'bbox_px':[item['bbox_px'][0]+x0, item['bbox_px'][1]+y0,
+                                        *item['bbox_px'][2:]]} for item in split]
             if parameters.get('isolate_boundary_depth_gaps', False):
                 from .nero7_boundary_depth import isolate_candidate_depth_gaps
                 color, skipped = isolate_candidate_depth_gaps(color, depth[crop], parameters,
@@ -504,7 +529,7 @@ class Nero7BeltVelocityMeter:
                 self._candidate_depth_diagnostics['rejected_interior_depth_components'] = [
                     item for item in skipped if item['reason']=='insufficient_interior_depth']
             detections,mask=detect_blocks(color,depth[crop],camera,color_to_base,
-                                         self._fused.plane,parameters)
+                                         plane,parameters)
         for detection in detections:
             detection['u'] += x0
             detection['v'] += y0
@@ -629,6 +654,7 @@ class Nero7BeltVelocityMeter:
                             'candidate_count': len(self._detections),
                             'processed_frames': self._frame_count,
                             'tracking_roi_px': None if self.roi_px is None else self.roi_px.copy(),
+                            'detector_workspace_y_m': list(self.parameters['workspace_y']),
                             'tracking_limit_coordinate_m': self.tracking_entry_coordinate_m,
                             'belt_surface_capture_sequence': (getattr(self.surface, 'boundary_diagnostics', {}) or {}).get('capture_sequence'),
                             'belt_direction_xy': None if self._direction is None else self._direction.tolist(),
@@ -684,6 +710,9 @@ class Nero7BeltVelocityMeter:
             if (not self._detections and any(self._candidate_depth_diagnostics.get(key)
                     for key in ('skipped_boundary_components','rejected_interior_depth_components'))):
                 raise ValueError('RGB object candidate has insufficient interior depth; frame is ambiguous')
+            if (not self._detections and any(item['unobserved_depth_pixels']
+                    for item in self._candidate_depth_diagnostics.get('split_mixed_belt_candidates', ()))):
+                raise ValueError('split candidate contains unobserved depth; frame is ambiguous')
         except ValueError as exc:
             self._detections = []
             # Match the ROS node: an invalid image is not a new empty-belt observation.

@@ -242,7 +242,8 @@ class CameraPreview:
                 self.meter=make_meter(self.config,self.surface,previous=self.meter)
                 from mujoco_conveyor_sorting.runtime.workpiece_admission import MeasuredWorkpieceAdmission
                 self.admission=MeasuredWorkpieceAdmission(self.surface,self.config.raw['maximum_target_height_m'],
-                    include_speed_position=self.meter.pointcloud_speed)
+                    include_speed_position=self.meter.pointcloud_speed,
+                    maximum_target_length_m=self.config.raw.get('maximum_target_length_m', .16))
             if robot_state is not None:
                 if self.admission_model is None:
                     from .planning import calibrated_model

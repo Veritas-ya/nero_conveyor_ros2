@@ -166,7 +166,7 @@ def test_incident_at_actual_sender_boundary_observes_by_default(enforce):
 
 @pytest.mark.parametrize('config_name', ['two_second.hardware.legacy_observed.yaml',
     'two_second.hardware.sim_aligned_wait_candidate.yaml'])
-def test_site_disables_runtime_acceleration_but_keeps_actual_speed_limit(config_name):
+def test_site_dispatch_policy_remains_explicit(config_name):
     from pathlib import Path
     from nero_core.two_second.config import CellConfig
     import json
@@ -185,8 +185,81 @@ def test_site_disables_runtime_acceleration_but_keeps_actual_speed_limit(config_
     candidate = np.array(details['discrete_velocity_rad_s'])*details['actual_interval_s']
     history.validate(candidate, details['dispatch_monotonic_s'])
     candidate[4] = (config.velocity_limits[4]+.01)*details['actual_interval_s']
-    with pytest.raises(PickRejected, match='速度超限'):
+    if config.raw['runtime_command_velocity_check_enabled']:
+        with pytest.raises(PickRejected, match='速度超限'):
+            history.validate(candidate, details['dispatch_monotonic_s'])
+    else:
         history.validate(candidate, details['dispatch_monotonic_s'])
+
+
+@pytest.mark.parametrize('config_name', ['two_second.hardware.legacy_observed.yaml',
+    'two_second.hardware.tracked_freeze.yaml'])
+def test_return_dispatch_jitter_is_diagnostic_only_in_current_site_configs(config_name):
+    from pathlib import Path
+    from nero_core.two_second.config import CellConfig
+    root = Path(__file__).parents[1]
+    cfg = CellConfig.load(root/'src/nero_bringup/config'/config_name)
+    assert not cfg.raw['runtime_command_velocity_check_enabled']
+    assert not cfg.raw['runtime_command_acceleration_check_enabled']
+    history = CommandHistory(cfg)
+    history.q = np.zeros(7)
+    history.dispatch = 22805.219475168
+    history.velocity = np.array([-2.9717663732180526,.4976783859836672,-.38405577977578415,
+                                 .1717123696408165,-.20827628115626756,-.8772498741501822,
+                                 -.7479119774874755])
+    history.previous_interval = 2*.0065503230016474845-.0017407100021955557
+    dt = .0017407100021955557
+    candidate = dt*np.array([-3.191130116671656,.5344149864004565,-.4124052201308045,
+                             .18438748049099712,-.22365039169159937,-.9420049026988959,
+                             -.8031198069569796])
+    history.validate(candidate, history.dispatch+dt)
+    history.record(history.dispatch+dt, dt, candidate, {})
+    report = history.diagnostics()
+    assert report['runtime_velocity_check_enabled'] is False
+    assert report['measured_actuator_velocity'] is False
+    assert report['commands_exceeding_planning_velocity_limit'] == 1
+    assert report['peak_abs_command_velocity_rad_s'][0] == pytest.approx(3.19113011667)
+    history.validate_first(np.full(7, .05), np.zeros(7))
+
+
+def test_command_history_still_rejects_non_increasing_dispatch_clock():
+    cfg = SimpleNamespace(raw={'runtime_command_velocity_check_enabled':False},
+        velocity_limits=np.ones(7), acceleration_limits=np.ones(7),
+        settings=SimpleNamespace(control_hz=100))
+    history = CommandHistory(cfg)
+    history.q = np.zeros(7); history.dispatch = 3.
+    with pytest.raises(PickRejected, match='时钟未递增'):
+        history.validate(np.zeros(7), 3.)
+
+
+def test_recorded_return_interval_passes_sender_with_diagnostic_only_policy():
+    from mujoco_conveyor_sorting.runtime.joint_stream_sender import JointStreamSender
+    cfg = SimpleNamespace(raw={'runtime_command_velocity_check_enabled':False,
+                                'runtime_command_acceleration_check_enabled':False},
+        velocity_limits=np.full(7, np.pi), acceleration_limits=np.full(7, 8.),
+        settings=SimpleNamespace(control_hz=100))
+    history = CommandHistory(cfg)
+    history.q = np.zeros(7); history.dispatch = 1.
+    history.previous_interval = .011359936
+    history.velocity = np.array([-2.971766373,0,0,0,0,0,0])
+    interval = .0017407100021955557
+    candidate = np.zeros(7); candidate[0] = -3.19113011667*interval
+    class Clock:
+        now = 1.+interval
+        def __call__(self): return self.now
+        def sleep(self, duration): self.now += max(duration, 0.)
+    class Device:
+        sent = 0
+        def snapshot(self): return {}
+        def move_joints(self, q): self.sent += 1
+    clock, device = Clock(), Device()
+    sender = JointStreamSender(device, lambda *a: None if device.sent else (candidate, {}),
+        after_send=lambda stamp, dt, q, metadata: history.record(stamp, dt, q, metadata),
+        clock=clock, sleep=clock.sleep,
+        validate_dispatch=lambda state, t, dt, q, metadata: history.validate(q, t))
+    sender.start(); sender.join()
+    assert sender.snapshot().exception is None and device.sent == 1
+    assert history.diagnostics()['commands_exceeding_planning_velocity_limit'] == 1
 
 
 @pytest.mark.parametrize('raw', [None, {}, {'runtime_command_acceleration_check_enabled': False}])

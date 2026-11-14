@@ -20,10 +20,10 @@ def step_name(stage):
         'lift': '抬升', 'transfer': '搬运', 'release': '张爪投放',
         'transfer_connect': '接入搬运示教起点', 'taught_transfer': '示教搬运至投放位',
         'return_connect': '接入返回示教起点', 'taught_return': '示教返回',
-        'prepared_taught_carry': '预计算抬升、接入和示教投放',
-        'prepared_taught_return': '预计算示教返回等待位',
+        'prepared_taught_carry': '预计算抬升及投放',
+        'prepared_taught_return': '预计算返回等待位',
         'prepared_taught_recovery_carry': '恢复示教投放',
-        'prepared_taught_recovery_return': '恢复示教返回等待位',
+        'prepared_taught_recovery_return': '恢复返回等待位',
         'planning_prepared_taught_cycle': '准备整段示教搬运及返回',
         'planning_prepared_taught_recovery_cycle': '准备整段恢复示教搬运及返回',
         'return': '返回等待位', 'waiting': '等待下一件',
@@ -66,7 +66,8 @@ class ConsoleProgress:
             if data.get('taught_arguments_ignored'):
                 start += '；示教暂停，忽略示教文件，自动规划投放'
             elif data.get('taught_segments'):
-                start += '；使用示教投放'
+                start += ('；实验直接投放（名义框沿高度）' if data.get('experimental_direct_drop_guard')
+                          else '；使用示教投放')
             elif 'taught_playback_enabled' in data:
                 start += '；自动规划投放'
             self.write(start)
@@ -94,7 +95,10 @@ class ConsoleProgress:
                 action = '开始检测与定位' if self.fixed_speed is not None else '开始检测与视觉测速'
                 self.write(f'[等待] 第 {self.cycle} 次抓取尝试，{action}')
         elif event == 'taught_timing_prepared':
-            self.write('[示教] 投放和返回时序已预计算，后续按本次工件检查路径')
+            if 'return' in data.get('segments', {}):
+                self.write('[示教] 投放和返回时序已预计算，后续按本次工件检查路径')
+            else:
+                self.write('[示教] 投放时序已预计算，投放后直接返回当前等待位')
         elif event == 'startup_return_wait_started':
             self.write(f"[回位] 平滑移动到等待位，速度 {data['speed_percent']}%")
         elif event in ('startup_return_wait_passed', 'startup_return_wait_skipped'):
@@ -125,6 +129,22 @@ class ConsoleProgress:
             self.write(f'[抓姿] OBB 已生成 {count} 个候选')
         elif event == 'execution_event':
             self._execution(data['record'])
+        elif event == 'lookahead_frozen':
+            self.write(f'[预取] 下一件点云已冻结（曝光 #{data["frame_sequence"]}），当前动作继续执行')
+        elif event == 'lookahead_plan_ready':
+            margin = data['send_deadline_monotonic_s']-data['ready_monotonic_s']
+            self.write(f'[预取] 下一件模型路径已生成，等待真实回位确认；发送余量 {margin*1000:.0f} ms')
+        elif event == 'lookahead_planning_started':
+            self.write('[预取规划] 开始计算下一件路径，当前机械臂动作继续')
+        elif event == 'lookahead_planning_deferred':
+            self.write('[预取待重算] 保留原点云，等待回位时间更新：'+short(data.get('reason', '未知原因')))
+        elif event == 'lookahead_rejected':
+            label = '模型路径已生成后失效' if data.get('model_path_generated') else '未生成可交付路径'
+            self.write(f'[预取跳过] {label}：{short(data.get("reason", "未知原因"))}')
+        elif event == 'lookahead_plan_expired_replan':
+            self.write('[预取重算] 原预约需更新，保留原曝光；按新的回位时间重新计算接触点和路径')
+        elif event == 'lookahead_error':
+            self.write('[预取异常] '+short(data.get('reason', '未知原因')))
         elif event == 'cycle_finished':
             completed = data.get('completed_feedback_cycles', data['cycle_index'])
             progress=str(completed) if self.total is None else f'{completed}/{self.total}'
@@ -228,6 +248,8 @@ class ConsoleProgress:
                 f'新反馈稳定及位置检查通过，已更新恢复基准（{data["waited_s"]:.3f}s）')
         elif event == 'return_feedback_rechecked':
             self.write(f'[反馈] 空爪返回新反馈复核通过，等待 {data["waited_s"]*1000:.1f} ms')
+        elif event == 'transport_feedback_rechecked':
+            self.write(f'[反馈] 搬运新反馈复核通过，等待 {data["waited_s"]*1000:.1f} ms，继续原路径')
         elif event == 'return_wait_precision_target_sent':
             self.write(f'[回位] 空载已稳定，使用J模式修正剩余 {math.degrees(data["max_correction_rad"]):.2f}°')
         elif event == 'return_wait_precision_finished':
@@ -236,9 +258,14 @@ class ConsoleProgress:
             self.write('[恢复] 按示教投放后回等待位' if data.get('payload_policy') == 'taught_drop_then_wait' else
                 '[恢复] 先放入配置料框，再回等待位' if data['carrying'] else '[恢复] 规划空爪返回等待位')
         elif event == 'taught_cycle_preparing':
-            self.write('[轨迹] 一次准备本次抬升、示教投放和返回路径')
+            self.write('[轨迹] 用实际夹持状态复核提前准备的搬运路径' if data.get('using_prediction') else
+                '[轨迹] 一次准备本次抬升、投放和返回路径')
         elif event == 'taught_cycle_prepared':
-            self.write('[轨迹] 示教投放及返回均已准备，执行期间不再逐段求解')
+            direct = any(item.get('stage')=='direct_drop' for item in data.get('carry_pieces', []))
+            if (data.get('continuous_carry') or {}).get('applied'):
+                self.write(f'[轨迹] 抬升至投放整段已准备，约 {data["carry_duration_s"]:.2f}s，连接处连续通过')
+            else:
+                self.write('[轨迹] '+('直接投放' if direct else '示教投放')+'及返回均已准备，执行期间不再逐段求解')
         elif event == 'recovery_finished':
             self.write('[恢复] 已回等待位并张爪')
         elif event == 'planning_submitted':
@@ -270,8 +297,17 @@ class ConsoleProgress:
             point = data.get('predicted_contact_tcp_base_m')
             point_text = '' if point is None else '；预计接触 TCP=('+', '.join(f'{float(x)*1000:.1f}' for x in point)+') mm（基座系）'
             self.write(f'[轨迹] 已得到，规划 {data["planning_wall_s"]:.2f} s{point_text}')
+            phase = data.get('trajectory_diagnostics', {}).get('phase_timing')
+            if phase is not None:
+                self.write(f'[时长分配] 接近 {phase["join_s"]:.3f} s；跟随 {phase["follow_s"]:.3f} s；减速 {phase["brake_s"]:.3f} s')
         elif event == 'planning_delivery_missed':
             self.write('[轨迹] 交付时已错过发送起点，根据实测耗时重新规划')
+        elif event == 'carry_prediction_started':
+            self.write('[预规划] 从预计减速终点并行准备抬升、投放和返回')
+        elif event == 'carry_prediction_accepted':
+            self.write(f'[搬运] 提前规划已复用，实际载物复核 {data["validation_wall_s"]:.2f} s')
+        elif event == 'carry_prediction_replanned':
+            self.write('[搬运] 提前路径不适用，按实际夹持状态重算')
         elif event == 'stage_started':
             stage = data['stage']
             if stage in ('smooth_intercept_follow_brake', 'intercept_follow'):
@@ -308,7 +344,12 @@ class ConsoleProgress:
                 runtime = result.get('last_runtime') or {}
                 stage = step_name(runtime.get('execution_stage') or runtime.get('phase'))
                 self.write(f'[停止] {stage}：{short(result.get("error", result["status"]))}')
+        recording = result.get('experiment_recording')
+        if recording is not None:
+            status = '完整' if recording.get('complete') else '不完整，请检查归档错误'
+            self.write(f'[实验记录] {status}；保存 {recording["saved"]}/{recording["offered"]} 条，目录 experiment/')
         if (result.get('log_save_errors') or result.get('execution_event_logging_errors') or
+                recording is not None and not recording.get('complete') or
                 any(result.get('visualization',{}).get(key) for key in ('errors','dropped','writer_alive')) or
                 result.get('collision_diagnostic_errors') or
                 any(result.get('journal', {}).get(key) for key in ('errors', 'dropped', 'writer_alive', 'observer_errors'))):

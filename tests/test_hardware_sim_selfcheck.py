@@ -46,18 +46,18 @@ def test_closure_uses_actual_pose_time_not_advanced_arm_sample():
 def test_final_feedback_can_finish_dwell_at_brake_boundary():
     grip = GripConfirmation(.1, .2, 1.)
     assert not grip.observe(.04, 2., 1.1)
-    assert not grip.observe(.04, 2., 1.299)
-    assert grip.observe(.04, 2., 1.3)
+    assert not grip.observe(.04, 2., 1.199)
+    assert grip.observe(.04, 2., 1.2)
 
 
 @pytest.mark.parametrize('width,force', [(0., 2.), (.04, .1)])
 def test_bad_gripper_sample_restarts_continuous_confirmation(width, force):
     grip = GripConfirmation(.1, .2, 1.)
     assert not grip.observe(.04, 2., 1.1)
-    assert not grip.observe(width, force, 1.25)
-    assert not grip.observe(.04, 2., 1.26)
-    assert not grip.observe(.04, 2., 1.459)
-    assert grip.observe(.04, 2., 1.46)
+    assert not grip.observe(width, force, 1.15)
+    assert not grip.observe(.04, 2., 1.16)
+    assert not grip.observe(.04, 2., 1.259)
+    assert grip.observe(.04, 2., 1.26)
 
 
 def test_repeated_gripper_feedback_never_accumulates_dwell():

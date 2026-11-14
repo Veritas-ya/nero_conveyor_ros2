@@ -9,7 +9,7 @@ from mujoco_conveyor_sorting.runtime.single_pick import PickRejected
 JOINT_ARRIVAL_TOLERANCE_RAD = .005
 TRAJECTORY_ARRIVAL_TOLERANCE_RAD = float(np.deg2rad(1.))
 ARRIVAL_DWELL_S = .1
-GRIP_CONFIRMATION_DWELL_S = .2
+GRIP_CONFIRMATION_DWELL_S = .1
 
 
 def closure_feedback(reference, tcp, stamp, previous_tcp, previous_stamp, *,
@@ -80,6 +80,11 @@ class RestArrival:
     since: float | None = None
     previous_stamp: float | None = None
     tolerance_rad: float = JOINT_ARRIVAL_TOLERANCE_RAD
+    dwell_s: float = ARRIVAL_DWELL_S
+
+    def __post_init__(self):
+        if not np.isfinite(self.dwell_s) or self.dwell_s < 0:
+            raise ValueError('到位停留时间须为非负有限数')
 
     def observe(self, actual, target, stamp):
         actual, target = np.asarray(actual), np.asarray(target)
@@ -97,7 +102,7 @@ class RestArrival:
             return False
         if self.since is None:
             self.since = stamp
-        return stamp-self.since >= ARRIVAL_DWELL_S-1e-9
+        return stamp-self.since >= self.dwell_s-1e-9
 
 
 @dataclass

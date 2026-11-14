@@ -354,8 +354,8 @@ class ExecutionTrace:
         result['feedback_packet_aligned_error_rad']=result['feedback_q_rad']-reference
         return result
 
-    def summary(self):
-        a = self.arrays()
+    def summary(self, arrays=None):
+        a = self.arrays() if arrays is None else arrays
         good = a['dispatch_succeeded']
         differences = np.abs(a['raw_trajectory_q_rad']-a['policy_candidate_q_rad'])
         changed = np.isfinite(differences).all(axis=1) & (np.max(differences, axis=1, initial=0.) > 1e-9)
@@ -443,9 +443,10 @@ class ExecutionTrace:
         try:
             directory = Path(directory)
             directory.mkdir(parents=True, exist_ok=True)
-            np.savez_compressed(directory/'execution_trace.npz', **self.arrays())
+            arrays = self.arrays()
+            np.savez_compressed(directory/'execution_trace.npz', **arrays)
             (directory/'execution_trace_summary.json').write_text(
-                json.dumps(self.summary(), ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+                json.dumps(self.summary(arrays), ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
             return {'npz': str(directory/'execution_trace.npz'),
                     'summary': str(directory/'execution_trace_summary.json')}
         except Exception as error:

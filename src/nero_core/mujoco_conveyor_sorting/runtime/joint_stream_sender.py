@@ -79,10 +79,15 @@ class JointStreamSender:
                  pause_requested: Callable | None = None,
                  initial_dispatch_time: float | None = None,
                  finalize_send: Callable | None = None,
-                 validate_dispatch: Callable | None = None):
+                 validate_dispatch: Callable | None = None,
+                 feedback_reader: Callable | None = None,
+                 max_prepare_lookahead_s: float | None = None):
         if not np.isfinite(control_hz) or control_hz <= 0:
             raise ValueError('control_hz must be finite and positive')
         self._device = device
+        # A caller may use original-stamped cached feedback to avoid blocking
+        # on packet retries. Its normal freshness/fault guards still apply.
+        self._feedback_reader = device.snapshot if feedback_reader is None else feedback_reader
         self._step = step
         self._after_send = after_send
         # Optional, fast resampling of an already checked time window. Existing
@@ -90,6 +95,10 @@ class JointStreamSender:
         self._finalize_send = finalize_send
         self._validate_dispatch = validate_dispatch
         self._period = 1. / float(control_hz)
+        if (max_prepare_lookahead_s is not None and
+                (not np.isfinite(max_prepare_lookahead_s) or max_prepare_lookahead_s < 0)):
+            raise ValueError('prepare lookahead must be a finite nonnegative time')
+        self._max_prepare_lookahead = max_prepare_lookahead_s
         self._clock = clock
         self._sleep = sleep
         self._pause_requested = pause_requested
@@ -196,14 +205,16 @@ class JointStreamSender:
             origin = self._clock() if last_send is None else last_send
             slot = 0 if last_send is None else max(
                 1, math.ceil((self._clock() - origin) / self._period - 1e-9))
-            while self._wait(origin + slot * self._period - previous_receive - previous_step):
+            def lead(duration):
+                return duration if self._max_prepare_lookahead is None else min(duration, self._max_prepare_lookahead)
+            while self._wait(origin + slot * self._period - lead(previous_receive + previous_step)):
                 scheduled = origin + slot * self._period
                 if self._cancelled():
                     break
                 receive_started = self._clock()
                 # Retain the device adapter's existing retry/fault contract.
                 # A missing sample is never replaced by an invented state.
-                state = self._device.snapshot()
+                state = self._feedback_reader()
                 sampled = self._clock()
                 with self._lock:
                     self._last_feedback = deepcopy(state)
@@ -214,7 +225,9 @@ class JointStreamSender:
                 # available at the beginning of a solve, then acknowledging
                 # at its end, would lose the solve's duration on every tick.
                 # The predicted send clock is not a new feedback timestamp.
-                motion_time = max(scheduled, sampled + previous_step)
+                # A previous outlier must not manufacture another long wait
+                # now that interpolation itself is cheap and independent.
+                motion_time = max(scheduled, sampled + lead(previous_step))
                 dt = self._period if last_send is None else motion_time - last_send
                 try:
                     result = self._step(state, motion_time, dt)

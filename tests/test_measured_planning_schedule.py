@@ -11,7 +11,8 @@ from test_two_second_hardware import Clock, executor_fixture, cloud
 from test_two_second_smoothing import fixture
 
 
-def test_production_planner_recomputes_target_after_measured_miss(monkeypatch):
+@pytest.mark.parametrize('invalidate_scene', [False, True])
+def test_production_planner_recomputes_target_after_measured_miss(monkeypatch, invalidate_scene):
     planner, model, target = fixture(monkeypatch)
     clock = Clock(); planner.clock = clock
     planner.config.follow_bounds = np.array([-.2, 1.])
@@ -36,7 +37,10 @@ def test_production_planner_recomputes_target_after_measured_miss(monkeypatch):
     monkeypatch.setattr(planner,'install',install)
     references=[]
     def geometry(path, ref, **kw):
-        references.append(ref);clock.sleep(.03);return {'offline_test':True}
+        references.append(ref);clock.sleep(.03)
+        if invalidate_scene and len(references) == 1:
+            planner.scene_revision += 1
+        return {'offline_test':True}
     monkeypatch.setattr(planner,'check_smooth_intercept',geometry)
     result=planner.intercept(target,{'joints':np.zeros(7)})
     rounds=result.path.diagnostics['measured_planning']['rounds']
@@ -46,6 +50,16 @@ def test_production_planner_recomputes_target_after_measured_miss(monkeypatch):
     assert result.reference is references[-1]
     assert rounds[1]['reservation_s'] > 0.
     assert result.path.planning_s == pytest.approx(clock()-1.)
+    assert len(installed) == (2 if invalidate_scene else 1)
+    assert rounds[1]['scene_reused_s'] == pytest.approx(0. if invalidate_scene else .01)
+    if not invalidate_scene:
+        assert rounds[1]['reservation_s'] == pytest.approx(rounds[0]['wall_s']-.01)
+    # A second outer call, even for the very same object, must reinstall its
+    # scene. Execution/recovery may have changed it between calls.
+    before = len(installed)
+    next_result = planner.intercept(target, {'joints':np.zeros(7)})
+    assert len(installed) == before+1
+    assert next_result.path.diagnostics['measured_planning']['rounds'][0]['reservation_s'] > 0
 
 
 def test_non_timing_failure_never_invents_retry_or_sends():
@@ -57,6 +71,49 @@ def test_non_timing_failure_never_invents_retry_or_sends():
     with pytest.raises(PickRejected,match='逆解'):
         plan_with_measured_timing(planner,None,None,cancelled=lambda:False,planning_fn=rejected)
     assert len(calls)==1
+    assert planner.measured_planning_lead_s == pytest.approx(.2)
+
+
+def test_initial_estimate_and_failure_observations_survive_rejected_target():
+    clock = Clock()
+    planner = SimpleNamespace(clock=clock, config=SimpleNamespace(raw={
+        'planning_budget_s':8., 'measured_planning_initial_s':.15}), measured_post_planning_s=.03)
+    calls = []
+    def rejected(*args, **kw):
+        calls.append(kw['reservation_s'])
+        clock.sleep(.22 if len(calls) == 1 else .01)
+        if len(calls) == 1:
+            raise PickRejected('late', details={'failures':[{'details':{
+                'reason':'measured_deadline_missed', 'measured_candidate_wall_s':.20}}]})
+        raise PickRejected('no space')
+    for _ in range(2):
+        with pytest.raises(PickRejected) as caught:
+            plan_with_measured_timing(planner, None, None, cancelled=lambda:False, planning_fn=rejected)
+        assert caught.value.details['measured_planning']['estimate_for_next_target_s'] == pytest.approx(.22)
+    assert calls == pytest.approx([.18, .25, .25])
+
+
+def test_budget_exhausted_failure_keeps_measurement_without_retry():
+    clock = Clock()
+    planner = SimpleNamespace(clock=clock, config=SimpleNamespace(raw={'planning_budget_s':.1}))
+    def rejected(*args, **kw):
+        clock.sleep(.11)
+        raise PickRejected('budget', details={'failures':[]})
+    with pytest.raises(PickRejected):
+        plan_with_measured_timing(planner, None, None, cancelled=lambda:False, planning_fn=rejected)
+    assert planner.measured_planning_lead_s == pytest.approx(.11)
+
+
+def test_cancelled_work_does_not_pollute_initial_estimate():
+    clock = Clock()
+    planner = SimpleNamespace(clock=clock, config=SimpleNamespace(raw={
+        'planning_budget_s':8., 'measured_planning_initial_s':.2}))
+    def rejected(*args, **kw):
+        clock.sleep(.5)
+        raise PickRejected('cancelled')
+    with pytest.raises(PickRejected):
+        plan_with_measured_timing(planner, None, None, cancelled=lambda:clock()>1.1, planning_fn=rejected)
+    assert planner.measured_planning_lead_s == .2
 
 
 def test_measured_mode_freezes_at_existing_upstream_limit_not_2_5_seconds():

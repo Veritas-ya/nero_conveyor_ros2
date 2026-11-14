@@ -43,7 +43,8 @@ def grasp_orientation_reference(cfg, model, state, start_rotation):
 
 
 def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
-                          reservation_s=None, measure_late=False, global_deadline=None):
+                          reservation_s=None, measure_late=False, global_deadline=None,
+                          scene_cache=None):
     from .planning import InterceptPlan
     cfg, model, clock = planner.config, planner.model, planner.clock
     retry_policy = cfg.raw.get('candidate_retry_policy', 'per_grasp')
@@ -78,6 +79,12 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
     deadline = min(planning_deadline, send_deadline)
     failures, scene_prepared = [], False
     timings = {'scene_prepare': 0.}
+    def scene_key():
+        return (id(target), id(state), id(cfg), id(model), planner.version, planner.scene_revision)
+    if scene_cache is not None and scene_cache.get('key') == scene_key():
+        scene_prepared = True
+        scene_cache['reused_wall_s'] = scene_cache['prepare_wall_s']
+        timings['scene_reused_saved_s'] = scene_cache['prepare_wall_s']
     def stop_reason(candidate_deadline=None):
         now = clock()
         if cancelled():
@@ -108,17 +115,34 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
     grasps = [grasp for _, grasp in indexed_grasps]
     durations=(cfg.raw.get('synchronized_join_candidates_s', [prealign_s]) if synchronized
                else cfg.raw['approach_duration_candidates_s'])
+    timing_search = None
+    timing_trials = [(duration, None) for duration in durations]
+    if 'phase_timing' in cfg.raw:
+        from .phase_timing import candidate_options, validate_configuration
+        validate_configuration(cfg.raw, cfg.workspace, cfg.direction)
+        planner._progress('phase_timing_search', identity=target.identity)
+        options, timing_search = candidate_options(cfg, target, start, grasps,
+            now_s=clock(), reservation_s=reservation_s,
+            cancelled=lambda: cancelled() or clock() >= planning_deadline)
+        if not options:
+            raise PickRejected('没有满足联合阶段约束的时长组合',
+                details={'reason': 'phase_timing_no_candidate', 'phase_timing_search': timing_search})
+        timing_trials = [(option['join_s'], option) for option in options]
     rotation_cache = {}
     first_hz = cfg.raw.get('planning_knot_hz', min(50., cfg.settings.control_hz))
     fallback_hz = cfg.raw.get('planning_knot_hz_fallback', first_hz)
     all_knot_rates = [first_hz] if fallback_hz == first_hz else [first_hz, fallback_hz]
-    for duration in durations:
+    for duration, timing_option in timing_trials:
+        follow_s = (cfg.settings.full_plan_close_window_s if timing_option is None else timing_option['follow_s'])
+        brake_s = cfg.raw['brake_duration_s'] if timing_option is None else timing_option['brake_s']
+        trial_grasps = (list(enumerate(grasps)) if timing_option is None else
+                       [(timing_option['grasp_index'], grasps[timing_option['grasp_index']])])
         # Legacy entries finish both rates for A before trying B. The separate
         # coarse-first entry defers only eligible dense retries behind all
         # remaining coarse candidates; a fully certified coarse path returns
         # immediately. Every deferred trial gets a fresh moving-target schedule.
         work_items = deque((index, grasp, [first_hz] if coarse_first else all_knot_rates)
-                           for index, grasp in enumerate(grasps))
+                           for index, grasp in trial_grasps)
         budget_ends = {}
         while work_items:
             index, grasp, knot_rates = work_items.popleft()
@@ -167,8 +191,9 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                         standby_position=start[:3,3], direction=cfg.direction,
                         now_s=clock(), planning_reserve_s=reservation_s,
                         advance_s=cfg.raw['command_advance_s'], join_s=duration, rotate_first_s=rotate_first_s,
-                        synchronized_s=synchronized_s, follow_s=cfg.settings.full_plan_close_window_s,
-                        follow_bounds=follow_bounds)
+                        synchronized_s=synchronized_s, follow_s=follow_s,
+                        follow_bounds=follow_bounds,
+                        earliest_dispatch_s=getattr(planner, 'intercept_not_before_s', None))
                 except ValueError as error:
                     failures.append({'candidate_index': index, 'approach_s':duration, 'reason': str(error),
                                      'failed_phase': 'synchronized_schedule',
@@ -205,10 +230,14 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                 ref = reference_type(target.capture_s, start_time, reference_duration+effective_prealign, grasp[:3, 3], target.velocity,
                     start[:3, 3], Rotation.from_matrix(start[:3, :3]).as_quat()[[3, 0, 1, 2]],
                     Rotation.from_matrix(grasp[:3, :3]).as_quat()[[3, 0, 1, 2]],
-                    cfg.settings.full_plan_close_window_s, cfg.raw['brake_duration_s'], effective_prealign,
+                    follow_s, brake_s, effective_prealign,
                     **({'rotate_first_s':rotate_first_s} if synchronized else {}))
                 try:
                     planner._progress('smooth_candidate_bounds', candidate_index=index, approach_s=duration)
+                    phase_timing_report = None
+                    if timing_option is not None:
+                        from .phase_timing import require_reference
+                        phase_timing_report = require_reference(cfg, ref)
                     contact = ref.contact_xyz@cfg.direction
                     follow_end = (ref.contact_xyz+target.velocity*ref.follow_s)@cfg.direction
                     if min(contact, follow_end) < cfg.follow_bounds[0] or max(contact, follow_end) > cfg.follow_bounds[1]:
@@ -252,6 +281,8 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                         planner._progress('scene_prepare', identity=target.identity)
                         planner.install(target, state)
                         timings['scene_prepare'] = clock()-check_started
+                        if scene_cache is not None:
+                            scene_cache.update(key=scene_key(), prepare_wall_s=timings['scene_prepare'])
                         if coarse_first:
                             for pending_index in budget_ends:
                                 budget_ends[pending_index] += timings['scene_prepare']
@@ -293,6 +324,9 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                                            selected_input_grasp_index=indexed_grasps[index][0])
                     if delay_window is not None:
                         diagnostics['execution_delay_window'] = delay_window
+                    if phase_timing_report is not None:
+                        diagnostics['phase_timing'] = phase_timing_report
+                        diagnostics['phase_timing_search'] = timing_search
                     timings['full_planning_delivery'] = clock()-begun
                     path = replace(path, planning_s=timings['full_planning_delivery'], diagnostics=diagnostics)
                     planner.contact_reference = ref
@@ -315,6 +349,9 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                         'phase_timings_s': dict(attempt_timings),
                         'last_progress': dict(planner.progress),
                         'remaining_send_lead_s': send_deadline-clock()}
+                    if timing_option is not None:
+                        record['phase_timing_candidate'] = {'join_s': duration, 'follow_s': follow_s,
+                                                          'brake_s': brake_s}
                     failures.append(record)
                     planner.attempt_diagnostics.append({**record, 'status': 'rejected', 'wall_s': clock()-attempt_started})
                     if measure_late and error.details.get('reason') == 'measured_deadline_missed':
@@ -334,4 +371,5 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
                         break
     planner._progress('all_smooth_candidates_rejected', planning_wall_s=clock()-begun)
     raise PickRejected('平滑抓姿和持续时间组合均未交付认证轨迹',
-                       details={'failures': failures, 'scene_prepared': scene_prepared})
+                       details={'failures': failures, 'scene_prepared': scene_prepared,
+                                **({'phase_timing_search': timing_search} if timing_search is not None else {})})

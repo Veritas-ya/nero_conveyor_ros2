@@ -479,7 +479,8 @@ class DepthGeometryVisionPipeline:
         self.last_foreground_mask = foreground.copy()
         self.last_component_workload = {'grid_pixels': int(depth_image.size),
             'geometry_evaluated_pixels': int(evaluated_pixels), 'foreground_pixels': len(indices),
-            'complete_components_preserved': True, 'sampling_applied': False}
+            'complete_components_preserved': True, 'sampling_applied': False,
+            'size_rejection_count': 0, 'size_measurements': []}
         masks = connected_component_masks(
             foreground, minimum_pixels=self.minimum_mask_pixels
         )
@@ -506,10 +507,19 @@ class DepthGeometryVisionPipeline:
             extents = np.maximum(upper - lower, 1e-9)
             centre_xy = (0.5 * (lower + upper)) @ eigenvectors.T
             footprint = np.sort(extents)[::-1]
+            size_reason = ('length_above_limit' if footprint[0] > self.maximum_footprint else
+                           'width_below_limit' if footprint[1] < self.minimum_footprint else 'passed')
+            if len(self.last_component_workload['size_measurements']) < 32:
+                self.last_component_workload['size_measurements'].append({
+                    'raw_footprint_m': footprint.tolist(), 'maximum_length_m': self.maximum_footprint,
+                    'minimum_width_m': self.minimum_footprint, 'point_count': len(points),
+                    'estimator': 'single_frame_pca_quantile', 'quantile': quantile,
+                    'reason': size_reason})
             if (
                 footprint[0] > self.maximum_footprint
                 or footprint[1] < self.minimum_footprint
             ):
+                self.last_component_workload['size_rejection_count'] += 1
                 continue
             largest = max(float(eigenvalues[-1]), 0.0)
             smallest = max(float(eigenvalues[0]), 0.0)

@@ -31,7 +31,10 @@ def limit_jerk(path, limit, control_hz):
     for i in range(len(coefficients)):
         coefficients[i] /= scale**(len(coefficients)-1-i)
     curve = PPoly(coefficients, path.curve.x*scale, extrapolate=False)
-    return replace(path, curve=curve, duration=duration, diagnostics={**path.diagnostics,
+    diagnostics = dict(path.diagnostics)
+    if 'route_waypoint_times_s' in diagnostics:
+        diagnostics['route_waypoint_times_s'] = [t*scale for t in diagnostics['route_waypoint_times_s']]
+    return replace(path, curve=curve, duration=duration, diagnostics={**diagnostics,
         'joint_jerk_limit_rad_s3': limit, 'peak_joint_jerk_rad_s3': peak/scale**3,
         'jerk_time_scale': scale})
 

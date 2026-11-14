@@ -53,6 +53,21 @@ def test_factory_uses_footprint_mask_without_changing_height_limit_or_source_ima
     np.testing.assert_array_equal(frame.depth_m,depth_before)
 
 
+def test_detector_y_range_is_independent_of_robot_and_follow_workspaces():
+    surface,_,_=geometry()
+    cfg=SimpleNamespace(direction=np.array([1.,0.,0.]),follow_bounds=np.array([0.,.38]),raw={
+        'perception_detection_mode':'rgb_depth','perception_plane_mode':'ransac3d',
+        'maximum_measured_speed_m_s':1.,'maximum_target_height_m':.12,
+        'workspace_base_m':[[-.6,.6],[-.48,.54],[-.6,1.]],
+        'perception_detector_workspace_y_m':[-.7,1.1]})
+    meter=make_meter(cfg,surface)
+    assert meter.parameters['workspace_y']==[-.7,1.1]
+    assert cfg.raw['workspace_base_m'][1]==[-.48,.54]
+    np.testing.assert_array_equal(cfg.follow_bounds,[0.,.38])
+    del cfg.raw['perception_detector_workspace_y_m']
+    assert make_meter(cfg,surface).parameters['workspace_y']==[-.7,.7]
+
+
 def test_invalid_footprint_projection_does_not_expand_search_to_the_whole_image():
     surface,camera,transform=geometry();transform[2,3]=.02
     with pytest.raises(ValueError,match='近平面'):
@@ -71,10 +86,9 @@ def test_invalid_projection_height_rejected(height):
 def test_field_configs_reference_the_adopted_measured_direction_and_footprint(name):
     config=Path(__file__).parents[1]/'src/nero_bringup/config'
     site=yaml.safe_load((config/name).read_text())
-    provenance=json.loads((config/'calibration/belt_direction_20261111_three_pass.json').read_text())
+    provenance=json.loads((config/'calibration/belt_direction_20261113_single_pass.json').read_text())
     np.testing.assert_allclose(site['belt_direction_base'],provenance['belt_direction_base'],atol=1e-12)
     assert np.linalg.norm(site['belt_direction_base'])==pytest.approx(1.)
-    assert len(provenance['passes'])==3
-    mean=np.mean([item['direction_base_xy'] for item in provenance['passes']],axis=0)
-    np.testing.assert_allclose(site['belt_direction_base'][:2],mean/np.linalg.norm(mean),atol=1e-12)
+    assert provenance['measurement_type']=='camera_only_single_pass_obb_center_motion'
+    assert provenance['retained_frame_count']==len(provenance['retained_frame_sequences'])==17
     assert site['perception_search_region']=='measured_belt_footprint'

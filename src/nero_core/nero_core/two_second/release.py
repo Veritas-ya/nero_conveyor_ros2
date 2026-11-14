@@ -18,7 +18,6 @@ def release_at_rest(executor, state, *, epoch, sender_factory, prepare_return=No
     with hold_context as hold:
         if hold is not None:
             hold.check()
-        future = None if prepare_return is None else prepare_return()
         with e.command_lock:
             e._active(e.owner, e.version, epoch)
             started = e.clock()
@@ -29,6 +28,9 @@ def release_at_rest(executor, state, *, epoch, sender_factory, prepare_return=No
             'command_started_monotonic_s':started, 'command_completed_monotonic_s':completed,
             'gripper_feedback_before_command_monotonic_s':mapped_stamp(state,'gripper'),
             'stationary_sender_active':hold is not None})
+        # Send the opening first. Even a slow return submission must not
+        # postpone release after measured endpoint arrival.
+        future = None if prepare_return is None else prepare_return()
         result = e.holding.wait(lambda x: opening.observe(x['width_m'],mapped_stamp(x,'gripper')),
             anchor=state['pose'], stable=0., heartbeat=None if hold is None else hold.check)
         e.holding.held_width = None

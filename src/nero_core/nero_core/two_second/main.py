@@ -1,6 +1,7 @@
 """Physical integration entry. Default only validates files, opening no devices."""
 import argparse
 from contextlib import ExitStack
+from functools import partial
 import hashlib
 import json
 import importlib.util
@@ -16,7 +17,8 @@ from .diagnostics import json_value, RunJournal, ProgressMonitor
 from .console import ConsoleProgress, short
 from .motion_profile import select_motion_profile
 from .startup import prepare_start_state, return_wait_policy, MoveCancelled
-from .velocity_source import with_fixed_belt_speed, policy as velocity_policy
+from .velocity_source import is_fixed, with_fixed_belt_speed, policy as velocity_policy
+from .feedback_gates import GRIP_CONFIRMATION_DWELL_S
 
 
 def provenance(config):
@@ -24,12 +26,14 @@ def provenance(config):
              Path(config.raw['camera_calibration_file'])]
     if 'execution_delay_window' in config.raw:
         files.append(Path(config.raw['execution_delay_window']['profile_file']))
+    if config.raw.get('experimental_direct_drop_guard'):
+        files.append(Path(config.raw['experimental_direct_drop_guard']['source_file']))
     files += sorted(Path(__file__).parent.glob('*.py'))
     files.append(Path(__file__).parent.parent/'move_to_wait.py')
     root=Path(__file__).resolve().parents[2]
     files += [root/'mujoco_conveyor_sorting/runtime'/name for name in (
-        'nero_pick_hardware.py','single_pick.py','frame_products.py','scene_region_filter.py',
-        'nero7_belt_velocity.py','nero7_occlusion_tracker.py','nero7_fused_detection.py','nero7_tracking_roi.py','nero7_boundary_depth.py','workpiece_admission.py',
+        'nero_pick_hardware.py','single_pick.py','joint_stream_sender.py','frame_products.py','scene_region_filter.py',
+        'nero7_belt_velocity.py','nero7_occlusion_tracker.py','nero7_fused_detection.py','nero7_tracking_roi.py','nero7_boundary_depth.py','nero7_height_split.py','workpiece_admission.py',
         'pointcloud_speed_tracker.py')]
     files += [root/'mujoco_conveyor_sorting/models/robot.xml',
               root/'mujoco_conveyor_sorting/configs/robot.yaml',
@@ -41,7 +45,8 @@ def provenance(config):
     return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
 
 
-def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp'):
+def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp',
+         phase_timing_hardware_test=False):
     if freeze_source not in ('tracked','single_exposure_native_depth'):
         raise ValueError('unknown freeze acquisition source')
     if candidate_retry_policy not in ('per_grasp','coarse_first'):
@@ -56,14 +61,16 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
     cycles.add_argument('--continuous', action='store_true', help='连续抓取；每轮回等待位，Ctrl+C退出')
     belt_speed = parser.add_mutually_exclusive_group()
     belt_speed.add_argument('--belt-speed-cm-s', type=float,
-        help='本次运行的固定预测带速，单位cm/s，例如4.53；省略时沿用配置')
+        help='本次运行的固定预测带速，单位cm/s；真机执行必须明确指定或由配置提供')
     belt_speed.add_argument('--fixed-belt-speed-m-s', type=float,
-        help='本次运行覆盖配置使用用户设定带速m/s；省略时使用配置指定的速度来源')
+        help='本次运行的固定预测带速，单位m/s；真机执行必须明确指定或由配置提供')
     parser.add_argument('--preview', action='store_true', help='共用当前相机来源，打开只读画面及碰撞预测窗口')
     parser.add_argument('--web-preview', action='store_true', help='共享原子预览文件供本地网页读取，不启动额外相机或Qt窗口')
     parser.add_argument('--record-rgbd', action='store_true', help='异步记录同源RGB-D，供事后重建场景点云')
     parser.add_argument('--taught-transfer', type=Path, help='覆盖配置中的载物投放示教文件，须与 --taught-return 成对提供')
     parser.add_argument('--taught-return', type=Path, help='覆盖配置中的空爪返回示教文件，须与 --taught-transfer 成对提供')
+    parser.add_argument('--experimental-direct-drop-guard', type=Path,
+        help='实验：按给定名义料框高度文件规划直接投放；不会证明实际物理间隙')
     args = parser.parse_args(argv)
     preview_enabled = args.preview or args.web_preview
     if args.check_config and args.execute:
@@ -75,6 +82,9 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
     # All configuration checks happen before importing a camera or CAN SDK.
     try:
         config = CellConfig.load(args.config)
+        if args.execute:
+            from .phase_timing import authorize_hardware_test
+            authorize_hardware_test(config, enabled=phase_timing_hardware_test)
         if candidate_retry_policy == 'coarse_first' and (
                 config.raw['trajectory_profile'] != 'smooth' or
                 config.raw['intercept_strategy'] != 'synchronized'):
@@ -85,8 +95,9 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
                      else args.fixed_belt_speed_m_s)
         if speed_m_s is not None:
             config = with_fixed_belt_speed(config, speed_m_s)
+        if args.execute and not is_fixed(config):
+            raise ValueError('真机抓取不使用视觉测速；请指定实际固定带速 --belt-speed-cm-s 或 --fixed-belt-speed-m-s')
         if freeze_source=='single_exposure_native_depth':
-            from .velocity_source import is_fixed
             if not is_fixed(config):
                 raise ValueError('单帧冻结入口必须填写真实固定带速 --belt-speed-cm-s')
             if (config.raw['intercept_strategy']!='synchronized'
@@ -104,11 +115,30 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             if config.raw['trajectory_profile'] != 'smooth':
                 raise ValueError('示教轨迹需要平滑轨迹模式')
             config.raw['taught_segments'] = {
-                'transfer': TaughtSegment.load(taught_transfer, config, 'transfer'),
-                'return': TaughtSegment.load(taught_return, config, 'return')}
+                'transfer': TaughtSegment.load(taught_transfer, config, 'transfer')}
+            if config.raw['taught_return_strategy'] == 'recorded_then_wait':
+                config.raw['taught_segments']['return'] = TaughtSegment.load(taught_return, config, 'return')
+            if config.raw['taught_entry_search_enabled']:
+                from .taught_entry import suffix
+                for index in config.raw['taught_entry_indices']:
+                    suffix(config.raw['taught_segments']['transfer'], index)
+        elif config.raw['taught_entry_search_enabled']:
+            raise ValueError('动态示教切入需要已配置的投放示教文件')
         if (config.raw['obb_grasp_orientation_reference'] == 'taught_transfer_start'
                 and not config.raw.get('taught_segments', {}).get('transfer')):
             raise ValueError('示教起点抓姿排序需要已加载的搬运示教轨迹')
+        if config.raw['carry_lookahead_enabled'] and not config.raw.get('taught_segments', {}).get('transfer'):
+            raise ValueError('搬运预规划需要已加载投放目标')
+        if config.raw['carry_lookahead_enabled'] and config.raw['trajectory_profile'] != 'smooth':
+            raise ValueError('搬运预规划需要平滑抓取轨迹')
+        if args.experimental_direct_drop_guard is not None:
+            if not config.raw.get('taught_segments', {}).get('transfer') or not config.raw['prepared_taught_cycle_enabled']:
+                raise ValueError('实验直接投放需要投放示教终点及预计算搬运')
+            if config.raw['taught_entry_search_enabled']:
+                raise ValueError('实验直接投放不能同时启用多示教切入点选择')
+            from .direct_drop_guard import load_guard
+            config.raw['experimental_direct_drop_guard'] = load_guard(
+                args.experimental_direct_drop_guard, config, config.raw['taught_segments']['transfer'])
         from mujoco_conveyor_sorting.runtime.depth_calibration import load_runtime_depth_calibration
         calibration = load_runtime_depth_calibration(config.raw['camera_calibration_file'])
     except (ValueError, OSError, KeyError, TypeError) as error:
@@ -120,15 +150,26 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         return 2
     if not args.execute:
         print(json.dumps({'status': 'configuration_valid', 'strategy': 'two_second',
+            'phase_timing': config.raw.get('phase_timing'),
             'freeze_source':freeze_source,
             'candidate_retry_policy':candidate_retry_policy,
             'continuous':args.continuous, 'requested_count':None if args.continuous else args.count,
             'mode': 'check_only', 'hardware_connections': 0, 'commands_sent': 0,
+            'hardware_speed_ready': is_fixed(config),
             'tcp_source': config.raw['tcp_source'],
             'taught_segments': {k:v.summary() for k,v in config.raw.get('taught_segments', {}).items()},
             'taught_playback_enabled': config.raw['taught_playback_enabled'],
             'obb_grasp_orientation_reference': config.raw['obb_grasp_orientation_reference'],
             'prepared_taught_cycle_enabled': config.raw['prepared_taught_cycle_enabled'],
+            'carry_lookahead_enabled': config.raw['carry_lookahead_enabled'],
+            'direct_drop_orientation_first': config.raw['direct_drop_orientation_first'],
+            'direct_drop_continuous_carry': config.raw['direct_drop_continuous_carry'],
+            'taught_return_strategy': config.raw['taught_return_strategy'],
+            'taught_entry_search_enabled': config.raw['taught_entry_search_enabled'],
+            'taught_entry_indices': config.raw['taught_entry_indices'],
+            'experimental_direct_drop_guard': config.raw.get('experimental_direct_drop_guard'),
+            'continuous_lookahead_enabled': config.raw['continuous_lookahead_enabled'],
+            'lookahead_return_margin_s': config.raw['lookahead_return_margin_s'],
             'taught_joint_jerk_limit_rad_s3': config.raw.get('taught_joint_jerk_limit_rad_s3'),
             'taught_transfer_jerk_limit_rad_s3': config.raw.get('taught_transfer_jerk_limit_rad_s3'),
             'taught_transfer_max_duration_s': config.raw.get('taught_transfer_max_duration_s'),
@@ -137,7 +178,9 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             'velocity_policy': velocity_policy(config),
             'perception_detection_mode':config.raw['perception_detection_mode'],
             'perception_search_region':config.raw['perception_search_region'],
+            'perception_detector_workspace_y_m':config.raw.get('perception_detector_workspace_y_m'),
             'isolate_boundary_depth_gaps':config.raw['isolate_boundary_depth_gaps'],
+            'split_mixed_belt_candidates':config.raw['split_mixed_belt_candidates'],
             'perception_plane_mode':config.raw['perception_plane_mode'],
             'tcp_calibration_id': config.raw['tcp_calibration_id'],
             'default_bin': config.default_bin,
@@ -147,6 +190,7 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             'intercept_strategy': config.raw['intercept_strategy'],
             'synchronized_duration_s': config.raw['synchronized_duration_s'],
             'closure_policy': config.raw['closure_policy'],
+            'grip_confirmation_dwell_s': GRIP_CONFIRMATION_DWELL_S,
             'environment_collision_scope': config.raw['environment_collision_scope'],
             'workpiece_collision_margin_m': config.raw['workpiece_collision_margin_m'],
             'payload_belt_clearance_m': config.raw['payload_belt_clearance_m'],
@@ -175,6 +219,11 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             'joint_position_margins_rad': config.raw['joint_position_margins_rad'],
             'joint_receive_offset_s': config.raw['hardware']['joint_receive_offset_s'],
             'runtime_command_acceleration_check_enabled': config.raw['runtime_command_acceleration_check_enabled'],
+            'runtime_command_velocity_check_enabled': config.raw['runtime_command_velocity_check_enabled'],
+            'runtime_sweep_mode': config.raw['runtime_sweep_mode'],
+            'runtime_sweep_hz': config.raw['runtime_sweep_hz'],
+            'runtime_sweep_max_age_s': config.raw['runtime_sweep_max_age_s'],
+            'dispatch_hz': config.settings.control_hz,
             'loaded_motion_profile': select_motion_profile(config, payload=True).diagnostics(),
             'startup_return_wait_policy': return_wait_policy(config),
             'source_hashes': provenance(config),
@@ -196,12 +245,22 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
     begin = time.monotonic()
     reports, executors = [], []
     result = {'mode': 'hardware', 'strategy': 'two_second', 'freeze_source':freeze_source,'source_hashes': provenance(config),
+              'phase_timing': config.raw.get('phase_timing'),
+              'phase_timing_hardware_test': phase_timing_hardware_test,
               'candidate_retry_policy':candidate_retry_policy,
               'joint_receive_offset_s': config.raw['hardware']['joint_receive_offset_s'],
               'taught_segments': {k:v.summary() for k,v in config.raw.get('taught_segments', {}).items()},
               'taught_playback_enabled': config.raw['taught_playback_enabled'],
               'obb_grasp_orientation_reference': config.raw['obb_grasp_orientation_reference'],
               'prepared_taught_cycle_enabled': config.raw['prepared_taught_cycle_enabled'],
+              'carry_lookahead_enabled': config.raw['carry_lookahead_enabled'],
+              'direct_drop_orientation_first': config.raw['direct_drop_orientation_first'],
+              'direct_drop_continuous_carry': config.raw['direct_drop_continuous_carry'],
+              'taught_return_strategy': config.raw['taught_return_strategy'],
+              'taught_entry_search_enabled': config.raw['taught_entry_search_enabled'],
+              'taught_entry_indices': config.raw['taught_entry_indices'],
+              'experimental_direct_drop_guard': config.raw.get('experimental_direct_drop_guard'),
+              'continuous_lookahead_enabled': config.raw['continuous_lookahead_enabled'],
               'taught_joint_jerk_limit_rad_s3': config.raw.get('taught_joint_jerk_limit_rad_s3'),
               'taught_transfer_jerk_limit_rad_s3': config.raw.get('taught_transfer_jerk_limit_rad_s3'),
               'taught_transfer_max_duration_s': config.raw.get('taught_transfer_max_duration_s'),
@@ -217,7 +276,9 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
               'velocity_policy': velocity_policy(config),
               'perception_detection_mode':config.raw['perception_detection_mode'],
               'perception_search_region':config.raw['perception_search_region'],
+              'perception_detector_workspace_y_m':config.raw.get('perception_detector_workspace_y_m'),
               'isolate_boundary_depth_gaps':config.raw['isolate_boundary_depth_gaps'],
+              'split_mixed_belt_candidates':config.raw['split_mixed_belt_candidates'],
               'perception_plane_mode':config.raw['perception_plane_mode'],
               'environment_collision_scope': config.raw['environment_collision_scope'],
               'payload_belt_clearance_m': config.raw['payload_belt_clearance_m'],
@@ -225,6 +286,7 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
               'recovery_allow_workpiece_contact': config.raw['recovery_allow_workpiece_contact'],
               'return_wait_precision_enabled': config.raw['return_wait_precision_enabled'],
               'closure_policy': config.raw['closure_policy'],
+              'grip_confirmation_dwell_s': GRIP_CONFIRMATION_DWELL_S,
               'intercept_strategy': config.raw['intercept_strategy'],
               'synchronized_duration_s': config.raw['synchronized_duration_s'],
               'freeze_upstream_distance_m': config.raw['freeze_upstream_distance_m'],
@@ -242,6 +304,10 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
     result.update(startup_return_wait_policy=return_wait_policy(config),
                   startup_return_wait={'status': 'not_checked'})
     result.update(runtime_command_acceleration_check_enabled=config.raw['runtime_command_acceleration_check_enabled'],
+                  runtime_command_velocity_check_enabled=config.raw['runtime_command_velocity_check_enabled'],
+        runtime_sweep_mode=config.raw['runtime_sweep_mode'],
+        runtime_sweep_hz=config.raw['runtime_sweep_hz'],
+        runtime_sweep_max_age_s=config.raw['runtime_sweep_max_age_s'],
         trajectory_profile=config.raw['trajectory_profile'],
         approach_duration_candidates_s=config.raw.get('approach_duration_candidates_s'),
         follow_duration_s=config.settings.full_plan_close_window_s,
@@ -252,7 +318,9 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         joint_position_margins_rad=config.raw['joint_position_margins_rad'],
         loaded_motion_profile=select_motion_profile(config, payload=True).diagnostics())
     runtime = {'phase': 'starting'}
-    vision = executor = planner = visuals = viewer = recorder = None
+    vision = executor = planner = visuals = viewer = recorder = lookahead = runtime_sweeps = carry_plans = None
+    experiment_archive = None
+    attempt_archive = None
 
     def set_phase(phase, **context):
         nonlocal runtime
@@ -263,7 +331,8 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         active_executor = executors[-1] if executors else executor
         return {**runtime, 'execution_stage': None if active_executor is None else active_executor.stage,
             'startup_return_wait': result['startup_return_wait'],
-            'planner': None if planner is None else planner.diagnostics(),
+            'planner': None if planner is None else getattr(active_executor, 'planner', planner).diagnostics(),
+            'lookahead': None if lookahead is None else lookahead.diagnostics(),
             'vision': None if vision is None else vision.diagnostics()}
 
     def request_cancel(number, _):
@@ -271,12 +340,16 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         result['received_signal'] = signal.Signals(number).name
         cancelled.set()
 
-    def save_attempt(active,index,report=None):
-        directory=args.output/f'cycle_{index:03d}'
-        active.trace.write(directory)
-        (directory/'events.json').write_text(json.dumps(json_value(active.events),ensure_ascii=False,indent=2))
-        if report is not None:
-            (directory/'report.json').write_text(json.dumps(json_value(report),ensure_ascii=False,indent=2))
+    def save_attempt(active,index,report=None,*,background=True):
+        from .attempt_archive import CompletedAttempt, write_attempt
+        record = getattr(active,'completed_archive_record',None)
+        if record is None:
+            record = CompletedAttempt.capture(active,index,report)
+            active.completed_archive_record = record
+        if attempt_archive is not None and background:
+            active.trace_archive_ticket = attempt_archive.submit(record)
+            return
+        directory = write_attempt(record,args.output)
         active.trace_saved=True
         result['archived_attempt_count']+=1
         journal.emit('cycle_trace_saved',cycle_index=index,directory=str(directory),
@@ -294,9 +367,17 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         isolate_boundary_depth_gaps=config.raw['isolate_boundary_depth_gaps'],
         recovery_allow_workpiece_contact=config.raw['recovery_allow_workpiece_contact'],
         closure_policy=config.raw['closure_policy'],
+        grip_confirmation_dwell_s=GRIP_CONFIRMATION_DWELL_S,
         taught_segments=result['taught_segments'],
         taught_playback_enabled=result['taught_playback_enabled'],
         prepared_taught_cycle_enabled=result['prepared_taught_cycle_enabled'],
+        carry_lookahead_enabled=result['carry_lookahead_enabled'],
+        direct_drop_orientation_first=result['direct_drop_orientation_first'],
+        direct_drop_continuous_carry=result['direct_drop_continuous_carry'],
+        taught_return_strategy=result['taught_return_strategy'],
+        taught_entry_search_enabled=result['taught_entry_search_enabled'],
+        taught_entry_indices=result['taught_entry_indices'],
+        experimental_direct_drop_guard=result['experimental_direct_drop_guard'],
         taught_joint_jerk_limit_rad_s3=result['taught_joint_jerk_limit_rad_s3'],
         taught_transfer_jerk_limit_rad_s3=result['taught_transfer_jerk_limit_rad_s3'],
         taught_transfer_max_duration_s=result['taught_transfer_max_duration_s'],
@@ -309,9 +390,13 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             'source_device_s': 'camera_device_clock_no_direct_subtraction_from_host_time'},
         joint_velocity_limits_rad_s=config.velocity_limits,
         joint_acceleration_limits_rad_s2=config.acceleration_limits,
-        runtime_command_acceleration_check_enabled=config.raw['runtime_command_acceleration_check_enabled'])
+        runtime_command_acceleration_check_enabled=config.raw['runtime_command_acceleration_check_enabled'],
+        runtime_command_velocity_check_enabled=config.raw['runtime_command_velocity_check_enabled'])
     monitor = ProgressMonitor(journal, progress_snapshot).start()
     try:
+        if args.continuous:
+            from .attempt_archive import AttemptArchive
+            attempt_archive = AttemptArchive(args.output,journal.emit)
         # This path is selected only by a human's explicit --execute command.
         set_phase('loading_dependencies')
         from mujoco_conveyor_sorting.runtime.nero_pick_hardware import Hardware
@@ -323,6 +408,12 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             from .vision import LiveVision
         from .execution import TwoSecondExecutor
         from .visual_archive import VisualArchive
+        from .experiment_archive import ExperimentArchive
+        experiment_archive = ExperimentArchive(args.output, journal.emit)
+        experiment_archive.save_configuration(config)
+        journal.emit('experiment_recording_enabled', directory=str(experiment_archive.directory),
+            frozen_targets=True, planning_inputs=True, successful_and_failed_plans=True,
+            physical_success_inferred=False)
         visuals = VisualArchive(args.output, journal.emit, live=preview_enabled,direction=config.direction,
             path_model_factory=(lambda: calibrated_model(config)) if preview_enabled else None)
         if args.record_rgbd:
@@ -340,6 +431,14 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         # Private mirrors are prepared once, before either device is opened.
         set_phase('model_startup')
         planner = MeasuredPlanner(config)
+        overlap = (config.raw['continuous_lookahead_enabled'] and
+            (args.continuous or args.count > 1) and config.raw['trajectory_profile'] == 'smooth'
+            and config.raw.get('intercept_strategy') == 'synchronized')
+        spare_planner = MeasuredPlanner(config) if overlap else None
+        experiment_archive.bind_planner(planner)
+        if spare_planner is not None:
+            experiment_archive.bind_planner(spare_planner)
+        result['continuous_lookahead_active'] = bool(overlap)
         if config.raw.get('taught_segments'):
             from .taught import prepare_taught_timing
             timings = {}
@@ -347,19 +446,44 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
                 prepared, _ = prepare_taught_timing(config, segment, planner.model,
                     payload=kind == 'transfer', cancelled=cancelled.is_set)
                 timings[kind] = {'duration_s': prepared.duration, **prepared.diagnostics}
+            if config.raw['taught_entry_search_enabled']:
+                from .taught_entry import prepare_entries
+                config.raw['_prepared_taught_entries'] = prepare_entries(
+                    config, config.raw['taught_segments']['transfer'], planner.model,
+                    cancelled=cancelled.is_set)
+                timings['entry_candidates'] = [item[0] for item in config.raw['_prepared_taught_entries']]
+                timings['entry_candidate_rejections'] = config.raw['_taught_entry_prewarm_rejections']
             journal.emit('taught_timing_prepared', segments=timings, hardware_connections=0)
         if preview_enabled:
-            original_intercept = planner.intercept
-            def intercept_with_visualization(*call_args, **call_kwargs):
-                plan = original_intercept(*call_args, **call_kwargs)
-                try:
-                    visuals.offer_plan(plan, width_m=config.settings.open_width_m)
-                except Exception as error:
-                    journal.emit('visualization_error', error_type=type(error).__name__, error=str(error))
-                return plan
-            planner.intercept = intercept_with_visualization
+            def add_visualization(candidate):
+                original_intercept = candidate.intercept
+                def intercept_with_visualization(*call_args, **call_kwargs):
+                    plan = original_intercept(*call_args, **call_kwargs)
+                    try:
+                        visuals.offer_plan(plan, width_m=config.settings.open_width_m)
+                    except Exception as error:
+                        journal.emit('visualization_error', error_type=type(error).__name__, error=str(error))
+                    return plan
+                candidate.intercept = intercept_with_visualization
+            add_visualization(planner)
+            if spare_planner is not None:
+                add_visualization(spare_planner)
         planner.collision_sink = visuals.submit
+        if spare_planner is not None:
+            spare_planner.collision_sink = visuals.submit
         detector_model = calibrated_model(config)
+        if config.raw['runtime_sweep_mode'] == 'process_periodic':
+            from .runtime_sweep import SweepService
+            # Spawn/warm the geometry worker before opening either device.
+            runtime_sweeps = SweepService(config)
+            result['runtime_sweep_worker'] = runtime_sweeps.worker
+            journal.emit('runtime_sweep_ready', **runtime_sweeps.worker,
+                check_hz=config.raw['runtime_sweep_hz'], dispatch_hz=config.settings.control_hz)
+        if config.raw['carry_lookahead_enabled']:
+            from .carry_lookahead import CarryLookahead
+            carry_plans = CarryLookahead(config)
+            result['carry_lookahead_worker'] = carry_plans.worker
+            journal.emit('carry_lookahead_ready', **carry_plans.worker)
         result['model_startup_wall_s'] = time.monotonic()-begin
         with ExitStack() as resources:
             set_phase('can_startup', can_channel=config.raw['hardware']['can_channel'])
@@ -388,6 +512,10 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             resources.callback(camera.close)
             camera.start()  # exactly one SDK capture owner
             vision = LiveVision(camera, calibration, config, detector_model, hw.snapshot_nowait)
+            if freeze_source=='single_exposure_native_depth':
+                experiment_archive.bind_single_exposure(vision)
+            if overlap:
+                vision.capture_state_reader = hw.snapshot_for_capture
             if preview_enabled or recorder is not None:
                 def offer_frame(frame, d2c):
                     if preview_enabled:
@@ -399,17 +527,31 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
                 vision.speed_sink = visuals.offer_speed
             resources.callback(vision.close)
             vision.start()
+            if overlap:
+                from .return_lookahead import ReturnLookahead
+                def offer_experiment_target(target):
+                    experiment_archive.offer_target(target)
+                    if preview_enabled or args.record_rgbd:
+                        visuals.offer_target(target)
+                lookahead = ReturnLookahead(config, vision, spare_planner, cancelled=cancelled,
+                    emit=journal.emit, offer_target=offer_experiment_target)
+                resources.callback(lookahead.close)
+                lookahead.start()
             result['device_startup_wall_s'] = time.monotonic()-begin-result['model_startup_wall_s']
             from .cycle_loop import run_pick_cycles
             def cycle_phase(phase, **context):
                 nonlocal executor
                 executor = executors[-1] if executors else None
+                if attempt_archive is not None:
+                    attempt_archive.check_health()
                 set_phase(phase, **context)
             run_pick_cycles(config, planner, hw, vision, count=result['requested_count'], cancelled=cancelled,
                 result=result, reports=reports, executors=executors, set_phase=cycle_phase,
-                journal=journal, executor_factory=TwoSecondExecutor,
+                journal=journal, executor_factory=partial(TwoSecondExecutor,
+                    sweep_service=runtime_sweeps, carry_service=carry_plans),
                 finish_attempt=save_attempt if args.continuous else None,
-                offer_target=visuals.offer_target if preview_enabled or args.record_rgbd else None)
+                offer_target=visuals.offer_target if preview_enabled or args.record_rgbd else None,
+                lookahead=lookahead)
             executor = executors[-1] if executors else None
     except BaseException as error:
         executor = executors[-1] if executors else executor
@@ -420,6 +562,10 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             error=str(error), error_type=type(error).__name__, details=getattr(error, 'details', {}))
         cancelled.set()
     finally:
+        if carry_plans is not None:
+            carry_plans.close()
+        if runtime_sweeps is not None:
+            runtime_sweeps.close()
         monitor.close()
         for number, handler in old_signals.items():
             signal.signal(number, handler)
@@ -427,6 +573,11 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
         result['vision_diagnostics'] = result['last_runtime']['vision']
         if recorder is not None:
             result['rgbd_recording'] = recorder.close()
+        if experiment_archive is not None:
+            result['experiment_recording'] = experiment_archive.close()
+            if not result['experiment_recording']['complete']:
+                result['log_save_errors'].extend(result['experiment_recording']['errors'])
+                journal.emit('experiment_recording_incomplete', **result['experiment_recording'])
         if visuals is not None:
             visual_close_begin = time.monotonic()
             result['visualization'] = visuals.close()
@@ -447,11 +598,18 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp')
             result['preview_process_exit_code'] = viewer.poll()
         # Save traces after all senders, camera reader and CAN ownership ended.
         save_begin = time.monotonic()
+        if attempt_archive is not None:
+            archive_result = attempt_archive.close()
+            result['attempt_archive'] = archive_result
+            result['archived_attempt_count'] += archive_result['saved']
+            result['log_save_errors'].extend(archive_result['errors'])
+            result['log_save_errors'].extend(archive_result['notification_errors'])
         for i, executor in enumerate(executors):
             index=getattr(executor,'cycle_index',i+1)
+            if getattr(executor,'trace_archive_ticket',None) is not None:continue
             if getattr(executor,'trace_saved',False):continue
             try:
-                save_attempt(executor,index)
+                save_attempt(executor,index,background=False)
             except Exception as error:
                 result['log_save_errors'].append(f'cycle_{index:03d}: {type(error).__name__}: {error}')
         journal.emit('run_finished', status=result['status'], received_signal=result['received_signal'],

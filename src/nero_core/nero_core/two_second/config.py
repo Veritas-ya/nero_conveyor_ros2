@@ -54,16 +54,30 @@ class CellConfig:
         if not np.isfinite(height) or height <= .012:
             raise ValueError('maximum_target_height_m 必须高于原检测下限12mm')
         raw['maximum_target_height_m'] = height
+        length = raw.setdefault('maximum_target_length_m', .16)
+        if isinstance(length, bool) or not isinstance(length, (int, float)) or not np.isfinite(length) or not .015 <= length <= .30:
+            raise ValueError('maximum_target_length_m 必须为0.015至0.30米的有限长边上限')
+        raw['maximum_target_length_m'] = float(length)
+        if not isinstance(raw.setdefault('local_target_geometry_enabled', True), bool):
+            raise ValueError('local_target_geometry_enabled 必须为布尔值')
         mode=raw.setdefault('perception_detection_mode','rgb_depth')
         if mode not in ('legacy_depth','depth_plane','rgb','rgb_depth'):
             raise ValueError('perception_detection_mode 不受原Nero7检测器支持')
         if not isinstance(raw.setdefault('isolate_boundary_depth_gaps', False), bool):
             raise ValueError('isolate_boundary_depth_gaps 必须为布尔值')
+        if not isinstance(raw.setdefault('split_mixed_belt_candidates', False), bool):
+            raise ValueError('split_mixed_belt_candidates 必须为布尔值')
         if raw.setdefault('perception_plane_mode','ransac3d') not in ('fixed','ransac3d'):
             raise ValueError('perception_plane_mode 必须为 fixed 或 ransac3d')
         if raw.setdefault('perception_search_region','height_prism') not in (
                 'height_prism','measured_belt_footprint'):
             raise ValueError('perception_search_region 必须为 height_prism 或 measured_belt_footprint')
+        if 'perception_detector_workspace_y_m' in raw:
+            bounds = vector(raw['perception_detector_workspace_y_m'], 2,
+                            'perception_detector_workspace_y_m')
+            if bounds[0] >= bounds[1]:
+                raise ValueError('perception_detector_workspace_y_m 上下界无效')
+            raw['perception_detector_workspace_y_m'] = bounds.tolist()
         from .belt_collision_scene import OBSERVED_SCENE, SCOPES
         scope = raw.setdefault('environment_collision_scope', OBSERVED_SCENE)
         if scope not in SCOPES:
@@ -90,6 +104,35 @@ class CellConfig:
             raise ValueError('taught_transfer_timing_policy 不受支持')
         if not isinstance(raw.setdefault('prepared_taught_cycle_enabled', False), bool):
             raise ValueError('prepared_taught_cycle_enabled 必须为布尔值')
+        if not isinstance(raw.setdefault('carry_lookahead_enabled', False), bool):
+            raise ValueError('carry_lookahead_enabled 必须为布尔值')
+        if not isinstance(raw.setdefault('direct_drop_orientation_first', False), bool):
+            raise ValueError('direct_drop_orientation_first 必须为布尔值')
+        if not isinstance(raw.setdefault('direct_drop_continuous_carry', False), bool):
+            raise ValueError('direct_drop_continuous_carry 必须为布尔值')
+        if raw['direct_drop_continuous_carry'] and not raw['direct_drop_orientation_first']:
+            raise ValueError('整段投放需要 direct_drop_orientation_first')
+        if raw['carry_lookahead_enabled'] and not (raw['prepared_taught_cycle_enabled'] and raw['taught_playback_enabled']):
+            raise ValueError('搬运预规划需要启用预计算搬运和示教目标')
+        if raw.setdefault('taught_return_strategy', 'recorded_then_wait') not in (
+                'recorded_then_wait', 'direct_to_wait'):
+            raise ValueError('taught_return_strategy 必须为 recorded_then_wait 或 direct_to_wait')
+        if not isinstance(raw.setdefault('taught_entry_search_enabled', False), bool):
+            raise ValueError('taught_entry_search_enabled 必须为布尔值')
+        indices = raw.setdefault('taught_entry_indices', [0])
+        if (not isinstance(indices, list) or not 1 <= len(indices) <= 5 or
+                any(isinstance(i, bool) or not isinstance(i, int) or i < 0 for i in indices) or
+                0 not in indices or len(set(indices)) != len(indices)):
+            raise ValueError('taught_entry_indices 必须包含0，且为1至5个不重复的非负整数')
+        if raw['taught_entry_search_enabled'] and not (raw['taught_playback_enabled'] and
+                                                       raw['prepared_taught_cycle_enabled']):
+            raise ValueError('动态示教切入需要启用示教回放和预计算搬运')
+        if not isinstance(raw.setdefault('continuous_lookahead_enabled', True), bool):
+            raise ValueError('continuous_lookahead_enabled 必须为布尔值')
+        margin = raw.setdefault('lookahead_return_margin_s', .2)
+        if isinstance(margin, (bool, str)) or not isinstance(margin, (int, float)) or not np.isfinite(margin) or margin < .1:
+            raise ValueError('lookahead_return_margin_s 须为至少0.1秒的有限数值')
+        raw['lookahead_return_margin_s'] = float(margin)
         if not isinstance(raw.setdefault('return_wait_precision_enabled', False), bool):
             raise ValueError('return_wait_precision_enabled 必须为布尔值')
         for key in ('taught_joint_jerk_limit_rad_s3', 'taught_transfer_jerk_limit_rad_s3',
@@ -162,12 +205,18 @@ class CellConfig:
         settings.validate(allow_zero_close_window=(raw.get('trajectory_profile') == 'smooth'
             and raw.get('intercept_strategy') == 'synchronized'
             and raw.get('closure_policy') == 'scheduled_attempt'))
+        from .runtime_sweep import SweepSettings
+        sweep = SweepSettings.from_raw(raw, settings.control_hz)
+        raw.update(runtime_sweep_mode=sweep.mode, runtime_sweep_hz=sweep.hz,
+                   runtime_sweep_max_age_s=sweep.max_age_s)
         geometry_hz = float(raw.get('geometry_check_hz', 2.*settings.control_hz))
         if not np.isfinite(geometry_hz) or geometry_hz <= 0:
             raise ValueError('geometry_check_hz 必须为正有限数')
         raw['geometry_check_hz'] = geometry_hz
         if not isinstance(raw.setdefault('runtime_command_acceleration_check_enabled', False), bool):
             raise ValueError('runtime_command_acceleration_check_enabled 必须为布尔值')
+        if not isinstance(raw.setdefault('runtime_command_velocity_check_enabled', True), bool):
+            raise ValueError('runtime_command_velocity_check_enabled 必须为布尔值')
         # Deleting a site override restores the existing strategy profile.
         # An explicit null/NaN/infinity is never an unbounded hardware profile.
         velocity_key = 'joint_velocity_limits_rad_s'
@@ -208,6 +257,10 @@ class CellConfig:
         raw['motion_limit_sources']['loaded_acceleration'] = loaded_source
         if raw.setdefault('planning_reserve_mode', 'fixed') not in ('fixed', 'measured'):
             raise ValueError('planning_reserve_mode 须为 fixed 或 measured')
+        initial = raw.get('measured_planning_initial_s', 0.)
+        if isinstance(initial, bool) or not isinstance(initial, (int, float)) or not np.isfinite(initial) or initial < 0:
+            raise ValueError('measured_planning_initial_s 须为非负有限秒数')
+        raw['measured_planning_initial_s'] = float(initial)
         for key, default_value in (('command_advance_s', .1), ('minimum_speed_span_s', .45),
                                    ('planning_reserve_s', 1.5), ('maximum_observation_age_s', 1.),
                                    ('freeze_upstream_distance_m', DEFAULT_FREEZE_UPSTREAM_DISTANCE_M),
@@ -326,6 +379,9 @@ class CellConfig:
         if 'execution_delay_window' in raw:
             from .execution_delay_window import validate_configuration
             validate_configuration(raw, path)
+        if 'phase_timing' in raw:
+            from .phase_timing import validate_configuration
+            validate_configuration(raw, workspace, direction)
         return cls(raw, settings, path, hashlib.sha256(content).hexdigest(), tcp,
                    canonical, direction, follow, workspace,
                    vector(raw['standby_joint_rad'], 7, 'standby joints'), bins,

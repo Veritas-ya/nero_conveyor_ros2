@@ -118,6 +118,15 @@ def test_an_unconfirmed_return_never_rearms(status):
 def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_path,monkeypatch,preview):
     from test_two_second_diagnostics import wire_offline_entry
     entry,path,calls=wire_offline_entry(monkeypatch,'waiting')
+    # This fixture tests cancellation of the original serial owner; the
+    # lookahead lifecycle and overlapping return have their own device doubles.
+    from nero_core.two_second.config import CellConfig
+    original_load = CellConfig.load
+    def serial_fixture(config_path):
+        config = original_load(config_path)
+        config.raw['continuous_lookahead_enabled'] = False
+        return config
+    monkeypatch.setattr(CellConfig, 'load', serial_fixture)
     class Viewer:
         pid=12345
         running=True
@@ -141,8 +150,13 @@ def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_pa
             item=target(self.index)
             item.capture_s=item.received_s=time.monotonic()
             return item
+    next_attempt_started=Event()
     class Trace:
         def write(self,directory):
+            if directory.name=='cycle_001':
+                # A synchronous first archive cannot satisfy this: the next
+                # executor must start before the first disk operation ends.
+                assert next_attempt_started.wait(timeout=2.)
             directory.mkdir(parents=True,exist_ok=True)
             (directory/'test_trace.json').write_text('{"offline_test_only":true}')
     class Executor:
@@ -151,12 +165,13 @@ def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_pa
             self.trace=Trace();self.events=[];self.event_logging_errors=[]
             self.command_history=NS(diagnostics=lambda:{'offline_test_only':True})
         def run(self,item):
+            if item.sequence==2:next_attempt_started.set()
             return {'status':'cycle_completed_from_feedback' if item.sequence==1 else
                 'attempt_cancelled_returned_to_wait','returned_to_wait':True}
     monkeypatch.setattr(importlib.import_module('nero_core.two_second.vision'),'LiveVision',Vision)
     monkeypatch.setattr(importlib.import_module('nero_core.two_second.execution'),'TwoSecondExecutor',Executor)
     output=tmp_path/'continuous'
-    argv=['--config',str(path),'--continuous','--execute','--output',str(output)]
+    argv=['--config',str(path),'--continuous','--execute','--belt-speed-cm-s','5.95','--output',str(output)]
     if preview:argv.append('--preview')
     assert entry.main(argv)==1
     summary=json.loads((output/'summary.json').read_text())
@@ -164,6 +179,8 @@ def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_pa
     assert summary['continuous'] and summary['requested_count'] is None
     assert summary['completed_feedback_cycles']==summary['recovered_attempts']==1
     assert summary['archived_attempt_count']==2 and summary['log_save_errors']==[]
+    assert summary['attempt_archive']['saved']==2
+    assert not summary['attempt_archive']['writer_alive']
     for index in (1,2):
         assert (output/f'cycle_{index:03d}'/'test_trace.json').exists()
         assert json.loads((output/f'cycle_{index:03d}'/'report.json').read_text())['returned_to_wait']

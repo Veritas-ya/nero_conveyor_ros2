@@ -11,7 +11,7 @@ from .reference import (Intercept, predict_entry_time, DEFAULT_FREEZE_UPSTREAM_D
     APPROACH_DURATION_S)
 from .trajectory import certify_curve, sampling_times, retime_samples, merge_collinear_waypoints, geometry_check_times
 from .motion_profile import select_motion_profile
-from .belt_collision_scene import BELT_SURFACE_ONLY, possible_belt_neighbors
+from .belt_collision_scene import BELT_SURFACE_ONLY, BELT_SUPPORT_BAND_M, possible_belt_neighbors
 from .feedback_gates import TRAJECTORY_ARRIVAL_TOLERANCE_RAD
 from .workpiece_contact import recovery_contact_allowed
 
@@ -59,6 +59,7 @@ class MeasuredPlanner:
         self.clock = clock
         self.version = 0
         self.identity = None
+        self.intercept_not_before_s = None
         self.target = None
         self.payload_local = None
         self.scene_revision = 0
@@ -129,6 +130,9 @@ class MeasuredPlanner:
         if np.any(xyz < self.config.workspace[:, 0]) or np.any(xyz > self.config.workspace[:, 1]):
             raise PickRejected('TCP 超出现场工作区', details={'kind':'tcp_workspace',
                 'tcp_base_m':xyz.tolist(), 'workspace_base_m':self.config.workspace.tolist()})
+        if payload and self.config.raw.get('experimental_direct_drop_guard'):
+            from .direct_drop_guard import check_guard
+            check_guard(self, tcp, payload=True)
         # Support height is checked on actual hull vertices rather than TCP.
         for geom in self.model.gripper_geometries:
             vertices = self.model.mesh_vertices[geom]
@@ -164,7 +168,9 @@ class MeasuredPlanner:
         released = not payload and stamp is None and self.released_points is not None
         delta = None
         if payload:
-            points = self.payload_local @ tcp[:3, :3].T + xyz
+            # Keep the original full-cloud transform for narrow phase, but
+            # only materialize it if a robot or scene broad phase needs it.
+            points = None
         elif stamp is not None:
             # The immutable target tree is in exposure coordinates. Translate
             # only broad-phase hits; materialize the full predicted cloud on a
@@ -173,9 +179,9 @@ class MeasuredPlanner:
             delta = self.target.velocity * (float(stamp)-self.target.capture_s)
         else:
             points = self.released_points if released else np.empty((0, 3))
-        if not len(self.target.points if points is None else points):
+        if not len((self.payload_local if payload else self.target.points) if points is None else points):
             return
-        if points is None:
+        if points is None and not payload:
             # Scope: moving target during approach/follow only. Payload and
             # released clouds and all scene/self/belt checks remain unchanged.
             if allow_workpiece or not self.config.raw.get('grasp_workpiece_collision_check_enabled', True):
@@ -199,18 +205,22 @@ class MeasuredPlanner:
                     detail['diagnostic_error']=message
                 raise PickRejected('机器人与实测工件点云碰撞',details=detail)
             return
-        for geom in (() if allow_workpiece else self.model.meshes):
-            if geom in self.model.fingers and (contact or payload or released):
-                continue
-            center = self.model.data.geom_xpos[geom]
+        geometries = tuple(geom for geom in self.model.meshes if not allow_workpiece and
+            not (geom in self.model.fingers and (contact or payload or released)))
+        neighbors = []
+        if geometries:
+            centers = self.model.data.geom_xpos[list(geometries)]
+            radii = [self.model.collision_radii[geom]+1e-9 for geom in geometries]
             if payload:
-                local_center = (center-xyz) @ tcp[:3, :3]
-                ids = self.payload_tree.query_ball_point(local_center, self.model.collision_radii[geom]+1e-9)
+                neighbors = self.payload_tree.query_ball_point((centers-xyz) @ tcp[:3, :3], radii, return_sorted=False)
             elif not released:
-                ids = self.target_tree.query_ball_point(center-delta, self.model.collision_radii[geom]+1e-9)
+                neighbors = self.target_tree.query_ball_point(centers-delta, radii, return_sorted=False)
             else:
-                ids = self.released_tree.query_ball_point(center, self.model.collision_radii[geom]+1e-9)
+                neighbors = self.released_tree.query_ball_point(centers, radii, return_sorted=False)
+        for geom, ids in zip(geometries, neighbors):
             if ids:
+                if payload and points is None:
+                    points = self.payload_local @ tcp[:3, :3].T + xyz
                 nearby = self.target.points[ids]+delta if points is None else points[ids]
                 inside = self.model.inside_geom(nearby, geom, workpiece_margin)
                 if inside.any():
@@ -236,11 +246,29 @@ class MeasuredPlanner:
                 belt_only = self.scene_report is not None and self.scene_report['scope'] == BELT_SURFACE_ONLY
                 clearance = float(self.config.raw.get('payload_belt_clearance_m', .008)) if belt_only else .008
                 if belt_only:
+                    # The tree bounds enclose every unchanged payload point.
+                    # A linear support-height bound can prove that the whole
+                    # cloud is outside the installed belt's support band.
+                    # Near either boundary retain the exact old point query.
+                    tree = getattr(self, 'payload_tree', None)
+                    if hasattr(tree, 'mins') and hasattr(tree, 'maxes'):
+                        normal = tcp[:3, :3].T @ self.support
+                        offset = (xyz-self.support_origin) @ self.support
+                        lower = np.where(normal >= 0, tree.mins, tree.maxes) @ normal + offset
+                        upper = np.where(normal >= 0, tree.maxes, tree.mins) @ normal + offset
+                        reach = BELT_SUPPORT_BAND_M + clearance*np.linalg.norm(self.support) + 1e-12
+                        if lower > reach+1e-9 or upper < -reach-1e-9:
+                            return
+                    if points is None:
+                        points = self.payload_local @ tcp[:3, :3].T + xyz
                     # Every installed belt point lies within the fixed support
                     # band. Points farther than that band plus the unchanged
                     # clearance cannot be neighbours, regardless of XY.
                     possible = possible_belt_neighbors(points, self.support_origin, self.support, clearance)
                     query_points = points[possible]
+                elif points is None:
+                    points = self.payload_local @ tcp[:3, :3].T + xyz
+                    query_points = points
                 distance, indices = self.model.tree.query(query_points)
                 close = distance < clearance
                 if close.any():
@@ -620,6 +648,7 @@ class MeasuredPlanner:
             # and scene geometry; no unverified RRT shortcut is executed.
             timing_started = self.clock()
             times, qs = [0.], [q0.copy()]
+            rest_times = []
             for a, b in zip(path, path[1:]):
                 delta = abs(b-a)
                 seconds = max(float(np.max(1.875*delta/motion.velocity_limits)),
@@ -629,6 +658,7 @@ class MeasuredPlanner:
                     u = i/n
                     qs.append(a+(b-a)*(10*u**3-15*u**4+6*u**5))
                     times.append(times[-1]+seconds/n)
+                rest_times.append(times[-1])
             self.version += 1
             try:
                 try:
@@ -637,6 +667,7 @@ class MeasuredPlanner:
                             self.model.command_upper, identity=self.identity, version=self.version, stage=stage)
                         curve = replace(curve, diagnostics={**curve.diagnostics,
                             'original_waypoints': original_waypoints, 'waypoints': len(path),
+                            'route_waypoint_times_s':[t*curve.duration/times[-1] for t in rest_times[:-1]],
                             **motion.diagnostics()})
                     else:
                         curve = certify_curve(times, qs, motion, self.model.command_lower, self.model.command_upper,
@@ -646,6 +677,12 @@ class MeasuredPlanner:
                 geometry_started = self.clock()
                 try:
                     self.check_path(curve, width, payload=payload, cancelled=abort)
+                    if (smooth and stage == 'direct_drop' and payload and
+                            self.config.raw.get('direct_drop_blend_enabled', True) and
+                            not self.config.raw.get('direct_drop_continuous_carry', False)):
+                        from .carry_blend import blend_checked_path
+                        joins = [(t*curve.duration/times[-1], 'bisector') for t in rest_times[:-1]]
+                        curve = blend_checked_path(self,curve,width,joins,cancelled=abort)
                 finally:
                     evidence.times['curve_geometry'] += self.clock()-geometry_started
                 if abort():

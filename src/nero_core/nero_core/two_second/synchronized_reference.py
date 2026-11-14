@@ -82,7 +82,8 @@ def admit_synchronized_observation(capture_s, coordinate, speed, follow_bounds,
 
 def schedule_forward_join(*, capture_s, grasp_position, velocity, standby_position,
                           direction, now_s, planning_reserve_s, advance_s,
-                          join_s, synchronized_s, follow_s, follow_bounds, rotate_first_s=0.):
+                          join_s, synchronized_s, follow_s, follow_bounds, rotate_first_s=0.,
+                          earliest_dispatch_s=None):
     """Find a same-direction join and closure window from the frozen target.
 
     Returns host/simulation clock times only. This does not prove reachability,
@@ -110,6 +111,10 @@ def schedule_forward_join(*, capture_s, grasp_position, velocity, standby_positi
     # yields a monotonic quintic join in the belt direction.
     minimum_start = max(float(standby@axis)+speed*join_s/2, float(bounds[0]))
     earliest_join = now_s+planning_reserve_s+advance_s
+    if earliest_dispatch_s is not None:
+        if not np.isfinite(earliest_dispatch_s):
+            raise ValueError('invalid earliest dispatch time')
+        earliest_join = max(earliest_join, float(earliest_dispatch_s)+advance_s)
     earliest_sync = max(capture_s, earliest_join+rotate_first_s+join_s)
     sync_s = max(earliest_sync, capture_s+(minimum_start-float(grasp@axis))/speed)
     sync_coordinate = float(grasp@axis)+speed*(sync_s-capture_s)

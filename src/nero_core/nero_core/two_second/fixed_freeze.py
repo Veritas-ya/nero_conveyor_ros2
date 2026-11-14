@@ -128,7 +128,8 @@ class NativeDepthLocator:
             [GeometryPrototype(category_id=0,dimensions=(.05,.05,.05),symmetric=True)],
             support_plane_height=0.,roi_x=surface.bounds_xy_m[0],roi_y=surface.bounds_xy_m[1],
             minimum_height=.012,maximum_height=config.raw['maximum_target_height_m'],
-            minimum_mask_pixels=70,minimum_footprint=.012,maximum_footprint=.16,
+            minimum_mask_pixels=70,minimum_footprint=.012,
+            maximum_footprint=config.raw.get('maximum_target_length_m', .16),
             classification_enabled=False)
         self.intrinsics=k.matrix.copy();self.intrinsics[:2,2]-=[x0,y0]
 
@@ -141,10 +142,11 @@ class NativeDepthLocator:
                             [bounds[0,0],bounds[1,1],0.]])
         rectangle=rectangle@plane[:3,:3].T+plane[:3,3]
         coordinate=float(self.config.follow_bounds[0]-self.config.raw['freeze_position_upstream_m'])
-        # A complete allowed workpiece fits within 16 cm. Extra space keeps
-        # parts entering the view off the trigger crop's boundary.
-        polygon=_clip_polygon(rectangle,self.config.direction,coordinate-.20,True)
-        if len(polygon):polygon=_clip_polygon(polygon,self.config.direction,coordinate+.22,False)
+        # Preserve the legacy crop at 16cm; larger supported parts need enough
+        # room for their complete native-depth component, never a sliced cloud.
+        extra=max(0., self.config.raw.get('maximum_target_length_m', .16)-.16)
+        polygon=_clip_polygon(rectangle,self.config.direction,coordinate-.20-extra,True)
+        if len(polygon):polygon=_clip_polygon(polygon,self.config.direction,coordinate+.22+extra,False)
         if not len(polygon):raise ValueError('冻结线及搜索范围没有落在实测传送带视野内')
         prism=np.vstack((polygon,polygon+plane[:3,2]*self.config.raw['maximum_target_height_m']))
         optical=(prism-frame.camera_to_world_cv[:3,3])@frame.camera_to_world_cv[:3,:3]
@@ -175,18 +177,25 @@ class NativeDepthLocator:
             clean=foreground.copy();clean[foreground]=~filtered.removed_mask;foreground=clean
         components=self.pipeline.extract_components(None,z,self.intrinsics,np.eye(4),
             points_world=local,foreground_mask=foreground,roi_selects_components=True)
-        candidates=[];partial=0;near_zone_components=0
+        candidates=[];partial=0;near_zone_components=0;size_decisions=[]
         line=self.config.follow_bounds[0]-self.config.raw['freeze_position_upstream_m']
         cutoff=line+self.config.raw['freeze_position_tolerance_m']
         for component in components:
+            decision={'estimated_footprint_m':component.feature_vector[:2].tolist(),
+                      'maximum_length_m':self.pipeline.maximum_footprint, 'accepted':False}
+            size_decisions.append(decision)
             mask=component.mask
             if cv2.pointPolygonTest(self.surface.hull_xy,tuple(map(float,component.position[:2])),True)<=.025:
+                decision['reason']='belt_edge'
                 continue
             rows,cols=np.nonzero(mask)
             position=np.median(base[mask],axis=0)
             if line-.08<=position@self.config.direction<=cutoff+.08:near_zone_components+=1
             if mask[0].any() or mask[-1].any() or mask[:,0].any() or mask[:,-1].any():
+                decision['reason']='partial_component_at_crop'
                 partial+=1;continue
+            decision.update(accepted=True,reason='size_and_visibility_passed',
+                            distance_to_entry_m=float(self.config.follow_bounds[0]-position@self.config.direction))
             candidates.append(DepthCandidate(position,len(rows),
                 (rows+y0)*frame.depth_intrinsics.width+cols+x0))
         return candidates,dict(search_crop_yxyx=self.crop,candidate_count=len(candidates),
@@ -197,6 +206,8 @@ class NativeDepthLocator:
             native_depth_pixels=int(frame.depth_m.size),
             native_valid_depth_ratio=float(np.mean(np.isfinite(z)&(z>0))),
             near_freeze_zone_components=near_zone_components,robot_points_removed=removed,
+            maximum_target_length_m=self.pipeline.maximum_footprint,
+            size_decisions=size_decisions[:32],
             component_extraction=self.pipeline.last_component_workload)
 
 
@@ -214,10 +225,16 @@ def frozen_geometry(config,frame,d2c,surface,candidate,capture_s,*,clock=time.mo
     if (robot_model is None)!=(robot_state is None):
         raise ValueError('完整工件自身过滤需要配对反馈')
     detection_surface=fixed_freeze_detection_surface(surface)
-    detection=(detect_fn or detect_target)(frame,d2c,fit_plane=fit_plane,green_belt_points=green_belt_points,
+    detector=detect_fn or detect_target
+    if detect_fn is None and config.raw.get('local_target_geometry_enabled', True):
+        from mujoco_conveyor_sorting.runtime.local_target_geometry import detect_seed_local
+        original_detector=detector
+        detector=lambda *args,**kwargs: detect_seed_local(*args,detector=original_detector,**kwargs)
+    detection=detector(frame,d2c,fit_plane=fit_plane,green_belt_points=green_belt_points,
         target_shape='simple',measured_surface=detection_surface,robot_model=robot_model,robot_state=robot_state,
         target_seed_pixel_indices=candidate.seed_pixel_indices,
         maximum_target_height_m=config.raw['maximum_target_height_m'],
+        maximum_target_length_m=config.raw.get('maximum_target_length_m', .16),
         scene_scope=config.raw['environment_collision_scope'])
     overlap=float(np.mean(detection['mask'].ravel()[candidate.seed_pixel_indices]))
     if overlap<.5:
