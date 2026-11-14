@@ -151,6 +151,8 @@ def prepare_cycle(planner, config, state, start_joints, *, cancelled, recovery=F
                     config.raw['experimental_direct_drop_guard']['radius_m']/2.,cancelled=cancelled)
                 carry = replace(carry,diagnostics={**carry.diagnostics,
                     'drop_orientation_schedule':{**transfer.diagnostics['drop_orientation_schedule'],
+                        'pre_drop_role':('rounded_planning_guide' if config.raw.get(
+                            'direct_drop_continuous_carry',False) else 'exact_waypoint'),
                         'terminal_start_s':(first.duration+
                             transfer.diagnostics['drop_orientation_schedule']['terminal_start_s'])*
                             carry.duration/(first.duration+transfer.duration),

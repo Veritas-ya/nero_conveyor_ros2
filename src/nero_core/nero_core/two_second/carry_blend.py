@@ -1,4 +1,4 @@
-"""Locally blend stopped route corners, retaining exact waypoints and endpoints."""
+"""Blend route corners; round virtual guides while retaining required waypoints."""
 from dataclasses import replace
 from math import factorial
 import time
@@ -12,16 +12,20 @@ from .trajectory import extrema
 
 
 def blend_curve(curve, joins, gain, *, protected_times=()):
-    """Quintic patches match q/v/a on both sides and pass through the waypoint.
+    """Match q/v/a and retain required waypoints; 'rounded' guides may move.
 
     The lift join uses the incoming tangent, so reaching the lift waypoint
     does not already require sideways motion. Every modified curve still
-    needs a fresh full geometry certificate.
+    needs a fresh full geometry certificate. Apply rounded guides AFTER the
+    exact-waypoint patches, sampling their updated derivatives at each end.
+    Otherwise overlapping patches can silently introduce q/v/a jumps.
     """
     centers = [j[0] for j in joins]
     bounds = np.unique([curve.x[0], *centers, *protected_times, curve.x[-1]])
     patches = []
     for t, mode in joins:
+        if mode == 'rounded':
+            continue
         left = t-.4*(t-bounds[bounds < t-1e-10][-1])
         right = t+.4*(bounds[bounds > t+1e-10][0]-t)
         q = curve(t)
@@ -32,6 +36,29 @@ def blend_curve(curve, joins, gain, *, protected_times=()):
                   [curve(right,d) for d in (0,1,2)]]
         patch = PPoly.from_bernstein_basis(BPoly.from_derivatives([left,t,right],values))
         patches.append((left,right,patch))
+    curve = _replace_patches(curve, patches)
+    for t, mode in joins:
+        if mode != 'rounded':
+            continue
+        left,right = _guide_span(t,bounds,gain)
+        # The bin approach guide is not a required stop/pose. One quintic
+        # bridge removes the slow centre constraint, without moving either
+        # neighbouring required waypoint. Smaller gains narrow the bridge
+        # when full payload/scene/orientation certification rejects it.
+        patch = PPoly.from_bernstein_basis(BPoly.from_derivatives([left,right],
+            [[curve(x,d) for d in (0,1,2)] for x in (left,right)]))
+        curve = _replace_patches(curve,[(left,right,patch)])
+    return curve
+
+
+def _guide_span(t,bounds,gain):
+    return (t-min(.95,.4+gain)*(t-bounds[bounds < t-1e-10][-1]),
+            t+.5*(bounds[bounds > t+1e-10][0]-t))
+
+
+def _replace_patches(curve, patches):
+    if not patches:
+        return curve
     knots = np.unique(np.concatenate([curve.x, *[p.x for _,_,p in patches]]))
     degree = max(curve.c.shape[0]-1, 5)
     blocks = []
@@ -78,8 +105,14 @@ def blend_checked_path(planner, path, width, joins, *, cancelled,
             for i in range(len(c)):
                 c[i] /= scale**(len(c)-1-i)
             curve = PPoly(c,curve.x*scale,extrapolate=False)
+            rounded = [t for t,mode in joins if mode == 'rounded']
+            bounds = np.unique([path.curve.x[0],*[t for t,_ in joins],*protected,path.curve.x[-1]])
             report = {'applied':True,'gain':gain,'time_scale':float(scale),
-                'original_duration_s':path.duration,'exact_waypoints_retained':True,
+                'original_duration_s':path.duration,'exact_waypoints_retained':not rounded,
+                'required_waypoints_retained':True,
+                'rounded_guides':[{'original_time_s':t*scale,
+                    'start_s':_guide_span(t,bounds,gain)[0]*scale,
+                    'end_s':_guide_span(t,bounds,gain)[1]*scale} for t in rounded],
                 'joins':[{'time_s':t*scale,'mode':mode,
                           'max_joint_speed_rad_s':float(np.max(abs(curve(t*scale,1))))}
                          for t,mode in joins],
@@ -89,7 +122,8 @@ def blend_checked_path(planner, path, width, joins, *, cancelled,
             diagnostics = {**path.diagnostics,'corner_blend':report}
             for key in ('route_waypoint_times_s','protected_waypoint_times_s'):
                 if key in diagnostics:
-                    diagnostics[key] = [t*scale for t in diagnostics[key]]
+                    diagnostics[key] = [t*scale for t in diagnostics[key]
+                        if not any(abs(t-guide)<1e-9 for guide in rounded)]
             if 'pieces' in diagnostics:
                 diagnostics['pieces'] = [{**p,'start_s':p['start_s']*scale,'end_s':p['end_s']*scale}
                                          for p in diagnostics['pieces']]

@@ -9,18 +9,17 @@ from .drop_orientation import check_final_orientation
 
 def compile_carry(planner, path, width, *, lift_end_s, terminal_start_s,
                   destination, final_radius_m, cancelled):
-    """Keep exact route vertices; blend all joins before one global retiming.
+    """Keep required vertices; round the virtual bin guide, then retime once.
 
     Internal waypoints are geometry constraints, not rest/arrival commands.
-    The lift uses its incoming tangent and the bin approach its outgoing
-    tangent. A larger initial blend than the former local patches reduces
-    the almost-stopped motion at these joins; full q/v/a/jerk and geometry
-    certification still determines its usable duration.
+    The lift retains its incoming tangent. The 20 cm bin guide may be rounded
+    so its former rest-to-rest timing does not impose a second speed valley.
+    Full q/v/a/jerk, payload geometry and final orientation checks still apply.
     """
     joins = [(float(t), 'bisector') for t in
              path.diagnostics.get('protected_waypoint_times_s', [])]
     joins = [(t, 'incoming' if abs(t-lift_end_s) < 1e-9 else
-                 'outgoing' if abs(t-terminal_start_s) < 1e-9 else mode)
+                 'rounded' if abs(t-terminal_start_s) < 1e-9 else mode)
              for t, mode in joins]
     def validate(candidate):
         for join in candidate.diagnostics['corner_blend']['joins']:
@@ -42,6 +41,8 @@ def compile_carry(planner, path, width, *, lift_end_s, terminal_start_s,
             'internal_planned_stops':0,'internal_planning':False,
             'lift_end_s':float(lift_end_s*scale),
             'terminal_start_s':float(terminal_start_s*scale),
+            'terminal_start_meaning':'original_guide_time_not_required_waypoint',
+            'bin_approach_rounding':report['rounded_guides'],
             'duration_s':result.duration,'joins':report['joins'],
             'start_and_drop_joints_preserved':True,
             'joint_derivative_checks':'complete_polynomial_extrema',

@@ -42,8 +42,11 @@ def test_one_global_time_scale_and_no_rest_at_either_nested_join():
     assert result.identity==path.identity and result.version==path.version
     scale=result.duration/path.duration
     assert scale>1 and len(report['joins'])==2
-    for old_t in [0.,1.,2.,3.]:
+    for old_t in [0.,1.,3.]:
         np.testing.assert_allclose(result.curve(old_t*scale),path.curve(old_t),atol=1e-10)
+    assert not np.allclose(result.curve(2*scale),path.curve(2.))
+    assert result.diagnostics['protected_waypoint_times_s']==pytest.approx([scale])
+    assert report['bin_approach_rounding']
     for join in report['joins']:
         assert join['max_joint_speed_rad_s']>0.01/scale
     assert report['lift_end_s']==pytest.approx(scale)

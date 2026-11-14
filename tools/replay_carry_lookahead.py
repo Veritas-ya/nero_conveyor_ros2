@@ -21,18 +21,32 @@ from nero_core.two_second.trajectory import TimedPath
 from nero_core.two_second.diagnostics import json_value
 
 
-def load_case(run, config):
+def load_case(run, config, cycle_index=1):
     records = [json.loads(s) for s in (run/'events.jsonl').read_text().splitlines()]
-    events = [e['data']['record'] for e in records if e['event']=='execution_event']
+    events = [e['data']['record'] for e in records if e['event']=='execution_event'
+              and e['data']['cycle_index']==cycle_index]
     def event(name):
-        return next(e for e in events if e['event']==name)
-    with np.load(next((run/'experiment').glob('*_target.npz')),allow_pickle=False) as d:
+        found=next((e for e in events if e['event']==name),None)
+        if found is None:
+            raise ValueError(f'{run.name} cycle {cycle_index}: missing {name}')
+        return found
+    identity=tuple(event('planning_delivery')['data']['identity'])
+    def artifact(kind):
+        matches=[]
+        for file in sorted((run/'experiment').glob('*_'+kind+'.npz')):
+            with np.load(file,allow_pickle=False) as d:
+                if tuple(json.loads(d['metadata'].item())['identity'])==identity:
+                    matches.append(file)
+        if len(matches)!=1:
+            raise ValueError(f'{run.name} cycle {cycle_index}: expected one {kind} for {identity}, got {len(matches)}')
+        return matches[0]
+    with np.load(artifact('target'),allow_pickle=False) as d:
         m=json.loads(d['metadata'].item()); detection=m['detection']
         detection.update(scene_points=d['scene_points'].copy(),scene_pixel_indices=d['scene_pixel_indices'].copy())
         target=NS(identity=tuple(m['identity']), points=d['points'].copy(),
             velocity=np.asarray(m['velocity']), capture_s=m['capture_s'], epoch=m['identity'][0],
             sequence=m['identity'][2],state=m['capture_state'],detection=detection)
-    with np.load(next((run/'experiment').glob('*_plan.npz')),allow_pickle=False) as d:
+    with np.load(artifact('plan'),allow_pickle=False) as d:
         m=json.loads(d['metadata'].item());ref=m['reference']
         reference=SynchronizedIntercept(**{k:np.asarray(v) if isinstance(v,list) else v for k,v in ref.items()})
         path=TimedPath(PPoly(d['curve_c'].copy(),d['curve_x'].copy()),tuple(m['identity']),
@@ -43,9 +57,9 @@ def load_case(run, config):
     return p,path,reference,event
 
 
-def attach_saved_feedback(p,run,event):
+def attach_saved_feedback(p,run,event,cycle_index=1):
     attached=event('payload_estimate_attached')['data']['attachment_monotonic_s']
-    with np.load(run/'cycle_001/execution_trace.npz',allow_pickle=False) as d:
+    with np.load(run/f'cycle_{cycle_index:03d}/execution_trace.npz',allow_pickle=False) as d:
         stamp=d['feedback_joint_sample_monotonic_s'];i=int(np.argmin(abs(stamp-attached)))
         if abs(stamp[i]-attached)>1e-6:raise ValueError('missing exact grip-time feedback')
         q=d['feedback_q_rad'][i].copy()
@@ -70,6 +84,7 @@ def main():
     parser.add_argument('--config',type=Path,required=True)
     parser.add_argument('--guard',type=Path,required=True)
     parser.add_argument('--runs',type=Path,nargs='+',required=True)
+    parser.add_argument('--cycle-index',type=int,default=1)
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args();cfg=CellConfig.load(args.config)
     segment=TaughtSegment.load(cfg.raw['taught_transfer_file'],cfg,'transfer')
@@ -78,11 +93,11 @@ def main():
     began=time.monotonic();service=CarryLookahead(cfg);warm=time.monotonic()-began;rows=[]
     try:
         for run in args.runs:
-            p,path,reference,event=load_case(run,cfg)
+            p,path,reference,event=load_case(run,cfg,args.cycle_index)
             token,future=service.submit(p,path,reference)
             result=future.result(timeout=45.)
-            actual=attach_saved_feedback(p,run,event)
-            row={'run':str(run),'prediction_ok':result['ok'],
+            actual=attach_saved_feedback(p,run,event,args.cycle_index)
+            row={'run':str(run),'cycle_index':args.cycle_index,'prediction_ok':result['ok'],
                 'prediction_wall_s':result['planning_wall_s'],'prediction_error':result.get('error'),
                 'historical_idle_planning_s':event('taught_cycle_prepared')['monotonic_s']-event('taught_cycle_preparing')['monotonic_s'],
                 'available_overlap_s':event('taught_cycle_preparing')['monotonic_s']-event('planning_delivery')['monotonic_s']}

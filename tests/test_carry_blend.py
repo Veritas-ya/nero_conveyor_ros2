@@ -59,6 +59,33 @@ def test_lift_patch_does_not_overwrite_subsequent_route_waypoints():
         for d in [0,1,2]:np.testing.assert_allclose(curve(t,d),path.curve(t,d),atol=1e-11)
 
 
+def test_rounding_a_guide_retains_nearby_required_route_vertices():
+    p,path=path_fixture()
+    curve=blend_curve(path.curve,[(1.,'rounded')],.5,protected_times=[.8,1.6])
+    for t in [0.,.8,1.6,2.]:
+        for d in (0,1,2):
+            np.testing.assert_allclose(curve(t,d),path.curve(t,d),atol=1e-10)
+    assert not np.allclose(curve(1.),path.curve(1.))
+    for t in curve.x[1:-1]:
+        for d in (0,1,2):
+            np.testing.assert_allclose(curve(np.nextafter(t,-np.inf),d),curve(t,d),atol=1e-10)
+
+
+def test_overlapping_lift_and_guide_patches_remain_qva_continuous():
+    from test_continuous_carry import chain
+    _,path,_=chain()
+    curve=blend_curve(path.curve,[(1.,'incoming'),(2.,'rounded')],.5)
+    # The guide bridge starts inside the preceding lift patch. It must use
+    # that patched q/v/a, not the old stopped route derivatives.
+    for t in curve.x[1:-1]:
+        for d in (0,1,2):
+            np.testing.assert_allclose(curve(np.nextafter(t,-np.inf),d),curve(t,d),atol=1e-10)
+    np.testing.assert_allclose(curve(1.),path.curve(1.),atol=1e-12)
+    old=blend_curve(path.curve,[(1.,'incoming'),(2.,'outgoing')],.5)
+    samples=np.linspace(1.8,2.2,101)
+    assert min(np.linalg.norm(curve(samples,1),axis=1))>min(np.linalg.norm(old(samples,1),axis=1))
+
+
 def test_new_collision_keeps_original_curve_and_records_reason():
     p,path=path_fixture()
     def reject(*args,**kwargs):raise PickRejected('bin rim')
