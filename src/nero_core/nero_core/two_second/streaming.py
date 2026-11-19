@@ -319,6 +319,7 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
                 monitor.pump()
         e.sender.join()
         report = e.sender.snapshot()
+        e.trace.record_sender_events(getattr(report, 'events', ()), stage=path.stage)
         commands = [item for item in getattr(report, 'events', ())
             if item.get('event') == 'joint_stream_command']
         if commands:

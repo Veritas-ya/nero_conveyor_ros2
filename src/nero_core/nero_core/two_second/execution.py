@@ -245,12 +245,18 @@ class TwoSecondExecutor:
             epoch=target.epoch, carrying=False)
 
     def run(self, target):
+        from .motion_gc import DeferCyclicGC
+        memory = DeferCyclicGC(clock=self.clock)
         try:
-            return self._run_with_recovery(target)
+            with memory:
+                try:
+                    return self._run_with_recovery(target)
+                finally:
+                    if self.carry_service is not None:
+                        self.carry_service.discard()
+                    self.carry_prediction = None
         finally:
-            if self.carry_service is not None:
-                self.carry_service.discard()
-            self.carry_prediction = None
+            self._emit('motion_memory_timing', memory.report)
 
     def _run_with_recovery(self, target):
         from .recovery import recover_attempt, RecoveryFailed

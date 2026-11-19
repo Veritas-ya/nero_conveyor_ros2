@@ -66,6 +66,7 @@ class ExecutionTrace:
         self.errors = []
         self.target_identity = None
         self.gripper_rows = []
+        self.sender_rows = []
         self._lock = threading.Lock()
         self._local = threading.local()
         self._last_feedback = {}
@@ -97,6 +98,19 @@ class ExecutionTrace:
 
     def record_feedback(self, state, read_started, read_finished, *, stage=''):
         return self._attempt(self._record_feedback, state, read_started, read_finished, stage)
+
+    def record_sender_events(self, events, *, stage):
+        """Detach scalar timings after sender join, never serialize per tick."""
+        return self._attempt(self._record_sender_events, events, stage)
+
+    def _record_sender_events(self, events, stage):
+        fields = ('dispatch_time', 'gap_s', 'scheduled_dispatch_time',
+            'dispatch_lateness_s', 'feedback_read_time', 'feedback_receive_s',
+            'sample_time', 'prepared_time', 'step_compute_s', 'slot_wait_s')
+        rows = [{'stage': stage, **{k: event.get(k) for k in fields}}
+            for event in events if event.get('event') == 'joint_stream_command']
+        with self._lock:
+            self.sender_rows.extend(rows)
 
     def _record_feedback(self, state, read_started, read_finished, stage):
         if state is None:
@@ -447,8 +461,13 @@ class ExecutionTrace:
             np.savez_compressed(directory/'execution_trace.npz', **arrays)
             (directory/'execution_trace_summary.json').write_text(
                 json.dumps(self.summary(arrays), ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+            timing_path = directory/'execution_dispatch_timing.jsonl'
+            with timing_path.open('w', encoding='utf-8') as stream:
+                for row in self.sender_rows:
+                    stream.write(json.dumps(_json(row), ensure_ascii=False)+'\n')
             return {'npz': str(directory/'execution_trace.npz'),
-                    'summary': str(directory/'execution_trace_summary.json')}
+                    'summary': str(directory/'execution_trace_summary.json'),
+                    'dispatch_timing': str(timing_path)}
         except Exception as error:
             return {'write_error': f'{type(error).__name__}: {error}'}
 
