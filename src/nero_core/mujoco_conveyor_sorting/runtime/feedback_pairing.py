@@ -3,7 +3,9 @@
 No prediction/extrapolation and no replacement of the current measured joints.
 Each joint uses its own constituent packet clock; histories never cross epochs.
 """
+from bisect import bisect_left
 from collections import deque
+import math
 import numpy as np
 
 
@@ -29,7 +31,7 @@ class JointFeedbackHistory:
     def observe_packet(self,axes,values,stamp,*,epoch=None):
         """Capture each decoded CAN packet, independently of snapshot reads."""
         if (not axes or len(axes)!=len(values) or any(i not in range(7) for i in axes)
-                or not np.isfinite([stamp,*values]).all()):
+                or not math.isfinite(stamp) or not all(map(math.isfinite, values))):
             raise ValueError('invalid measured joint packet')
         self._begin(epoch,axes,[stamp]*len(axes))
         for axis,value in zip(axes,values):self._append(axis,stamp,value)
@@ -63,16 +65,51 @@ class JointFeedbackHistory:
         for h in self.history:
             if not h or not h[0][0] <= pose_stamp <= h[-1][0]:
                 return None, {'available': False, 'reason': 'no_measured_bracket', 'extrapolated': False}
-            for index, (stamp, value) in enumerate(h):
-                if stamp == pose_stamp:
-                    result.append(value); spans.append(0.);brackets.append([stamp,stamp])
-                    break
-                if stamp > pose_stamp:
-                    before, q0 = h[index-1]
-                    weight = (pose_stamp-before)/(stamp-before)
-                    result.append(q0+(value-q0)*weight); spans.append(stamp-before);brackets.append([before,stamp])
-                    break
+            # Sorted (stamp,value) pairs; a one-field tuple sorts before
+            # every sample at that stamp. Avoid scanning the history under
+            # the shared CAN receive lock for each diagnostic interpolation.
+            index = bisect_left(h, (pose_stamp,))
+            stamp, value = h[index]
+            if stamp == pose_stamp:
+                result.append(value)
+                spans.append(0.)
+                brackets.append([stamp, stamp])
+            else:
+                before, q0 = h[index-1]
+                weight = (pose_stamp-before)/(stamp-before)
+                result.append(q0+(value-q0)*weight)
+                spans.append(stamp-before)
+                brackets.append([before,stamp])
         return result, {'available': True, 'method': 'measured_joint_packet_linear_interpolation',
-            'pose_stamp': float(pose_stamp), 'maximum_bracket_span_s': max(spans), 'extrapolated': False,
+            'pose_stamp': float(pose_stamp), 'joint_interpolation_stamp': float(pose_stamp),
+            'clock_epoch': self.epoch,
+            'maximum_bracket_span_s': max(spans), 'extrapolated': False,
             'bracket_bounds_s':brackets,'received_joint_packets':self.received_packets,
             'history_source':'can_receive_boundary' if self.received_packets else 'snapshot_reads'}
+
+
+def capture_joint_pairing_valid(state, captured):
+    """Validate historical self-filter joints, not the newest packet's age.
+
+    Original packet timestamps in state still describe the current snapshot.
+    The seven measured brackets are the time evidence for interpolated joints.
+    """
+    evidence = state.get('capture_joint_pairing') or {}
+    bounds = np.asarray(evidence.get('bracket_bounds_s', []), dtype=float)
+    stamp = evidence.get('joint_interpolation_stamp')
+    if (state.get('capture_state_role') != 'self_filter_only_not_motion_feedback'
+            or evidence.get('available') is not True or evidence.get('extrapolated') is not False
+            or stamp is None or not np.isfinite(stamp) or abs(stamp-captured) > 1.e-8
+            or bounds.shape != (7, 2) or not np.isfinite(bounds).all()):
+        return False
+    if (np.any(bounds[:, 0] > captured) or np.any(bounds[:, 1] < captured)
+            or np.any(bounds[:, 1]-bounds[:, 0] > .05)):
+        return False
+    if 'feedback_time' in state:
+        times = state.get('feedback_time') or {}
+        for name in ('joint_12', 'joint_34', 'joint_56', 'joint_7'):
+            packet = times.get(name) or {}
+            if (packet.get('mapping_quality') != 'mapped'
+                    or packet.get('clock_epoch') != evidence.get('clock_epoch')):
+                return False
+    return True

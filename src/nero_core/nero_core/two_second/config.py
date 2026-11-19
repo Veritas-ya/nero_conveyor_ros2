@@ -58,6 +58,15 @@ class CellConfig:
         if isinstance(length, bool) or not isinstance(length, (int, float)) or not np.isfinite(length) or not .015 <= length <= .30:
             raise ValueError('maximum_target_length_m 必须为0.015至0.30米的有限长边上限')
         raw['maximum_target_length_m'] = float(length)
+        near_margin = raw.setdefault('perception_belt_near_camera_margin_m', 0.)
+        if (isinstance(near_margin, bool) or not isinstance(near_margin, (int, float))
+                or not np.isfinite(near_margin) or not 0 <= near_margin <= .1):
+            raise ValueError('perception_belt_near_camera_margin_m 须为0至0.1米的有限数')
+        raw['perception_belt_near_camera_margin_m'] = float(near_margin)
+        edge_margin = raw.setdefault('perception_belt_edge_margin_m', .025)
+        if (isinstance(edge_margin, bool) or not isinstance(edge_margin, (int, float))
+                or not np.isfinite(edge_margin) or not 0 < edge_margin <= .1):
+            raise ValueError('perception_belt_edge_margin_m 须为大于0且不超过0.1的有限数')
         if not isinstance(raw.setdefault('local_target_geometry_enabled', True), bool):
             raise ValueError('local_target_geometry_enabled 必须为布尔值')
         mode=raw.setdefault('perception_detection_mode','rgb_depth')
@@ -286,6 +295,27 @@ class CellConfig:
         if raw['intercept_strategy'] == 'synchronized' and profile != 'smooth':
             raise ValueError('synchronized 抓取策略需要 smooth 轨迹')
         position = raw.setdefault('freeze_position_upstream_m', None)
+        freeze_range = raw.setdefault('tracked_freeze_range', 'configured_distance')
+        if freeze_range not in ('configured_distance', 'detector_footprint'):
+            raise ValueError('tracked_freeze_range 必须为 configured_distance 或 detector_footprint')
+        if freeze_range == 'detector_footprint' and (
+                position is not None or raw['intercept_strategy'] != 'synchronized'
+                or raw['planning_reserve_mode'] != 'measured'
+                or raw.get('perception_detector_workspace_y_m') is None):
+            raise ValueError('检测范围冻结需要 measured synchronized、检测 Y 范围且不设置固定冻结位置')
+        cap = raw.get('tracked_freeze_upstream_limit_m')
+        if cap is not None and (isinstance(cap, bool) or not isinstance(cap, (int, float))
+                                or not np.isfinite(cap) or cap <= 0):
+            raise ValueError('tracked_freeze_upstream_limit_m 必须为正有限米数')
+        if not isinstance(raw.setdefault('tracked_local_geometry', False), bool):
+            raise ValueError('tracked_local_geometry 必须为布尔值')
+        capacity = raw.setdefault('tracked_frozen_queue_capacity', 1)
+        if isinstance(capacity,bool) or not isinstance(capacity,int) or not 1<=capacity<=8:
+            raise ValueError('tracked_frozen_queue_capacity 必须为1至8的整数')
+        backlog = raw.setdefault('tracked_frame_max_backlog_s', None)
+        if backlog is not None and (isinstance(backlog,bool) or not isinstance(backlog,(int,float))
+                or not np.isfinite(backlog) or not 0<backlog<=.25):
+            raise ValueError('tracked_frame_max_backlog_s 必须为0至0.25秒内的正数或null')
         tolerance = float(raw.setdefault('freeze_position_tolerance_m', .02))
         if not np.isfinite(tolerance) or tolerance <= 0:
             raise ValueError('freeze_position_tolerance_m 必须为正有限数')

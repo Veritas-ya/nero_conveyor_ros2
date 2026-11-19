@@ -537,6 +537,41 @@ class Nero7BeltVelocityMeter:
         full_mask[crop] = mask
         return detections, full_mask
 
+    def geometry_seed_rgb(self, frame, track):
+        """Detach the matched current RGB component before the next update.
+
+        No predicted centroid or earlier mask may seed a frozen cloud.
+        A missing/ambiguous association keeps the full geometry detector.
+        """
+        peer = self.latest_snapshot
+        if (peer is None or not peer.current or self._mask is None
+                or peer.sequence != frame.header.sequence or peer.clock_epoch != frame.header.clock_epoch
+                or track.misses or track.observation_source_time != peer.source_time):
+            return None
+        matched = [d for d in self._detections if np.array_equal(
+            np.asarray(d['centroid_base']), np.asarray(track.observed_position_base))]
+        if len(matched) != 1:
+            return None
+        region = matched[0].get('geometry_seed_region')
+        if region is not None:
+            if (region['sequence'] != peer.sequence or region['epoch'] != peer.clock_epoch
+                    or region['source_time'] != peer.source_time):
+                return None
+            y, x = region['origin_yx']
+            mask = region['mask']
+            seed = np.zeros(self._mask.shape, dtype=bool)
+            seed[y:y+mask.shape[0], x:x+mask.shape[1]] = mask
+            seed.setflags(write=False)
+            return seed
+        _, labels, _, centers = cv2.connectedComponentsWithStats(np.uint8(self._mask > 0), 8)
+        uv = [matched[0]['u'], matched[0]['v']]
+        ids = np.flatnonzero(np.all(np.isclose(centers[1:], uv, rtol=0, atol=1e-6), axis=1))+1
+        if len(ids) != 1:
+            return None
+        seed = labels == ids[0]
+        seed.setflags(write=False)
+        return seed
+
     def _make_tracker(self):
         p = self.parameters
         speed_cfg = dict(window_s=p['speed_window_s'], min_samples=p['speed_min_samples'],

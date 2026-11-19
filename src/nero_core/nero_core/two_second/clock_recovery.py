@@ -57,6 +57,75 @@ def _evidence(evidence):
     return result
 
 
+def _fresh_packet_evidence(state, now):
+    current = _evidence(state.get('feedback_time'))
+    if any(not 0 <= now-v['mapped_monotonic'] <= .2
+           or not 0 <= now-v['host_monotonic_received'] <= .2
+           or not 0 <= now-v['reference_monotonic'] <= .2
+           for v in current.values()):
+        _reject('接收时间证据过期或晚于当前时间')
+    for kind, keys in (('pose', PACKETS[:3]), ('joint', PACKETS[3:7]),
+                       ('gripper', PACKETS[7:])):
+        if abs(mapped_stamp(state, kind)-min(current[k]['mapped_monotonic'] for k in keys)) > 1e-6:
+            _reject('反馈时间与接收证据不一致')
+    return current
+
+
+def _host_step(old, current, observed_step):
+    shifts = np.array([
+        (current[k]['reference_wall']-current[k]['reference_monotonic'])-
+        (old[k]['reference_wall']-old[k]['reference_monotonic']) for k in PACKETS])
+    step = float(np.median(shifts))
+    if (abs(step) <= STEP_THRESHOLD_S or np.ptp(shifts) > STEP_THRESHOLD_S
+            or (observed_step is not None and abs(step-observed_step) > STEP_THRESHOLD_S)):
+        _reject('各路反馈不对应同一次主机校时')
+    return step
+
+
+class WaitClockConfirmation:
+    """Incremental, read-only confirmation from the cycle owner's wait mailbox."""
+    def __init__(self):
+        self.window = []
+        self.step = None
+        self.epoch = None
+        self.last_seen = None
+
+    def observe(self, old_stamps, state, now):
+        old = _evidence(old_stamps.get('clock_mapping_evidence'))
+        current = _fresh_packet_evidence(state, now)
+        epochs = {packet['clock_epoch'] for packet in current.values()}
+        if len(epochs) != 1 or min(epochs) <= max(p['clock_epoch'] for p in old.values()):
+            _reject('等待全部反馈进入同一新代次')
+        epoch = epochs.pop()
+        stamps = np.array([current[k]['mapped_monotonic'] for k in PACKETS])
+        if any(stamp <= old[k]['mapped_monotonic'] for k, stamp in zip(PACKETS, stamps)):
+            _reject('新代次反馈没有更新')
+        if self.epoch != epoch:
+            self.window.clear()
+            self.step = self.last_seen = None
+        self.epoch = epoch
+        self.step = _host_step(old, current, self.step)
+        if self.last_seen is not None and np.any(stamps < self.last_seen):
+            _reject('单调反馈时间倒退')
+        self.last_seen = stamps
+        if self.window:
+            delta = stamps - self.window[-1][0]
+            if np.any(delta > .2):
+                self.window.clear()
+            elif np.any(delta == 0):
+                return None
+        self.window.append((stamps, np.array(state['joints'], dtype=float)))
+        while len(self.window) > 3 and min(stamps)-min(self.window[1][0]) >= STABLE_S:
+            self.window.pop(0)
+        span = min(stamps)-min(self.window[0][0])
+        spread = float(np.max(np.ptp([q for _, q in self.window], axis=0)))
+        if len(self.window) >= 3 and span >= STABLE_S-1e-9 and spread <= STABLE_SPREAD_RAD:
+            return dict(current_epoch=epoch, host_wall_step_s=self.step,
+                        stable_samples=len(self.window), stable_span_s=float(span),
+                        joint_spread_rad=spread)
+        return None
+
+
 def rebase_after_host_clock_step(e, *, epoch):
     """Require one coherent host step and 100 ms of fresh, stable measured pose.
 
@@ -97,17 +166,7 @@ def rebase_after_host_clock_step(e, *, epoch):
         state = e.device.snapshot_nowait()  # retains CAN/enable/mode/driver checks
         if state is not None:
             fresh_feedback(state, e.clock())
-            current = _evidence(state.get('feedback_time'))
-            now = e.clock()
-            if any(not 0 <= now-v['mapped_monotonic'] <= .2
-                   or not 0 <= now-v['host_monotonic_received'] <= .2
-                   or not 0 <= now-v['reference_monotonic'] <= .2
-                   for v in current.values()):
-                _reject('接收时间证据过期或晚于当前时间')
-            for kind, keys in (('pose', PACKETS[:3]), ('joint', PACKETS[3:7]),
-                               ('gripper', PACKETS[7:])):
-                if abs(mapped_stamp(state, kind)-min(current[k]['mapped_monotonic'] for k in keys)) > 1e-6:
-                    _reject('反馈时间与接收证据不一致')
+            current = _fresh_packet_evidence(state, e.clock())
             stamps = tuple(current[key]['mapped_monotonic'] for key in PACKETS)
             for key, stamp in zip(PACKETS, stamps):
                 if stamp < last_packets[key]:
@@ -121,13 +180,7 @@ def rebase_after_host_clock_step(e, *, epoch):
             if epochs == {new_epoch}:
                 if any(current[k]['mapped_monotonic'] <= old[k]['mapped_monotonic'] for k in PACKETS):
                     _reject('新代次反馈没有更新')
-                shifts = np.array([
-                    (current[k]['reference_wall']-current[k]['reference_monotonic'])-
-                    (old[k]['reference_wall']-old[k]['reference_monotonic']) for k in PACKETS])
-                step = float(np.median(shifts))
-                if (abs(step) <= STEP_THRESHOLD_S or np.ptp(shifts) > STEP_THRESHOLD_S
-                        or (observed_step is not None and abs(step-observed_step) > STEP_THRESHOLD_S)):
-                    _reject('各路反馈不对应同一次主机校时')
+                step = _host_step(old, current, observed_step)
                 observed_step = step
                 # Every constituent packet must be newly received. Repeated
                 # snapshots never extend the stable-observation window.

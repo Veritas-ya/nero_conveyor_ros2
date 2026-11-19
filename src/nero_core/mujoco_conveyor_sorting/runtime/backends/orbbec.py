@@ -520,14 +520,17 @@ class OrbbecCameraBackend:
                     raise BackendUnavailable("timed out waiting for an Orbbec RGB-D frame")
                 self._condition.wait(timeout=remaining)
 
-    def read_next(self,timeout_s=0.,*,after_sequence=None,wait_for_fresh=True):
+    def read_next(self,timeout_s=0.,*,after_sequence=None,wait_for_fresh=True,max_backlog_s=None):
         """Single perception consumer; keep short bursts without latest-cache skips."""
         if timeout_s<0:raise ValueError('timeout_s must be non-negative')
+        if max_backlog_s is not None and (not np.isfinite(max_backlog_s) or max_backlog_s<=0):
+            raise ValueError('max_backlog_s must be positive and finite')
         deadline=float(self.clock())+timeout_s
         with self._condition:
             while True:
                 if not self._connected:raise BackendUnavailable(f'Orbbec camera is not connected: {self._detail}')
-                frame=self._delivery.take(after_sequence,float(self.clock()),self.config.max_frame_age_s)
+                frame=self._delivery.take(after_sequence,float(self.clock()),self.config.max_frame_age_s,
+                    max_backlog_s=max_backlog_s)
                 if frame is not None:return frame
                 if self._fault_code:raise BackendUnavailable(f'Orbbec camera fault {self._fault_code}: {self._detail}')
                 remaining=deadline-float(self.clock())

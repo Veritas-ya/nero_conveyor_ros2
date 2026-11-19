@@ -17,6 +17,40 @@ class BeltSurfaceNotReady(ValueError):
         self.details = {} if details is None else dict(details)
 
 
+def near_camera_belt_clearance(surface, center_xy, camera_origin_base, belt_direction_base):
+    """Distance across the belt to its camera-facing edge at this centre.
+
+    Work in the measured plane, perpendicular to travel. This excludes only
+    the selected lateral strip, without eroding upstream/downstream edges.
+    """
+    rotation = surface.plane_to_base[:3, :3]
+    direction = np.asarray(belt_direction_base, float)
+    if direction.shape != (3,) or not np.isfinite(direction).all():
+        raise ValueError('单侧带边检测需要有效带向')
+    axis = (direction @ rotation)[:2]
+    if np.linalg.norm(axis) < 1e-9:
+        raise ValueError('单侧带边检测需要有效带向')
+    axis /= np.linalg.norm(axis)
+    side = np.array([-axis[1], axis[0]])
+    hull = np.asarray(surface.hull_xy, float).reshape(-1, 2)
+    camera = ((np.asarray(camera_origin_base)-surface.plane_to_base[:3, 3]) @ rotation)[:2]
+    facing = float((camera-hull.mean(axis=0)) @ side)
+    if abs(facing) < 1e-6:
+        raise ValueError('相机投影位于带面中线上，无法区分近侧带边')
+    side *= np.sign(facing)
+    relative = hull-np.asarray(center_xy)
+    along, across = relative @ axis, relative @ side
+    crossings = []
+    for i in range(len(hull)):
+        j = (i+1) % len(hull)
+        if abs(along[i]) < 1e-10:
+            crossings.append(across[i])
+        if along[i]*along[j] < 0:
+            fraction = -along[i]/(along[j]-along[i])
+            crossings.append(across[i]+fraction*(across[j]-across[i]))
+    return float(max(crossings)) if crossings else float('-inf')
+
+
 def _geometry_fingerprint(frame: Any, d2c: Any) -> tuple:
     """Identify a camera geometry and clock session, independently of exposure."""
     def array_key(value):
@@ -117,6 +151,7 @@ class BeltSurface:
         """Keep native detection bounds separate from inferred scene bounds."""
         metadata = {'plane_to_base': self.plane_to_base.copy(),
                     'bounds_xy_m': self.bounds_xy_m.copy(),
+                    'hull_xy_m': self.hull_xy.copy(),
                     'source': 'measured_green_belt_plane_native_depth',
                     'bounds_quantiles': [.02, .98], 'plane_points': self.point_count,
                     'scene_boundary_estimation': dict(self.boundary_diagnostics)}

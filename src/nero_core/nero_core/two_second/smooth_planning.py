@@ -8,7 +8,7 @@ from .precise_ik import PrecisePoseSolver
 from .smooth_reference import SmoothIntercept
 from .synchronized_reference import (SynchronizedIntercept, schedule_forward_join,
                                       admit_synchronized_observation, freeze_window_for_speed)
-from .reference import predict_entry_time, DEFAULT_FREEZE_UPSTREAM_DISTANCE_M
+from .reference import predict_entry_time, DEFAULT_FREEZE_UPSTREAM_DISTANCE_M, EntryNotReady
 from .trajectory import sampling_times, certify_curve, extrema
 
 
@@ -61,16 +61,28 @@ def plan_smooth_intercept(planner, target, state, *, cancelled=lambda: False,
     synchronized_s = cfg.raw.get('synchronized_duration_s', .2)
     reservation_s = cfg.raw['planning_reserve_s'] if reservation_s is None else reservation_s
     upstream_distance = cfg.raw.get('freeze_upstream_distance_m', DEFAULT_FREEZE_UPSTREAM_DISTANCE_M)
-    if synchronized:
-        freeze_window = freeze_window_for_speed(cfg, target.velocity@cfg.direction)
-        upstream_distance = freeze_window['distance_m']
-        entry = admit_synchronized_observation(target.capture_s, entry_position@cfg.direction,
-            target.velocity@cfg.direction, cfg.follow_bounds, begun, upstream_distance,
-            minimum_upstream_distance_m=freeze_window.get('minimum_distance_m'))
-    else:
-        entry = predict_entry_time(target.capture_s, entry_position@cfg.direction,
-            target.velocity@cfg.direction, cfg.follow_bounds[0], begun, cfg.raw['planning_reserve_s']+prealign_s,
-            maximum_upstream_distance_m=upstream_distance)
+    freeze_window = None
+    try:
+        if synchronized:
+            freeze_window = freeze_window_for_speed(cfg, target.velocity@cfg.direction,
+                belt_region=getattr(target, 'detection', {}).get('belt_region'))
+            upstream_distance = freeze_window['distance_m']
+            entry = admit_synchronized_observation(target.capture_s, entry_position@cfg.direction,
+                target.velocity@cfg.direction, cfg.follow_bounds, begun, upstream_distance,
+                minimum_upstream_distance_m=freeze_window.get('minimum_distance_m'))
+        else:
+            entry = predict_entry_time(target.capture_s, entry_position@cfg.direction,
+                target.velocity@cfg.direction, cfg.follow_bounds[0], begun, cfg.raw['planning_reserve_s']+prealign_s,
+                maximum_upstream_distance_m=upstream_distance)
+    except EntryNotReady as error:
+        # A normal target admission rejection must use the same lifecycle as
+        # other planning rejections; it must not terminate return lookahead.
+        raise PickRejected('冻结观测未满足规划入口条件：'+str(error), details={
+            'reason':error.reason, 'stage':'smooth_entry_selection',
+            'identity':target.identity, 'capture_s':target.capture_s,
+            'observation_age_s':begun-target.capture_s,
+            'coordinate_m':float(entry_position@cfg.direction),
+            'maximum_upstream_distance_m':upstream_distance, 'freeze_window':freeze_window}) from error
     model.check_feedback(state)
     start = model.tcp().copy()
     solver = PrecisePoseSolver(model)

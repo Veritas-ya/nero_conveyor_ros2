@@ -144,3 +144,24 @@ def test_rate_limited_archive_is_not_misdiagnosed_as_camera_drops(tmp_path):
     assert report['median_device_counter_fps']==30
     assert report['unreceived_device_frames_in_saved_intervals']==0
     assert report['samples'][0]['color_exposure_us']==10000
+
+
+def test_low_latency_delivery_skips_backlog_but_keeps_exposure_time():
+    delivery=FrameDelivery()
+    frames=[frame(i,1.+i/30) for i in range(6)]
+    for item in frames:delivery.append(item)
+    selected=delivery.take(None,1.17,.25,max_backlog_s=.05)
+    assert selected is frames[4]
+    assert selected.header.source_time==1.+4/30
+    assert delivery.report()['backlog_skipped_frames']==4
+    assert delivery.report()['streams']['depth']['missing_device_indices']==0
+    assert delivery.take(4,1.19,.25,max_backlog_s=.05) is frames[5]
+
+
+def test_latest_available_frame_retains_age_limit_when_camera_stalls():
+    delivery=FrameDelivery();a=frame(1,1.)
+    delivery.append(a)
+    assert delivery.take(None,1.1,.25,max_backlog_s=.05) is a
+    delivery.append(frame(2,1.))
+    assert delivery.take(1,1.3,.25,max_backlog_s=.05) is None
+    assert delivery.report()['stale_discarded_frames']==1

@@ -222,16 +222,21 @@ class Hardware:
         interpolation, not an encoder-internal sample-time measurement.
         The result is scene evidence and must never authorize robot motion.
         """
-        state = self.snapshot_nowait()
-        if state is None or not np.isfinite(captured) or not self.lock.acquire(blocking=False):
+        if not np.isfinite(captured) or not self.lock.acquire(blocking=False):
             return None
         try:
+            # Hold the receive lock across both reads: a clock reset must not
+            # mix a current snapshot from one epoch with another's history.
+            state = self.snapshot_nowait()
+            if state is None:
+                return None
             joints, evidence = self._joint_feedback_history.at(captured)
             if joints is None or evidence['maximum_bracket_span_s'] > .05:
                 return None
             state = dict(state)
             state.update(joints=list(joints), capture_joint_pairing=dict(evidence),
-                capture_state_role='self_filter_only_not_motion_feedback')
+                capture_state_role='self_filter_only_not_motion_feedback',
+                capture_gripper_state_basis='current_measured_width_not_interpolated')
             return state
         finally:
             self.lock.release()

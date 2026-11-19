@@ -20,7 +20,7 @@ def fixture():
     T=np.diag([1.,-1.,-1.,1.]);T[2,3]=1.
     depth=np.ones((120,160),np.float32);mask=np.zeros(depth.shape,np.uint8)
     rgb=np.empty((120,160,3),np.uint8);rgb[:]=[20,140,20]
-    frame=SimpleNamespace(rgb=rgb)
+    frame=SimpleNamespace(rgb=rgb,header=SimpleNamespace(sequence=1,clock_epoch=0,source_time=1.))
     params=load_detection_params(Path(__file__).parents[1]/'src/nero_core/vendor/nero7_speed_reference/upstream_perception.yaml')
     return surface,camera,T,depth,mask,frame,params
 
@@ -99,3 +99,22 @@ def test_only_depth_admitted_candidates_reach_existing_tracker(monkeypatch):
     report=meter.update(f,np.eye(4),candidate_filter=gate.filter)
     assert len(received)==1 and received[0] is good
     assert report['diagnostics']['depth_admission']['rejected_candidates']==1
+
+
+def test_geometry_seed_uses_admitted_depth_part_and_never_earlier_frame():
+    s,c,T,z,m,f,p=fixture()
+    d=component(c,T,z,m,f,(55,40,50,30),z=1.)
+    z[45:65,65:90]=.96  # One raised piece inside a larger connected grey glare region.
+    accepted,_=MeasuredWorkpieceAdmission(s,.12).filter([d],m,z,c,T,f,p)
+    assert len(accepted)==1
+    meter=Nero7BeltVelocityMeter(s,belt_direction_base=[1.,0.])
+    meter._detections=accepted;meter._mask=m
+    meter._latest_snapshot=SimpleNamespace(current=True,sequence=1,clock_epoch=0,source_time=1.)
+    track=SimpleNamespace(misses=0,observation_source_time=1.,observed_position_base=d['centroid_base'])
+    seed=meter.geometry_seed_rgb(f,track)
+    assert seed is not None and 70<=seed.sum()<m.sum() and not seed.flags.writeable
+    assert not seed[40:44].any() and seed[48:62,68:87].all()
+    f.header.sequence=2
+    assert meter.geometry_seed_rgb(f,track) is None
+    f.header.sequence=1;d['geometry_seed_region']['source_time']=.9
+    assert meter.geometry_seed_rgb(f,track) is None

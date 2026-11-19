@@ -48,6 +48,7 @@ def test_each_target_survives_preview_changes_and_buffers_are_owned(tmp_path):
 
 def test_replanning_saves_each_input_failure_and_exact_polynomial(tmp_path):
     t=target(); state={'joints':[0.]*7,'width_m':.1}
+    t.detection['freeze_delivery']={'published_monotonic_s':1.1,'geometry_wall_s':.06}
     curve=joint_curve([0.,.5,1.],np.array([[0.]*7,[.1]*7,[.2]*7]))
     plan=NS(path=TimedPath(curve,t.identity,5,'test',1.,.1),target=t,scene_revision=2,
         selected_grasp=np.eye(4),timings_s={'ik':.1},failures=(),
@@ -68,6 +69,8 @@ def test_replanning_saves_each_input_failure_and_exact_polynomial(tmp_path):
     assert archive.close()['complete']
     root=tmp_path/'experiment'; inputs=[json.loads(p.read_text()) for p in sorted(root.glob('*_planning_input.json'))]
     assert [d['start_state']['joints'][0] for d in inputs]==[0.,.0068]
+    assert inputs[0]['freeze_delivery']['exposure_to_planning_input_s']==pytest.approx(.2)
+    assert inputs[0]['freeze_delivery']['ready_to_planning_input_s']==pytest.approx(.1)
     failed=json.loads(next(root.glob('*_planning_failed.json')).read_text())
     assert failed['details']=={'derivative':2} and failed['input_record'].endswith('planning_input')
     meta,data=load(next(root.glob('*_plan.npz')))
@@ -116,3 +119,20 @@ def test_disk_error_is_visible_and_never_claims_complete(tmp_path):
     archive._write=fail;archive._offer('test',{'n':1});result=archive.close()
     assert not result['complete'] and result['saved']==0
     assert 'injected full disk' in result['errors'][0]
+
+
+def test_tracked_geometry_failure_archive_preserves_rejected_exposure(tmp_path):
+    t=target();f=t.detection['frame'];seed=np.array([10,11,12]);details={'candidate_count':0,
+        'candidate_filter_stages':{'components_after_size':2,'candidates_after_seed':0}}
+    surface=BeltSurface(np.eye(4),np.array([[-1.,1.]]*2),np.array([[0.,0.],[1.,0.],[0.,1.]]),
+        {'normal':[0,0,1]})
+    archive=ExperimentArchive(tmp_path,lambda *a,**k:None)
+    original=f.depth_m.copy()
+    archive.offer_geometry_rejection(f,np.eye(4),t.state,t.identity,surface,seed,details)
+    seed[:]=99;details['candidate_count']=9
+    assert archive.close()['complete']
+    meta,data=load(next((tmp_path/'experiment').glob('*_geometry_rejected.npz')))
+    assert meta['details']['candidate_count']==0 and meta['capture_state']==t.state
+    assert meta['physical_success'] is None
+    np.testing.assert_array_equal(data['seed_pixel_indices'],[10,11,12])
+    np.testing.assert_array_equal(data['frame_depth_m'],original)

@@ -7,7 +7,10 @@ import time
 import numpy as np
 
 from mujoco_conveyor_sorting.runtime.single_pick import PickRejected
+from .feedback_gates import TRAJECTORY_ARRIVAL_TOLERANCE_RAD
+from .clock_recovery import WaitClockConfirmation
 from .prepared_cycle import nominal_state
+from .lookahead_selection import latest_dispatch, pending_error
 
 
 @dataclass(frozen=True)
@@ -61,8 +64,11 @@ class ReturnLookahead:
         self.deferred = 0
         self.wait_state = None
         self.wait_feedback_stamps = {}
+        self.wait_clock_confirmation = None
         self.wait_feedback_error = None
         self.planning_start_state = None
+        self.deferred_revisions = {}
+        self.multiple_pending = config.raw.get('tracked_frozen_queue_capacity', 1) > 1
 
     def start(self):
         self.vision.enable_lookahead()
@@ -81,7 +87,9 @@ class ReturnLookahead:
             self.status = 'waiting_next_exposure'
             self.wait_state = self.planning_start_state = None
             self.wait_feedback_stamps = {}
+            self.wait_clock_confirmation = None
             self.wait_feedback_error = None
+            self.deferred_revisions.clear()
 
     def return_started(self, *, identity, expected_ready_s):
         if not np.isfinite(expected_ready_s):
@@ -98,7 +106,6 @@ class ReturnLookahead:
     def _check_wait_state(self, state, *, previous=None):
         from .streaming import fresh_feedback
         from .execution import validate_start_state
-        from .feedback_gates import TRAJECTORY_ARRIVAL_TOLERANCE_RAD
         if state is None:
             raise PickRejected(self.wait_feedback_error or '等待位实际反馈尚未提供')
         fresh_feedback(state, self.clock(), previous)
@@ -109,6 +116,38 @@ class ReturnLookahead:
         return (np.max(abs(np.asarray(state['joints'])-np.asarray(start['joints']))) > .005
                 or abs(state['width_m']-start['width_m']) > .002)
 
+    def _accept_wait_snapshot(self, state):
+        # Publish a new baseline only after time, joints and jaws all pass.
+        if self.wait_clock_confirmation is None:
+            stamps = self.wait_feedback_stamps.copy()
+            try:
+                self._check_wait_state(state, previous=stamps)
+            except PickRejected as error:
+                if (not self.return_confirmed or
+                        error.details.get('reason') != 'feedback_clock_epoch_changed'):
+                    raise
+                self.wait_clock_confirmation = WaitClockConfirmation()
+                self.ready = self.planning_start_state = None
+                self.schedule_revision += 1  # Invalidate any worker still solving.
+            else:
+                if not self.wait_feedback_stamps and state.get('feedback_time'):
+                    epochs = {v.get('clock_epoch') for v in state['feedback_time'].values()
+                              if isinstance(v, dict) and 'clock_epoch' in v}
+                    if len(epochs) > 1:
+                        raise PickRejected('等待首次反馈的时钟代次一致')
+                self.wait_feedback_stamps = stamps
+                return True
+
+        stamps = {}
+        self._check_wait_state(state, previous=stamps)
+        evidence = self.wait_clock_confirmation.observe(self.wait_feedback_stamps, state, self.clock())
+        if evidence is None:
+            return False
+        self.wait_feedback_stamps = stamps
+        self.wait_clock_confirmation = None
+        self.emit('lookahead_wait_clock_rebased', identity=self.owner, **evidence, robot_commands=0)
+        return True
+
     def update_wait_state(self, state):
         """Mailbox from the cycle owner; no device access on this worker."""
         snapshot = deepcopy(state)
@@ -116,8 +155,13 @@ class ReturnLookahead:
             if self.owner is None:
                 return False
             try:
-                self._check_wait_state(snapshot, previous=self.wait_feedback_stamps)
+                if not self._accept_wait_snapshot(snapshot):
+                    self.wait_state = None
+                    self.wait_feedback_error = '正在确认校时后连续的等待位反馈'
+                    return False
             except (PickRejected, KeyError, TypeError, ValueError) as error:
+                if self.wait_clock_confirmation is not None:
+                    self.wait_clock_confirmation = WaitClockConfirmation()
                 if self.wait_state is not None:
                     self.schedule_revision += 1
                 self.wait_state = None
@@ -161,6 +205,7 @@ class ReturnLookahead:
                 'schedule_revision': self.schedule_revision,
                 'attempted_schedule_revision': self.attempted_revision,
                 'deferred_planning_attempts': self.deferred,
+                'deferred_target_count': len(self.deferred_revisions),
                 'wait_feedback_available': self.wait_state is not None,
                 'wait_feedback_error': self.wait_feedback_error,
                 'error': None if self.error is None else str(self.error)}
@@ -194,9 +239,10 @@ class ReturnLookahead:
         if item is None:
             return None
         try:
+            error = pending_error(self.vision, item.target, self.config, self.clock())
+            if error is not None:
+                raise error
             item.validate(self.config, self.vision.clock_epoch, self.clock())
-            if self.vision.poll_pending() is not item.target:
-                raise PickRejected('预取曝光已被相机更新或作废')
         except PickRejected as error:
             self.discard_ready(item, error)
             return None
@@ -212,6 +258,9 @@ class ReturnLookahead:
             self._check_wait_state(self.wait_state)
             if self._start_changed(self.wait_state, item.start_state):
                 raise PickRejected('预取轨迹起点与等待位最新反馈不一致')
+            error = pending_error(self.vision, item.target, self.config, self.clock())
+            if error is not None:
+                raise error
             item.validate(self.config, self.vision.clock_epoch, self.clock())
             self.planner = previous_planner
             self.planner.intercept_not_before_s = None
@@ -242,10 +291,26 @@ class ReturnLookahead:
                 if self.attempted_revision == self.schedule_revision:
                     self.schedule_revision += 1
             self.status = 'old_schedule_waiting_replan'
+            if self.multiple_pending and not self.return_confirmed:
+                self.deferred_revisions[item.target.identity] = self.schedule_revision
+                self.target = self.planning_start_state = None
+                self.attempted_revision = None
         self.emit('lookahead_plan_expired_replan', identity=item.target.identity,
             frame_sequence=item.target.sequence, capture_monotonic_s=item.target.capture_s,
             failure_details=error.details, model_path_generated=True,
             return_confirmed=self.return_confirmed, robot_commands=0)
+
+    def _select_pending(self, revision):
+        if not self.multiple_pending:
+            return self.vision.poll_pending()
+        candidates = self.vision.pending_candidates()
+        identities = {t.identity for t in candidates}
+        self.deferred_revisions = {k:v for k,v in self.deferred_revisions.items() if k in identities}
+        eligible = [t for t in candidates if self.deferred_revisions.get(t.identity) != revision]
+        for target in sorted(eligible, key=lambda t: (latest_dispatch(t, self.config), t.capture_s)):
+            if self.vision.reserve_pending(target):
+                return target
+        return None
 
     def _step(self):
         with self.lock:
@@ -263,6 +328,9 @@ class ReturnLookahead:
                     return
         if ready is not None:
             try:
+                error = pending_error(self.vision, ready.target, self.config, self.clock())
+                if error is not None:
+                    raise error
                 ready.validate(self.config, self.vision.clock_epoch, self.clock())
             except PickRejected as error:
                 self.discard_ready(ready, error)
@@ -275,7 +343,10 @@ class ReturnLookahead:
                         'predicted_ready_monotonic_s': available}))
             return
         if target is None:
-            target = self.vision.poll_pending()
+            with self.lock:
+                if self.owner != owner or self.schedule_revision != revision:
+                    return
+                target = self._select_pending(revision)
             if target is None:
                 return
             with self.lock:
@@ -286,7 +357,10 @@ class ReturnLookahead:
             # Freshness is checked at reservation. Holding an accepted frozen
             # target never changes its timestamp; later validity uses its
             # certified absolute send deadline, not a new capture-age budget.
-            if not 0 <= self.clock()-target.capture_s <= self.config.raw['maximum_observation_age_s']:
+            admission=getattr(self.vision,'pending_admission',None)
+            accepted=(admission(target,self.clock()) if admission is not None else
+                0<=self.clock()-target.capture_s<=self.config.raw['maximum_observation_age_s'])
+            if not accepted:
                 self._reject(target, PickRejected('下一件曝光在预取接纳前已过期'))
                 return
             with self.lock:
@@ -298,14 +372,9 @@ class ReturnLookahead:
                 return_confirmed=False, robot_commands=0)
             if self.offer_target is not None:
                 self.offer_target(target)
-        if target.epoch != self.vision.clock_epoch or self.vision.poll_pending() is not target:
-            self._reject(target, PickRejected('下一件曝光的相机时钟或身份失效'))
-            return
-        coordinate = float((target.entry_position+target.velocity*(self.clock()-target.capture_s))
-                           @ self.config.direction)
-        if coordinate > self.config.follow_bounds[1]:
-            self._reject(target, PickRejected('预取工件已越过抓取区，等待后续工件', details={
-                'reason': 'lookahead_target_past_region', 'coordinate_m': coordinate}))
+        error = pending_error(self.vision, target, self.config, self.clock())
+        if error is not None:
+            self._reject(target, error)
             return
         with self.lock:
             if self.owner != owner or self.target is not target:
@@ -358,20 +427,25 @@ class ReturnLookahead:
         except PickRejected as error:
             if self.stop.is_set() or self.cancelled.is_set() or self.owner != owner:
                 return
-            if (self.vision.clock_epoch == target.epoch and self.vision.poll_pending() is target
+            expired = pending_error(self.vision, target, self.config, self.clock())
+            if (expired is None
                     and (not self.return_confirmed or self.schedule_revision != revision)):
                 with self.lock:
                     if self.owner != owner or self.target is not target:
                         return
                     self.deferred += 1
                     self.status = 'model_failed_waiting_schedule_update'
+                    if self.multiple_pending:
+                        self.deferred_revisions[target.identity] = revision
+                        self.target = self.planning_start_state = None
+                        self.attempted_revision = None
                 self.emit('lookahead_planning_deferred', identity=target.identity,
                     frame_sequence=target.sequence, capture_monotonic_s=target.capture_s,
                     reason=str(error), failure_details=getattr(error, 'details', {}),
                     model_path_generated=plan is not None, schedule_revision=revision,
                     return_confirmed=self.return_confirmed, robot_commands=0)
             else:
-                self._reject(target, error, generated=plan is not None)
+                self._reject(target, expired or error, generated=plan is not None)
             return
         with self.lock:
             if invalid() or self.target is not target:

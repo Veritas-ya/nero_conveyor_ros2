@@ -79,6 +79,23 @@ def test_rebuilding_adapter_in_same_epoch_never_reuses_consumed_identity(frames)
     assert renewed._fused.plane is None  # new geometry must be measured again
 
 
+def test_geometry_seed_is_current_matched_rgb_component_and_detached(frames):
+    meter=meter_for(frames)
+    for frame in frames[:35]:meter.update(frame,np.eye(4))
+    peer=meter.latest_snapshot
+    track=next(t for t in peer.tracks if t.confirmed and not t.misses)
+    seed=meter.geometry_seed_rgb(frames[34],track)
+    assert seed is not None and seed.any() and not seed.flags.writeable
+    saved=seed.copy()
+    assert meter.geometry_seed_rgb(frames[33],track) is None
+    assert meter.geometry_seed_rgb(frames[34],replace(track,misses=1)) is None
+    assert meter.geometry_seed_rgb(frames[34],replace(track,
+        observed_position_base=(9.,9.,9.))) is None
+    meter.update(frames[35],np.eye(4))
+    assert meter.geometry_seed_rgb(frames[34],track) is None
+    np.testing.assert_array_equal(seed,saved)
+
+
 def test_actual_fused_pipeline_matches_original_full_frame_detector_and_tracker(frames):
     meter=meter_for(frames)
     p=meter.parameters

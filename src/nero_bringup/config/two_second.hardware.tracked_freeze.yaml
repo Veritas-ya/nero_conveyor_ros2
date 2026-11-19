@@ -171,11 +171,17 @@ minimum_speed_span_s: 0.45
 # 根据本次实际规划耗时安排未来起点；预约错过时重新计算，不平移旧轨迹。
 planning_reserve_mode: measured
 planning_reserve_s: 0.0
-# 按测时调度时，允许在抓取区入口上游60cm内冻结；可达性和发送截止仍需要验证。
+# 旧距离策略参数；匹配版使用下方实测带面和75cm上限。
 freeze_upstream_distance_m: 0.10
 synchronized_adaptive_freeze: true
 synchronized_max_freeze_upstream_distance_m: 0.60
-# 原匹配/跟踪入口：上游60cm允许范围内，目标合格即冻结，不要求固定位置过线。
+# 在实测带面内跟踪；原始曝光位置到达入口上游75cm后才允许冻结。
+tracked_freeze_range: detector_footprint
+tracked_freeze_upstream_limit_m: 0.75
+tracked_local_geometry: true
+tracked_frame_max_backlog_s: 0.05  # 过载时跳过积压帧，保留原始曝光时间
+tracked_frozen_queue_capacity: 4  # 仅缓存冻结观测；规划/发送所有权仍逐件交接
+# 匹配/跟踪入口：进入上述范围后，目标合格即可冻结。
 # 原始曝光时间保持；其余抓取、示教、返回及现场参数与复制时的当前配置一致。
 freeze_position_upstream_m: null
 freeze_position_tolerance_m: 0.02

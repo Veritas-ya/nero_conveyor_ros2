@@ -84,6 +84,14 @@ class ExperimentArchive:
         return (frame_metadata(frame, d2c),
             {'frame_rgb':frame.rgb, 'frame_depth_m':frame.depth_m})
 
+    def offer_geometry_rejection(self,frame,d2c,state,identity,surface,indices,details):
+        meta,arrays=self._frame(frame,d2c)
+        meta.update(identity=identity,capture_state=state,details=details,
+            belt_region=surface.region_metadata(),plane=surface.plane,
+            depth_description='Calibrated native depth; do not calibrate twice',physical_success=None)
+        if indices is not None:arrays['seed_pixel_indices']=indices
+        return self._offer('geometry_rejected',meta,arrays)
+
     def offer_target(self, target):
         key = (tuple(target.identity), float(target.capture_s))
         with self.lock:
@@ -98,7 +106,7 @@ class ExperimentArchive:
                 velocity=target.velocity, speed_report=target.speed_report,
                 capture_state=target.state,
                 detection={k:detection[k] for k in ('belt_region','obb','plane','width','height',
-                    'footprint_m','camera_origin_base_m','local_processing') if k in detection},
+                    'footprint_m','camera_origin_base_m','local_processing','freeze_delivery') if k in detection},
                 depth_description='Frozen calibrated native depth; do not calibrate twice',
                 physical_success=None)
             arrays.update(points=target.points, grasps=np.asarray(target.grasps))
@@ -117,9 +125,17 @@ class ExperimentArchive:
         @wraps(original)
         def intercept(target, state, *args, **kwargs):
             self.offer_target(target)
+            submitted = clock()
+            delivery = dict(target.detection.get('freeze_delivery', {}))
+            if delivery:
+                delivery.update(planning_input_monotonic_s=submitted,
+                    exposure_to_planning_input_s=submitted-target.capture_s,
+                    ready_to_planning_input_s=(None if delivery.get('published_monotonic_s') is None
+                        else submitted-delivery['published_monotonic_s']))
             request = self._offer('planning_input', {
                 'identity':target.identity, 'capture_s':target.capture_s,
-                'submission_s':clock(), 'start_state':state,
+                'submission_s':submitted, 'start_state':state,
+                'freeze_delivery':delivery,
                 'intercept_not_before_s':getattr(planner,'intercept_not_before_s',None),
                 'measured_planning_lead_s':getattr(planner,'measured_planning_lead_s',None),
                 'measured_post_planning_s':getattr(planner,'measured_post_planning_s',None)})

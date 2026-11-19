@@ -75,6 +75,15 @@ class MeasuredWorkpieceAdmission:
                 valid_depth_points=int(parts[0].mask.sum()),height_m=float(parts[0].height)
                 if hasattr(parts[0],'height') else float(np.quantile(local[keep,2],.98)))
             row.pop('id_assigned',None)  # the tracker owns any subsequent ID
+            # Pass the component that actually survived depth/height/size
+            # admission, not the larger RGB region that may include belt glare.
+            # Keep the original centroid for the existing tracker/velocity fit.
+            seed_mask = np.asarray(parts[0].mask, dtype=bool).copy()
+            seed_mask.setflags(write=False)
+            detection['geometry_seed_region'] = {
+                'origin_yx': (y, x), 'mask': seed_mask,
+                'sequence':frame.header.sequence, 'epoch':frame.header.clock_epoch,
+                'source_time':frame.header.source_time}
             # Retain the exact original observation for the original tracker.
             if self.include_speed_position:
                 # Reuse this exposure's already filtered, uniquely associated

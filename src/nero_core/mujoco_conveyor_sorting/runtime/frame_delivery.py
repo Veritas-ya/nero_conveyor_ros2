@@ -6,6 +6,8 @@ class FrameDelivery:
     def __init__(self, capacity=8):
         self.frames=deque(maxlen=capacity)
         self.received=self.overflow=self.stale=self.delivered=0
+        self.backlog_skipped=0
+        self.last_delivery_queue_age_s=None
         self.streams={}
         self.ordered_reader_active=False
 
@@ -27,7 +29,7 @@ class FrameDelivery:
             if row['first_s'] is None:row['first_s']=stamp
             row.update(last_s=stamp,last_index=index,frames=row['frames']+1)
 
-    def take(self,after_sequence,now,max_age):
+    def take(self,after_sequence,now,max_age,*,max_backlog_s=None):
         self.ordered_reader_active=True
         while self.frames:
             frame=self.frames[0]
@@ -35,7 +37,11 @@ class FrameDelivery:
                 self.frames.popleft();continue
             if frame.header.age(now)>max_age:
                 self.frames.popleft();self.stale+=1;continue
+            if (max_backlog_s is not None and len(self.frames)>1
+                    and now-frame.header.received_time>max_backlog_s):
+                self.frames.popleft();self.backlog_skipped+=1;continue
             self.delivered+=1
+            self.last_delivery_queue_age_s=max(0.,now-frame.header.received_time)
             return self.frames.popleft()
 
     def report(self):
@@ -46,4 +52,6 @@ class FrameDelivery:
         return {'received_frames':self.received,'ordered_delivered_frames':self.delivered,
             'ordered_reader_active':self.ordered_reader_active,
             'buffer_overflow_frames':self.overflow,'stale_discarded_frames':self.stale,
+            'backlog_skipped_frames':self.backlog_skipped,
+            'last_delivery_queue_age_s':self.last_delivery_queue_age_s,
             'buffered_frames':len(self.frames),'buffer_capacity':self.frames.maxlen,'streams':streams}

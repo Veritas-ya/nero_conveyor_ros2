@@ -37,7 +37,8 @@ def freeze_candidate(config, track, peer, detection, capture_s, now_s, gate_radi
     if np.linalg.norm(center[:2]-observed[:2]) > gate_radius:
         raise ValueError('OBB 点云与测速轨迹未关联')
     if config.raw.get('intercept_strategy', 'classic') == 'synchronized':
-        window = freeze_window_for_speed(config, velocity@config.direction)
+        window = freeze_window_for_speed(config, velocity@config.direction,
+            belt_region=detection.get('belt_region'))
         entry = admit_synchronized_observation(capture_s, observed@config.direction,
             velocity@config.direction, config.follow_bounds, now_s, window['distance_m'],
             minimum_upstream_distance_m=window.get('minimum_distance_m'))

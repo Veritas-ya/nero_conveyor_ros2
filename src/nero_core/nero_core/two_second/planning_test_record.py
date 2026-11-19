@@ -221,7 +221,8 @@ class RecordingTrajectoryPreview(TrajectoryPreview):
         # Do not spend a trial on an observation that production still waits
         # to admit. The real planner retains all geometry/candidate failures.
         try:
-            window = freeze_window_for_speed(self.config, velocity@self.config.direction)
+            window = freeze_window_for_speed(self.config, velocity@self.config.direction,
+                belt_region=done['detection'].get('belt_region'))
             admit_synchronized_observation(done['capture'],
                 np.asarray(track.observed_position_base)@self.config.direction,
                 velocity@self.config.direction, self.config.follow_bounds, now,

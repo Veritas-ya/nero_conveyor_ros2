@@ -34,7 +34,8 @@ def provenance(config):
     files += [root/'mujoco_conveyor_sorting/runtime'/name for name in (
         'nero_pick_hardware.py','single_pick.py','joint_stream_sender.py','frame_products.py','scene_region_filter.py',
         'nero7_belt_velocity.py','nero7_occlusion_tracker.py','nero7_fused_detection.py','nero7_tracking_roi.py','nero7_boundary_depth.py','nero7_height_split.py','workpiece_admission.py',
-        'pointcloud_speed_tracker.py')]
+        'pointcloud_speed_tracker.py','frame_delivery.py','backends/orbbec.py',
+        'belt_surface.py','local_target_geometry.py','feedback_pairing.py')]
     files += [root/'mujoco_conveyor_sorting/models/robot.xml',
               root/'mujoco_conveyor_sorting/configs/robot.yaml',
               root/'mujoco_conveyor_sorting/perception/rgbd_vision_pipeline.py']
@@ -206,6 +207,11 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp',
             'planning_reserve_mode': config.raw['planning_reserve_mode'],
             'planning_reserve_s': config.raw['planning_reserve_s'],
             'freeze_upstream_distance_m': config.raw['freeze_upstream_distance_m'],
+            'tracked_freeze_range': config.raw.get('tracked_freeze_range'),
+            'tracked_freeze_upstream_limit_m': config.raw.get('tracked_freeze_upstream_limit_m'),
+            'tracked_frozen_queue_capacity': config.raw.get('tracked_frozen_queue_capacity'),
+            'tracked_frame_max_backlog_s': config.raw.get('tracked_frame_max_backlog_s'),
+            'tracked_local_geometry': config.raw.get('tracked_local_geometry'),
             'freeze_position_upstream_m': config.raw['freeze_position_upstream_m'],
             'freeze_position_tolerance_m': config.raw['freeze_position_tolerance_m'],
             'maximum_measured_speed_m_s':config.raw['maximum_measured_speed_m_s'],
@@ -290,6 +296,11 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp',
               'intercept_strategy': config.raw['intercept_strategy'],
               'synchronized_duration_s': config.raw['synchronized_duration_s'],
               'freeze_upstream_distance_m': config.raw['freeze_upstream_distance_m'],
+              'tracked_freeze_range': config.raw.get('tracked_freeze_range'),
+              'tracked_freeze_upstream_limit_m': config.raw.get('tracked_freeze_upstream_limit_m'),
+              'tracked_frozen_queue_capacity': config.raw.get('tracked_frozen_queue_capacity'),
+              'tracked_frame_max_backlog_s': config.raw.get('tracked_frame_max_backlog_s'),
+              'tracked_local_geometry': config.raw.get('tracked_local_geometry'),
               'freeze_position_upstream_m': config.raw['freeze_position_upstream_m'],
               'freeze_position_tolerance_m': config.raw['freeze_position_tolerance_m'],
               'maximum_measured_speed_m_s':config.raw['maximum_measured_speed_m_s'],
@@ -512,6 +523,8 @@ def main(argv=None,*,freeze_source='tracked',candidate_retry_policy='per_grasp',
             resources.callback(camera.close)
             camera.start()  # exactly one SDK capture owner
             vision = LiveVision(camera, calibration, config, detector_model, hw.snapshot_nowait)
+            vision.event_sink=journal.emit
+            vision.geometry_rejection_sink=experiment_archive.offer_geometry_rejection
             if freeze_source=='single_exposure_native_depth':
                 experiment_archive.bind_single_exposure(vision)
             if overlap:

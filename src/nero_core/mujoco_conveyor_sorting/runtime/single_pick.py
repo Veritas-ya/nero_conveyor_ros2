@@ -184,7 +184,8 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
                   target_shape='geometry', shape_recognizer=None,
                   robot_model=None, robot_state=None, maximum_target_height_m=None,
                   measured_surface=None, scene_scope='observed_scene',target_seed_pixel_indices=None,
-                  maximum_target_length_m=.16):
+                  maximum_target_length_m=.16, belt_edge_margin_m=.025,
+                  belt_near_camera_margin_m=0., belt_direction_base=None):
     """Reuse the existing foreground component detector; do not guess a class.
 
     A measured belt search region is reused within the same camera session;
@@ -312,13 +313,34 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
                 rejected_target_depth |= complete & ~extended_mask
                 foreground |= complete
                 clean_mask = extended_mask
+    filter_stages = {'foreground_after_shape_pixels':None if clean_mask is None else int(clean_mask.sum())}
     components = pipeline.extract_components(None, frame.depth_m, frame.depth_intrinsics.matrix,
                                              base_to_plane @ frame.camera_to_world_cv,
                                              camera_convention='opencv', foreground_mask=clean_mask,
                                              roi_selects_components=target_shape == 'simple',
                                              points_world=flat)
+    if (isinstance(belt_edge_margin_m, bool) or not isinstance(belt_edge_margin_m, (int, float))
+            or not np.isfinite(belt_edge_margin_m) or not 0 < belt_edge_margin_m <= .1):
+        raise ValueError('belt_edge_margin_m 须为大于0且不超过0.1米的有限数')
     candidates = [c for c in components if cv2.pointPolygonTest(
-        hull, tuple(map(float, c.position[:2])), True) > .025]
+        hull, tuple(map(float, c.position[:2])), True) > belt_edge_margin_m]
+    filter_stages.update(components_after_size=len(components), candidates_after_belt_edge=len(candidates))
+    if (isinstance(belt_near_camera_margin_m, bool) or not isinstance(belt_near_camera_margin_m, (int, float))
+            or not np.isfinite(belt_near_camera_margin_m) or not 0 <= belt_near_camera_margin_m <= .1):
+        raise ValueError('belt_near_camera_margin_m 须为0至0.1米的有限数')
+    near_edge_decisions=[]
+    if belt_near_camera_margin_m>0:
+        from .belt_surface import near_camera_belt_clearance
+        retained=[]
+        for candidate in candidates:
+            clearance=near_camera_belt_clearance(surface,candidate.position[:2],
+                frame.camera_to_world_cv[:3,3],belt_direction_base)
+            accepted=clearance>belt_near_camera_margin_m+1e-9
+            near_edge_decisions.append({'distance_m':clearance,'margin_m':belt_near_camera_margin_m,
+                                        'accepted':accepted})
+            if accepted:retained.append(candidate)
+        candidates=retained
+    filter_stages['candidates_after_near_camera_edge']=len(candidates)
     seed_selection=None
     if seed_indices is not None:
         overlaps=[float(np.mean(c.mask.ravel()[seed_indices])) for c in candidates]
@@ -327,6 +349,7 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
             'candidate_overlap_ratios':overlaps,'minimum_overlap_ratio':.5}
         candidates=[c for c,overlap in zip(candidates,overlaps) if overlap>=.5]
         seed_selection['candidate_count_after_selection']=len(candidates)
+    filter_stages['candidates_after_seed']=len(candidates)
     if len(candidates) != 1:
         if diagnostic is not None:
             mask = np.logical_or.reduce([c.mask for c in candidates]) if candidates else np.zeros_like(frame.depth_m, dtype=bool)
@@ -336,6 +359,8 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
         raise TargetNotReady(f'带面内检测到{len(candidates)}个候选，需保留一个独立工件',
                              reason='no_workpiece' if not candidates else 'multiple_candidates',
                              details={'candidate_count': len(candidates), 'target_cloud_filter': target_filter,
+                                      'candidate_filter_stages':filter_stages,
+                                      'near_camera_edge_decisions':near_edge_decisions,
                                       'component_size_diagnostics':pipeline.last_component_workload,
                                       'target_self_filter': target_self_filter,
                                       **({'same_exposure_seed_selection':seed_selection} if seed_selection else {})})

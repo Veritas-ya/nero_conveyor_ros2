@@ -13,10 +13,11 @@ from .reference import Intercept, EntryNotReady
 from .smooth_reference import SmoothIntercept
 
 
-def freeze_window_for_speed(config, speed):
-    """Bound the upstream freeze window using existing durations and speed.
+def freeze_window_for_speed(config, speed, *, surface=None, belt_region=None):
+    """Resolve the shared exposure admission policy for vision and planning.
 
-    A whole maximum observation age is reserved between capture and planning
+    Detector-footprint mode uses live or frozen measured belt geometry.
+    The legacy duration policy reserves a maximum observation age between capture and planning
     submission. This is only an admission estimate: actual grasp geometry,
     reachability, trajectory certification and deadlines remain downstream.
     """
@@ -31,6 +32,9 @@ def freeze_window_for_speed(config, speed):
         return {'distance_m': position, 'minimum_distance_m': position-tolerance,
                 'required_m': position, 'capped': False, 'policy': 'fixed_capture_position',
                 'capture_tolerance_m': tolerance}
+    if raw.get('tracked_freeze_range') == 'detector_footprint':
+        from .tracked_freeze import detector_freeze_window
+        return detector_freeze_window(config, surface, belt_region=belt_region)
     minimum = float(raw['freeze_upstream_distance_m'])
     if not raw.get('synchronized_adaptive_freeze', False):
         return {'distance_m': minimum, 'required_m': minimum, 'capped': False,
