@@ -24,6 +24,11 @@ from .shape_pick import filter_target_mask
 from .depth_diagnostics import measured_stage, nested_events, trace_context
 
 
+TARGET_GEOMETRY_FIELDS = ('height', 'width', 'center', 'grasp', 'footprint_m', 'target_geometry_source',
+                          'shape_consistency', 'cylinder_fit', 'orientation_confidence',
+                          'localization_points', 'open_clearance_per_side_m')
+
+
 def _json(value):
     if isinstance(value, np.ndarray):
         return _json(value.tolist())
@@ -234,18 +239,50 @@ def _save_artifacts(directory, frame, native, result_points, result_mask, metada
     return {key: metadata[key] for key in ('artifact_prefix', 'artifact_error') if key in metadata}
 
 
-def _deliver_fast_pixels(frame, depth, seed, region, publish, prefix):
-    """Lift finite predictions on the selected object into base coordinates, before grasp admission."""
-    rows, cols = np.nonzero(seed & np.isfinite(depth) & (depth > 0))
-    if not len(rows):
-        return None
-    z = depth[rows,cols].astype(np.float64)
-    rows += region[0].start or 0
-    cols += region[1].start or 0
+def reconstruct_target_depth(frame, native_mask, backend, metadata, stage):
+    """Run one stereo request and bind its response to this exposure and sensor grid."""
+    if backend is None:
+        raise ValueError('backend_unavailable')
+    with stage('request_preparation'):
+        matrix, baseline = _camera_geometry(frame)
+        if native_mask.shape != frame.depth_m.shape:
+            raise ValueError('native_target_mask_grid_mismatch')
+        crop = target_stereo_crop(native_mask)
+        metadata['crop_xyxy'] = list(crop)
+        capture = {'capture_header': asdict(frame.header), 'timestamp_metadata': frame.timestamp_metadata,
+                   'serial_number': frame.serial_number, 'calibration_id': frame.calibration_id}
+    with stage('backend_refine'):
+        result = backend.refine(frame.left_ir, frame.right_ir, matrix, baseline,
+                                crop, capture_metadata=capture)
+    metadata['timings_s'].update(result.timings_s)
+    metadata['worker_provenance'] = result.provenance
+    metadata['worker_artifact_prefix'] = result.artifact_prefix
+    with stage('result_validation'):
+        returned = result.provenance.get('capture_metadata', {})
+        if (returned.get('capture_header') != asdict(frame.header)
+                or returned.get('serial_number', frame.serial_number) != frame.serial_number
+                or returned.get('calibration_id', frame.calibration_id) != frame.calibration_id):
+            raise ValueError('fast_result_capture_mismatch')
+        if tuple(result.crop_xyxy) != crop:
+            raise ValueError('fast_result_crop_mismatch')
+        depth = np.asarray(result.reconstructed_depth_m, dtype=np.float32)
+        if depth.shape != frame.depth_m.shape:
+            raise ValueError('fast_result_grid_mismatch')
+    return depth
+
+
+def fast_target_pixels(frame, depth, native_mask):
+    """Return base-frame Fast points and their full-grid pixel indices in the same order."""
+    indices = np.flatnonzero(native_mask)
+    z = depth.ravel()[indices]
+    valid = np.isfinite(z) & (z > 0)
+    indices = indices[valid]
+    z = z[valid].astype(np.float64)
+    rows, cols = np.divmod(indices, depth.shape[1])
     k = frame.depth_intrinsics
     optical = np.column_stack(((cols-k.cx)*z/k.fx, (rows-k.cy)*z/k.fy, z))
     points = optical @ frame.camera_to_world_cv[:3,:3].T + frame.camera_to_world_cv[:3,3]
-    return publish(frame, points, rows * frame.depth_m.shape[1] + cols, prefix)
+    return points, indices
 
 
 def refine_grasp_observation(observation, backend, *, output_directory=None, emit=None,
@@ -323,32 +360,7 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
         refined.pop('grasp_target_cloud_filter', None)
     result_points, result_mask = native, native_mask
     try:
-        if backend is None:
-            raise ValueError('backend_unavailable')
-        with stage('request_preparation'):
-            matrix, baseline = _camera_geometry(frame)
-            if native_mask.shape != frame.depth_m.shape:
-                raise ValueError('native_target_mask_grid_mismatch')
-            crop = target_stereo_crop(native_mask)
-            metadata['crop_xyxy'] = list(crop)
-            capture = {'capture_header': asdict(frame.header),
-                       'timestamp_metadata': frame.timestamp_metadata,
-                       'serial_number': frame.serial_number, 'calibration_id': frame.calibration_id}
-        with stage('backend_refine'):
-            result = backend.refine(frame.left_ir, frame.right_ir, matrix, baseline,
-                                    crop, capture_metadata=capture)
-        metadata['timings_s'].update(result.timings_s)
-        metadata['worker_provenance'] = result.provenance
-        metadata['worker_artifact_prefix'] = result.artifact_prefix
-        with stage('result_validation'):
-            returned_capture = result.provenance.get('capture_metadata', {}).get('capture_header')
-            if returned_capture != asdict(frame.header):
-                raise ValueError('fast_result_capture_mismatch')
-            if tuple(result.crop_xyxy) != crop:
-                raise ValueError('fast_result_crop_mismatch')
-            depth = np.asarray(result.reconstructed_depth_m, dtype=np.float32)
-            if depth.shape != frame.depth_m.shape:
-                raise ValueError('fast_result_grid_mismatch')
+        depth = reconstruct_target_depth(frame, native_mask, backend, metadata, stage)
         silhouette = observation.get('visible_target_rgb_mask')
         # Without a silhouette every proposed target pixel belongs to the native
         # mask. Only CPU geometry can be cropped; stereo still needs disparity context.
@@ -361,8 +373,9 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
         seed = native_mask[region]
         estimated = depth[region]
         if publish_cloud is not None:
-            metadata['cloud_delivery'] = _deliver_fast_pixels(
-                frame, estimated, seed, region, publish_cloud, result.artifact_prefix)
+            raw_points, indices = fast_target_pixels(frame, depth, native_mask)
+            metadata['cloud_delivery'] = (publish_cloud(frame, raw_points, indices, metadata['worker_artifact_prefix'])
+                                          if len(indices) else None)
             if metadata['cloud_delivery'] is None:
                 metadata['cloud_unavailable_reason'] = 'no_finite_positive_fast_depth_on_target'
         with stage('hybrid_depth_copy'):
@@ -499,10 +512,7 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
                            target_geometry_source='estimated_fast_stereo_visible_depth',
                            native_object_points=native,
                            native_target_geometry=(native_geometry if native_geometry is not None else
-                               {key: observation[key] for key in
-                                ('height', 'width', 'center', 'grasp', 'footprint_m', 'target_geometry_source',
-                                 'shape_consistency', 'cylinder_fit', 'orientation_confidence',
-                                 'localization_points', 'open_clearance_per_side_m') if key in observation}))
+                               {key: observation[key] for key in TARGET_GEOMETRY_FIELDS if key in observation}))
             result_points, result_mask = target, mask
     except Exception as error:
         metadata.update(applied=False, source='native_depth', reason=str(error),

@@ -1,5 +1,7 @@
 # Nero 动态传送带抓取：ROS 2 迁移工作区
 
+Fast 单帧真机入口支持将同一曝光的重建工件点直接交给抓姿和碰撞检查。连续抓取命令、带速参数和示教文件位置见[Fast 单帧抓取说明](docs/fast-single-frame.md)。
+
 2026-11-19 匹配版使用原生 RGB-D 跟踪工件。从抓取区入口沿带向上游量，最早在 75 cm 处允许冻结。程序按原始曝光位置检查边界，用同一帧中通过深度筛选的目标区域提取点云，最多缓存 4 件。排查漏件时，可在运行目录的 `events.jsonl` 查找 `target_geometry_rejected` 和 `target_frozen`，在 `experiment/*_geometry_rejected.npz` 查看代表性失败帧。[匹配版配置](src/nero_bringup/config/two_second.hardware.tracked_freeze.yaml)
 
 2026-11-14 投放接近修正：定位到料框前 20 cm 辅助点的速度低谷，改为[圆滑经过辅助点](docs/投放接近速度低谷修正_20261114.md)。8 组真实输入离线对照通过，消除约 0.3 秒的低速段，搬运总时长不增加；189 项测试通过，安装版已构建。本轮没有执行真机运动。

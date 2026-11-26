@@ -63,8 +63,9 @@ camera_calibration_file: calibration/runtime_depth_20261109.yaml
 tcp_calibration_file: calibration/tcp_legacy_model_nominal.yaml
 # 最终抓取TCP相对视觉抓取中心沿机器人基座Z轴下移5mm，进入规划与碰撞检查。
 grasp_tcp_z_offset_m: -0.005
-fast_stereo_enabled: false  # 当前抓取使用原生点云；Fast边缘质量检查仅供显式测试
-fast_cloud_delivery_mode: all_reconstructed  # 原生命中率及形状一致性记录为诊断，所有非空 Fast 工件重建单独交付
+fast_stereo_enabled: false  # 启动时用 --fast-stereo 选择同曝光双目重建
+fast_cloud_delivery_mode: direct_to_planner  # 已交付的 Fast 工件点直接进入冻结、OBB 和工件碰撞检查
+# 以下两项供使用原生参考点云的质量评估模式使用。
 fast_min_native_coverage_fraction: 0.70
 fast_max_center_shift_m: 0.014
 # fixed_freeze_pick + Fast：随物体高位接入，真实夹爪几何确定净空，对齐后沿法向下降。

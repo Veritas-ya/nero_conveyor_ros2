@@ -288,7 +288,7 @@ def frozen_geometry(config,frame,d2c,surface,candidate,capture_s,*,clock=time.mo
     """
     from .measured_rgbd import fit_plane,green_belt_points
     from .velocity_source import prediction_velocity
-    from .vision import obb_grasps, offset_grasp_tcp_z
+    from .vision import obb_grasps, offset_grasp_tcp_z, record_grasp_box
     from .tracked_freeze import native_exposure_window
     from mujoco_conveyor_sorting.runtime.single_pick import detect_target,PickRejected
     if (robot_model is None)!=(robot_state is None):
@@ -354,5 +354,6 @@ def frozen_geometry(config,frame,d2c,surface,candidate,capture_s,*,clock=time.mo
         scene,ids,valid=prepared.scene()
         detection.update(scene_points=scene,scene_pixel_indices=ids,
             scene_input_count_before_prefilter=valid-len(prepared.geometry['object_points'])-detection['excluded_depth_pixels'])
-    detection.update(obb=box,frame=frame,depth_to_color_cv=d2c,scene_state=robot_state)
+    record_grasp_box(detection, box, grasps, position)
+    detection.update(frame=frame,depth_to_color_cv=d2c,scene_state=robot_state)
     return detection,position,velocity,tuple(grasps),overlap

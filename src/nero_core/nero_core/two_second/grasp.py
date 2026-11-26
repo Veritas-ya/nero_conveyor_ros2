@@ -2,6 +2,9 @@
 import numpy as np
 
 
+MIN_VISIBLE_POINTS = 21
+
+
 class VisibleOBBError(ValueError):
     """This exposure's visible points cannot define the requested OBB."""
 
@@ -14,8 +17,8 @@ def visible_belt_aligned_obb(points_world):
     """
     from scipy.spatial import ConvexHull, QhullError
     points = np.asarray(points_world, dtype=float)
-    if points.ndim != 2 or points.shape[1] != 3 or len(points) < 21 or not np.isfinite(points).all():
-        raise VisibleOBBError('need at least 21 finite visible world points')
+    if points.ndim != 2 or points.shape[1] != 3 or len(points) < MIN_VISIBLE_POINTS or not np.isfinite(points).all():
+        raise VisibleOBBError(f'need at least {MIN_VISIBLE_POINTS} finite visible world points')
     xy = points[:, :2]
     try:
         hull = xy[ConvexHull(xy).vertices]

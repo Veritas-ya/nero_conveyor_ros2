@@ -14,7 +14,7 @@ from mujoco_conveyor_sorting.runtime.nero7_belt_velocity import Nero7BeltVelocit
 from mujoco_conveyor_sorting.runtime.single_pick import detect_target, PickRejected, TargetNotReady
 from mujoco_conveyor_sorting.runtime.feedback_clock import mapped_stamp
 from mujoco_conveyor_sorting.runtime.feedback_pairing import capture_joint_pairing_valid
-from .grasp import VisibleOBBError, visible_belt_aligned_obb
+from .grasp import MIN_VISIBLE_POINTS, VisibleOBBError, visible_belt_aligned_obb
 from .measured_rgbd import fit_plane, green_belt_points, depth_capture_timing
 from .reference import predict_entry_time, EntryNotReady
 from .synchronized_reference import admit_synchronized_observation, freeze_window_for_speed
@@ -61,6 +61,14 @@ def obb_grasps(points_base, plane_to_base, canonical_tcp, *, tcp_z_offset_m=0.):
     return offset_grasp_tcp_z(result, box, tcp_z_offset_m)
 
 
+def record_grasp_box(detection, box, grasps, center):
+    detection['obb'] = box
+    if detection.get('target_geometry_source') == 'fast_depth_at_target_pixels':
+        footprint = sorted(box['extent_m'][:2], reverse=True)
+        detection.update(center=center.copy(), grasp=grasps[0].copy(), footprint_m=footprint,
+                         width=footprint[1], localization_points=box['visible_point_count'])
+
+
 @dataclass(frozen=True)
 class MeasuredTarget:
     identity: tuple
@@ -98,7 +106,7 @@ class MeasuredTarget:
         entry.setflags(write=False)
         object.__setattr__(self, 'entry_position', entry)
         points = np.asarray(self.points, dtype=float).copy()
-        if points.ndim != 2 or points.shape[1] != 3 or len(points) < 21 or not np.isfinite(points).all():
+        if points.ndim != 2 or points.shape[1] != 3 or len(points) < MIN_VISIBLE_POINTS or not np.isfinite(points).all():
             raise ValueError('需要单帧有限目标点云')
         points.setflags(write=False)
         object.__setattr__(self, 'points', points)
@@ -836,7 +844,8 @@ class LiveVision:
         try:self.entry_time(captured,observed,velocity,time.monotonic(),progress=progress,
                             belt_region=detection['belt_region'])
         except EntryNotReady:return
-        detection.update(frame=frame,depth_to_color_cv=d2c,scene_state=state,obb=box)
+        record_grasp_box(detection, box, grasps, center)
+        detection.update(frame=frame,depth_to_color_cv=d2c,scene_state=state)
         item=MeasuredTarget((peer.clock_epoch,peer.track_generation,track.track_id),captured,
             float(frame.header.received_time),float(frame.header.source_time),int(peer.clock_epoch),
             int(frame.header.sequence),center.copy(),velocity,tuple(grasps),
