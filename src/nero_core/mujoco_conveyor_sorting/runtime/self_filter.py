@@ -8,6 +8,7 @@ neither concavities nor objects touching its padding band can be resolved here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from copy import copy
 from pathlib import Path
 from collections.abc import Mapping
 
@@ -119,6 +120,23 @@ class ConvexBody:
             self.padded_radius = float(np.linalg.norm(padded_vertices, axis=1).max())
         else:
             self.padded_radius = self.radius
+
+    def at_pose(self, position, rotation):
+        """Reuse a validated local hull; only its rigid placement changes.
+
+        Padding and its halfspace intersection are independent of joint pose.
+        Geometry owners must invalidate this template when the hull changes.
+        """
+        position = np.asarray(position, dtype=float)
+        rotation = np.asarray(rotation, dtype=float)
+        if (position.shape != (3,) or rotation.shape != (3, 3)
+                or not np.isfinite(position).all() or not np.isfinite(rotation).all()
+                or not np.allclose(rotation.T @ rotation, np.eye(3), atol=1e-6)
+                or not np.isclose(np.linalg.det(rotation), 1., atol=1e-6)):
+            raise ValueError('robot geometry placement must be finite and rigid')
+        result = copy(self)
+        result.position, result.rotation = position.copy(), rotation.copy()
+        return result
 
 
 def _inside(local_points, equations):

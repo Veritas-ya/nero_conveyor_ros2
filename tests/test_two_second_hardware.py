@@ -476,8 +476,8 @@ def test_measured_target_copies_input_and_keeps_relative_grasp():
 
 @pytest.mark.parametrize('broken_log_sink', [False, True])
 @pytest.mark.parametrize('unconfirmed', [False, True])
-@pytest.mark.parametrize('prefetched', [False, True])
-def test_full_cycle_wiring_returns_to_wait_and_never_claims_physical_success(monkeypatch, broken_log_sink, unconfirmed, prefetched):
+@pytest.mark.parametrize('prefetched, start_offset_deg', [(False, 0.), (True, 0.), (True, -.52), (True, 1.)])
+def test_full_cycle_wiring_returns_to_wait_and_never_claims_physical_success(monkeypatch, broken_log_sink, unconfirmed, prefetched, start_offset_deg):
     """Ideal feedback proves stage order, not routes, contact or physical lifts."""
     from concurrent.futures import Future
     from nero_core.two_second.planning import InterceptPlan
@@ -518,6 +518,7 @@ def test_full_cycle_wiring_returns_to_wait_and_never_claims_physical_success(mon
         executor.epoch=lambda:0
         executor.prefetched_intercept=PreparedIntercept(target,executor.planner,plan,
             device.snapshot(),(0,0,0),clock())
+        device.q[:] = np.deg2rad(start_offset_deg)
         clock.sleep(.5)  # Capture older than initial admission; absolute plan still valid.
         def forbidden_replan(*a,**kw):pytest.fail('certified next trajectory should be reused')
         executor.planner.intercept=forbidden_replan
@@ -626,7 +627,9 @@ def test_hardware_site_camera_and_provenance_are_self_contained(site_name):
     old_direction = np.asarray(json.loads((config/'calibration/belt_direction_20261109.json').read_text())['belt_direction_base'])
     wait_direction = np.asarray(json.loads((config/'calibration/belt_direction_20261111_three_pass.json').read_text())['belt_direction_base'])
     displacement=-.10*old_direction-.15*wait_direction+np.array([0.,0.,.05])
-    fitted = json.loads((config/'calibration/belt_direction_20261113_single_pass.json').read_text())
+    if site_name == 'two_second.hardware.tracked_freeze.yaml':
+        displacement[2] += .05  # Additional base-Z lift of the active standby on Nov 25.
+    fitted = json.loads((config/'calibration/belt_direction_20261124_single_pass.json').read_text())
     np.testing.assert_allclose(cfg.direction, fitted['belt_direction_base'], atol=1e-12)
     expected[:3,3]+=displacement
     np.testing.assert_allclose(current,expected,atol=1e-8)

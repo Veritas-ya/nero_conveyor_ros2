@@ -35,25 +35,33 @@ class PrecisePoseSolver:
         if solved.success:
             return solved
         target = Rotation.from_quat(np.asarray(quat)[[1, 2, 3, 0]]).as_matrix()
+        last_q = None
+        rotation_error = None
+        jp = np.empty((3, self.model.model.nv))
+        jr = np.empty_like(jp)
+
+        def update_pose(q):
+            nonlocal last_q, rotation_error
+            if cancelled():
+                raise PickRejected('平滑有界逆解已取消或超出预算')
+            # dogbox evaluates its residual and Jacobian at the same joints.
+            if not np.array_equal(q, last_q):
+                self.data.qpos[self.model.indices] = q
+                self.model.mj.mj_kinematics(self.model.model, self.data)
+                actual = self.data.site_xmat[self.model.tcp_id].reshape(3, 3)
+                rotation_error = Rotation.from_matrix(target@actual.T).as_rotvec()
+                last_q = q.copy()
+            return rotation_error
+
         def residual(q):
-            if cancelled():
-                raise PickRejected('平滑有界逆解已取消或超出预算')
-            self.data.qpos[self.model.indices] = q
-            self.model.mj.mj_kinematics(self.model.model, self.data)
-            actual = self.data.site_xmat[self.model.tcp_id].reshape(3, 3)
-            return 1000*np.r_[self.data.site_xpos[self.model.tcp_id]-xyz,
-                self.ik.config.orientation_weight*Rotation.from_matrix(target@actual.T).as_rotvec()]
+            error = update_pose(q)
+            return 1000*np.concatenate((self.data.site_xpos[self.model.tcp_id]-xyz,
+                self.ik.config.orientation_weight*error))
+
         def jacobian(q):
-            if cancelled():
-                raise PickRejected('平滑有界逆解已取消或超出预算')
-            self.data.qpos[self.model.indices] = q
-            self.model.mj.mj_kinematics(self.model.model, self.data)
+            error = update_pose(q)
             self.model.mj.mj_comPos(self.model.model, self.data)
-            jp = np.zeros((3, self.model.model.nv))
-            jr = np.zeros((3, self.model.model.nv))
             self.model.mj.mj_jacSite(self.model.model, self.data, jp, jr, self.model.tcp_id)
-            actual = self.data.site_xmat[self.model.tcp_id].reshape(3, 3)
-            error = Rotation.from_matrix(target@actual.T).as_rotvec()
             dofs = self.ik.dof_indices
             return 1000*np.vstack((jp[:, dofs],
                 -self.ik.config.orientation_weight*_right_jacobian_inverse(error)@jr[:, dofs]))

@@ -11,8 +11,8 @@ from test_two_second_hardware import Clock, executor_fixture, cloud
 from test_two_second_smoothing import fixture
 
 
-@pytest.mark.parametrize('invalidate_scene', [False, True])
-def test_production_planner_recomputes_target_after_measured_miss(monkeypatch, invalidate_scene):
+@pytest.mark.parametrize('invalidate_scene, repair_enabled', [(False,False),(True,False),(False,True)])
+def test_production_planner_recomputes_target_after_measured_miss(monkeypatch, invalidate_scene, repair_enabled):
     planner, model, target = fixture(monkeypatch)
     clock = Clock(); planner.clock = clock
     planner.config.follow_bounds = np.array([-.2, 1.])
@@ -20,6 +20,8 @@ def test_production_planner_recomputes_target_after_measured_miss(monkeypatch, i
         planning_reserve_mode='measured', planning_reserve_s=0., synchronized_duration_s=0.,
         prealign_orientation_s=2., rotate_first_s=0., brake_duration_s=.5,
         candidate_planning_budget_s=1., planning_knot_hz=10., planning_knot_hz_fallback=10.)
+    if repair_enabled:
+        planner.config.raw['delivery_repair']={'enabled':True}
     target.center=np.zeros(3)
     poses=[]
     for _ in range(2):
@@ -44,6 +46,12 @@ def test_production_planner_recomputes_target_after_measured_miss(monkeypatch, i
     monkeypatch.setattr(planner,'check_smooth_intercept',geometry)
     result=planner.intercept(target,{'joints':np.zeros(7)})
     rounds=result.path.diagnostics['measured_planning']['rounds']
+    if repair_enabled:
+        assert len(rounds)==len(references)==len(installed)==1
+        assert rounds[0]['result']=='expired_candidate_for_repair'
+        assert result.path.diagnostics['expired_delivery_candidate']['requires_repair_before_dispatch']
+        assert result.reference.start_s-planner.config.raw['command_advance_s'] < clock()
+        return
     assert rounds[0]['result']=='missed' and rounds[-1]['result']=='delivered'
     assert result.reference.start_s-planner.config.raw['command_advance_s'] > clock()
     assert len(references)>=2 and references[-1].contact_s > references[0].contact_s

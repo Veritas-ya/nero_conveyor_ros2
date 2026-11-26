@@ -17,12 +17,7 @@ class BeltSurfaceNotReady(ValueError):
         self.details = {} if details is None else dict(details)
 
 
-def near_camera_belt_clearance(surface, center_xy, camera_origin_base, belt_direction_base):
-    """Distance across the belt to its camera-facing edge at this centre.
-
-    Work in the measured plane, perpendicular to travel. This excludes only
-    the selected lateral strip, without eroding upstream/downstream edges.
-    """
+def _camera_facing_axes(surface, hull, camera_origin_base, belt_direction_base):
     rotation = surface.plane_to_base[:3, :3]
     direction = np.asarray(belt_direction_base, float)
     if direction.shape != (3,) or not np.isfinite(direction).all():
@@ -32,12 +27,18 @@ def near_camera_belt_clearance(surface, center_xy, camera_origin_base, belt_dire
         raise ValueError('单侧带边检测需要有效带向')
     axis /= np.linalg.norm(axis)
     side = np.array([-axis[1], axis[0]])
-    hull = np.asarray(surface.hull_xy, float).reshape(-1, 2)
     camera = ((np.asarray(camera_origin_base)-surface.plane_to_base[:3, 3]) @ rotation)[:2]
     facing = float((camera-hull.mean(axis=0)) @ side)
     if abs(facing) < 1e-6:
         raise ValueError('相机投影位于带面中线上，无法区分近侧带边')
     side *= np.sign(facing)
+    return axis, side
+
+
+def near_camera_belt_clearance(surface, center_xy, camera_origin_base, belt_direction_base):
+    """Signed lateral clearance at one centre (no cross-section: outside)."""
+    hull = np.asarray(surface.hull_xy, float).reshape(-1, 2)
+    axis, side = _camera_facing_axes(surface, hull, camera_origin_base, belt_direction_base)
     relative = hull-np.asarray(center_xy)
     along, across = relative @ axis, relative @ side
     crossings = []
@@ -49,6 +50,32 @@ def near_camera_belt_clearance(surface, center_xy, camera_origin_base, belt_dire
             fraction = -along[i]/(along[j]-along[i])
             crossings.append(across[i]+fraction*(across[j]-across[i]))
     return float(max(crossings)) if crossings else float('-inf')
+
+
+def near_camera_footprint_clearances(surface, base_points, camera_origin_base, belt_direction_base):
+    """Project measured points onto the belt. Compare each with the near side
+    at its own longitudinal station; beyond the two ends the strip is undefined.
+    Use the same visible detection outline as the single-exposure detector.
+    """
+    outline = getattr(surface, 'detection_hull_xy', None)
+    hull = np.asarray(surface.hull_xy if outline is None else outline, float).reshape(-1, 2)
+    axis, side = _camera_facing_axes(surface, hull, camera_origin_base, belt_direction_base)
+    transform = surface.plane_to_base
+    xy = (base_points-transform[:3, 3]) @ transform[:3, :2]
+    station = xy @ axis
+    along, across = hull @ axis, hull @ side
+    edge = np.full(len(xy), -np.inf)
+    for i, end in enumerate(along):
+        start = along[i-1]
+        if abs(end-start) < 1e-12:
+            at = np.abs(station-end) < 1e-10
+            edge[at] = np.maximum(edge[at], max(across[i-1], across[i]))
+        else:
+            at = (station >= min(start, end)) & (station <= max(start, end))
+            t = (station[at]-start)/(end-start)
+            edge[at] = np.maximum(edge[at], across[i-1]+t*(across[i]-across[i-1]))
+    edge[~np.isfinite(edge)] = np.nan
+    return edge - xy @ side
 
 
 def _geometry_fingerprint(frame: Any, d2c: Any) -> tuple:
@@ -75,7 +102,7 @@ def _geometry_fingerprint(frame: Any, d2c: Any) -> tuple:
             array_key(frame.camera_to_world_cv), array_key(d2c))
 
 
-def _scene_bounds_from_green_outline(frame, d2c, green_rgb, plane_to_base, native_bounds):
+def _scene_bounds_from_green_outline(frame, d2c, green_rgb, plane_to_base, native_bounds, *, include_hull=False):
     """Estimate the scene crop from visible green, without filling any depth.
 
     Depth density is not uniform at the stereo image edge. Its quantiles are
@@ -131,6 +158,8 @@ def _scene_bounds_from_green_outline(frame, d2c, green_rgb, plane_to_base, nativ
         projected_bounds_xy_m=projected.tolist(), scene_bounds_xy_m=bounds.tolist(),
         capture_sequence=getattr(getattr(frame, 'header', None), 'sequence', None),
         capture_clock_epoch=getattr(getattr(frame, 'header', None), 'clock_epoch', None))
+    if include_hull:
+        diagnostics['projected_hull_xy_m'] = cv2.convexHull(flat[:, :2].astype(np.float32)).tolist()
     return bounds, diagnostics
 
 
@@ -146,6 +175,8 @@ class BeltSurface:
     geometry_fingerprint: tuple | None = None
     scene_bounds_xy_m: np.ndarray | None = None
     boundary_diagnostics: dict = field(default_factory=dict)
+    detection_hull_xy: np.ndarray | None = None
+    detection_boundary_diagnostics: dict = field(default_factory=dict)
 
     def region_metadata(self) -> dict:
         """Keep native detection bounds separate from inferred scene bounds."""
@@ -208,5 +239,38 @@ class BeltSurface:
         bounds = np.column_stack((lower, upper))
         scene_bounds, diagnostics = _scene_bounds_from_green_outline(
             frame, d2c, green_rgb, plane_to_base, bounds)
-        return cls(plane_to_base, bounds, hull, dict(plane), len(belt),
-                   _geometry_fingerprint(frame, d2c), scene_bounds, diagnostics)
+        surface = cls(plane_to_base, bounds, hull, dict(plane), len(belt),
+                      _geometry_fingerprint(frame, d2c), scene_bounds, diagnostics)
+        # Erosion is useful for fitting the plane, but must not define where
+        # an object may be detected. Keep this optical boundary separate from
+        # the native-depth hull and all collision/scene geometry.
+        if green_rgb is not None:
+            return visible_detection_boundary(surface, frame, d2c)
+        return surface
+
+
+def visible_detection_boundary(surface, frame, d2c):
+    """Private detection footprint from uneroded visible green on the real plane.
+
+    No depth samples are added. Reject inconsistent optical projections and
+    retain the original native detection boundary in that case.
+    """
+    from dataclasses import replace
+    from .frame_products import green_rgb_mask
+    green = green_rgb_mask(frame, d2c)
+    _, report = _scene_bounds_from_green_outline(frame, d2c, green,
+        surface.plane_to_base, surface.bounds_xy_m, include_hull=True)
+    report = {**report, 'scope': 'detection_only', 'mask_erosion_pixels': 0}
+    if not report.get('applied'):
+        return replace(surface, detection_hull_xy=None, detection_boundary_diagnostics=report)
+    hull = np.asarray(report.pop('projected_hull_xy_m'), dtype=np.float32)
+    native = np.asarray(surface.hull_xy, dtype=np.float32)
+    native_area, area = cv2.contourArea(native), cv2.contourArea(hull)
+    overlap = cv2.intersectConvexConvex(native, hull)[0]
+    ratio = area/native_area if native_area > 0 else float('inf')
+    coverage = overlap/native_area if native_area > 0 else 0.
+    report.update(area_ratio_to_native=ratio, native_area_coverage=coverage)
+    if not .8 <= ratio <= 1.5 or coverage < .9:
+        report.update(applied=False, reason='visible_outline_inconsistent_with_native_belt')
+        hull = None
+    return replace(surface, detection_hull_xy=hull, detection_boundary_diagnostics=report)

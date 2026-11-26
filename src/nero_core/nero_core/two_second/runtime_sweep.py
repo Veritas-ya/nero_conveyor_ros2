@@ -76,6 +76,8 @@ def scene_snapshot(planner, path):
         target_state={k:v for k,v in getattr(target,'state',{}).items()
                       if k in ('joints','pose','width_m','force_n')},
         geometry_context=dict(planner.geometry_context),
+        bin_departure_points=(None if getattr(planner, 'bin_departure_tree', None) is None
+            else planner.bin_departure_tree.data.copy()),
         released_points=None if planner.released_points is None else planner.released_points.copy(),
         recovery_workpiece_contact=recovery_contact_allowed(planner))
 
@@ -117,6 +119,8 @@ def restore_scene(p, snapshot):
     p.scene_report = snapshot['scene_report']
     p.released_points = snapshot['released_points']
     p.released_tree = None if p.released_points is None else cKDTree(p.released_points)
+    previous_drop = snapshot.get('bin_departure_points')
+    p.bin_departure_tree = None if previous_drop is None else cKDTree(previous_drop)
     p._recovery_workpiece_contact_target = p.target if snapshot['recovery_workpiece_contact'] else None
     p.version = snapshot['path'].version
     p.geometry_context = snapshot['geometry_context']
@@ -140,9 +144,29 @@ def sweep(planner, path, request, *, cancelled=lambda: False):
             key = (q.tobytes(), target_stamp)
             if key in checked:
                 continue
-            planner.valid(q, request['width_m'], stamp=target_stamp,
-                contact=request['contact'], payload=request['payload'],
-                allow_belt_support=request['allow_belt_support'])
+            try:
+                contact = request['contact']
+                if request.get('phase_contact_by_sample') and target_stamp is not None:
+                    contact = (request['close_sent_s'] is not None and target_stamp >= request['close_sent_s'])
+                planner.valid(q, request['width_m'], stamp=target_stamp,
+                    contact=contact, payload=request['payload'],
+                    allow_belt_support=request['allow_belt_support'])
+            except PickRejected as error:
+                if (request.get('phase_contact_by_sample') and target_stamp is not None
+                        and error.details.get('kind') == 'robot_workpiece_point_cloud'):
+                    raise PickRejected(str(error), details={**error.details,
+                        'moving_target_sample_s': target_stamp, 'close_command_s': request['close_sent_s'],
+                        'finger_contact_allowed': contact}) from error
+                if error.details.get('kind') != 'bin_departure_released_workpiece':
+                    raise
+                details = error.details.copy()
+                details.pop('sample_elapsed_s', None)
+                raise PickRejected(str(error), details={**details, 'runtime_sweep':True,
+                    'trajectory_stage':path.stage,
+                    'dispatch_reference_elapsed_s':request['dispatch_s'] + request['advance_s'] - request['origin_s'],
+                    'sweep_target_elapsed_s':float(stamp + request['advance_s'] - request['origin_s']),
+                    'chord_fraction':float(u), 'measured_joints_rad':actual.tolist(),
+                    'checked_joints_rad':q.tolist(), 'width_m':request['width_m']}) from error
             checked.add(key)
     return True
 
@@ -347,7 +371,7 @@ class PeriodicSweep:
 
 
 def request_for(planner, state, *, dispatch, origin, advance, control_hz,
-                reference, attached, smooth, scheduled_attempt, follow_end, grip_confirmed=False):
+                reference, attached, smooth, scheduled_attempt, follow_end, grip_confirmed=False, close_sent_s=None):
     elapsed = dispatch+advance-origin
     pose_s = mapped_stamp(state, 'pose')
     until = dispatch+1./control_hz
@@ -361,7 +385,9 @@ def request_for(planner, state, *, dispatch, origin, advance, control_hz,
         contact_dispatch_s=None if reference is None else origin-advance+reference.duration_s,
         unconfirmed_follow_end_dispatch_s=(None if reference is None or grip_confirmed
                                            else origin-advance+follow_end),
-        moving_target=reference is not None and not attached and not scheduled_attempt,
+        moving_target=reference is not None and not attached and (
+            not scheduled_attempt or bool(getattr(reference,'relative_descent_s',0.))),
+        phase_contact_by_sample=bool(getattr(reference,'relative_descent_s',0.)), close_sent_s=close_sent_s,
         contact=reference is not None and elapsed >= reference.duration_s,
         payload=attached, allow_belt_support=smooth and attached,
         payload_local=getattr(planner, 'payload_local', None) if attached else None,

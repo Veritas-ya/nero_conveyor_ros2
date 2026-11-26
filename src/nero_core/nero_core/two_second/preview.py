@@ -47,7 +47,14 @@ def freeze_candidate(config, track, peer, detection, capture_s, now_s, gate_radi
             velocity@config.direction, config.follow_bounds[0], now_s,
             config.raw['planning_reserve_s'] + config.raw.get('prealign_orientation_s', 0.),
             maximum_upstream_distance_m=config.raw['freeze_upstream_distance_m'])
-    grasps, box = obb_grasps(points, detection['belt_region']['plane_to_base'], config.canonical_tcp)
+    obb_points = points
+    if config.raw.get('depth_separation_enabled', False):
+        keep = np.asarray(detection.get('grasp_point_keep_mask'))
+        if keep.dtype != np.bool_ or keep.shape != (len(points),):
+            raise ValueError('冻结预览缺少同帧 OBB 选点掩码')
+        obb_points = points[keep]
+    grasps, box = obb_grasps(obb_points, detection['belt_region']['plane_to_base'], config.canonical_tcp,
+                           tcp_z_offset_m=config.raw.get('grasp_tcp_z_offset_m', 0.))
     box = box_in_base(box,np.asarray(detection['belt_region']['plane_to_base']))
     candidates = []
     for duration in config.raw['approach_duration_candidates_s']:
@@ -136,12 +143,17 @@ class CameraPreview:
                 self.detector_model.check_feedback(robot_state)
             detection = detect_target(frame, d2c, fit_plane=fit_plane,
                 green_belt_points=green_belt_points, target_shape='simple',
+                retain_native_seed=self.config.raw.get('depth_separation_enabled', False),
+                rgb_cloud_completion=self.config.raw.get('rgb_cloud_completion_enabled',False),
                 robot_model=self.detector_model if robot_state is not None else None,
                 robot_state=robot_state,
                 measured_surface=surface,
                 maximum_target_height_m=self.config.raw['maximum_target_height_m'])
-            grasps, box = obb_grasps(detection['object_points'],
-                detection['belt_region']['plane_to_base'], self.config.canonical_tcp)
+            from .depth_separation import grasp_points
+            obb_points = grasp_points(detection, frame, enabled=self.config.raw.get('depth_separation_enabled', False))
+            grasps, box = obb_grasps(obb_points,
+                detection['belt_region']['plane_to_base'], self.config.canonical_tcp,
+                tcp_z_offset_m=self.config.raw.get('grasp_tcp_z_offset_m', 0.))
             box = box_in_base(box,np.asarray(detection['belt_region']['plane_to_base']))
             geometry = {'frame':frame, 'rgb_frame':frame, 'd2c':d2c,
                 'points':np.asarray(detection['object_points']).copy(), 'grasps':grasps,

@@ -58,6 +58,7 @@ class FixedFreezeWorker(Thread):
         self.current=None;self.frozen=False;self.trigger_capture=None
         self.minimum_capture_s=float('-inf')
         self.processed=0;self.last_diagnostics=0.
+        self.fast_stereo=None
 
     def publish(self,**values):
         with self.lock:self.latest={**self.latest,**values}
@@ -72,6 +73,7 @@ class FixedFreezeWorker(Thread):
             source_config_path=str(getattr(self.config,'source','')),
             source_config_sha256=getattr(self.config,'source_sha256',None),
             model_planning_requested=self.paths is not None,
+            fast_stereo_enabled=self.config.raw.get('fast_stereo_enabled',False),
             fixed_speed_policy=interface_velocity_policy(self.config),freeze_upstream_cm=self.config.raw['freeze_position_upstream_m']*100,
             tolerance_cm=self.config.raw['freeze_position_tolerance_m']*100,
             identity_policy='one manual-armed exposure event; no multiframe tracking or speed qualification',
@@ -109,9 +111,13 @@ class FixedFreezeWorker(Thread):
             trigger_seed_pixel_indices=candidate.seed_pixel_indices,
             capture_monotonic_s=np.asarray(capture),
             metadata=np.asarray(json.dumps(json_value(frame_metadata(frame,d2c)),ensure_ascii=False)))
+        for side in ('left_ir','right_ir'):
+            value=getattr(frame,side,None)
+            if value is not None:arrays['frame_'+side]=value
         try:
             detection,position,velocity,grasps,overlap=frozen_geometry(self.config,frame,d2c,surface,
-                candidate,capture,clock=time.monotonic,detect_fn=detect_target,grasp_fn=obb_grasps)
+                candidate,capture,clock=time.monotonic,detect_fn=detect_target,grasp_fn=obb_grasps,
+                fast_stereo=self.fast_stereo)
             points=np.asarray(detection['object_points'])
             geometry=dict(frame=frame,rgb_frame=frame,d2c=d2c,points=points,grasps=grasps,
                 obb=box_in_base(detection['obb'],surface.plane_to_base),source_sequence=frame.header.sequence,
@@ -122,9 +128,13 @@ class FixedFreezeWorker(Thread):
                 locator_upstream_cm=float((self.config.follow_bounds[0]-candidate.position@self.config.direction)*100),
                 capture_age_at_point_cloud_ready_s=ready-capture,geometry_wall_s=ready-start,
                 depth_modified=False,multiframe_matching_used=False)
+            row['fast_stereo']=detection.get('fast_stereo')
             arrays.update(object_points_base_m=points,grasps=np.asarray(grasps),
                 scene_points=detection['scene_points'],scene_pixel_indices=detection['scene_pixel_indices'],
-                detection_metadata=np.asarray(json.dumps(json_value({k:detection[k] for k in ('plane','belt_region')}))))
+                detection_metadata=np.asarray(json.dumps(json_value({k:detection[k] for k in
+                    ('plane','belt_region','target_geometry_source','fast_stereo') if k in detection}))))
+            for name in ('native_object_points','grasp_target_mask'):
+                if name in detection:arrays[name]=detection[name]
             if generation==self.generation:
                 self.publish(live_geometry=geometry,status=f'已生成 {len(points)} 点工件点云，正在规划' if self.paths else '点云已锁存；空格开始下一次')
             result=None
@@ -185,11 +195,15 @@ class FixedFreezeWorker(Thread):
     def run(self):
         camera=None;capture_thread=None;surface=locator=None;epoch=None
         try:
+            if self.config.raw.get('fast_stereo_enabled',False):
+                from .fast_perception import FastTargetPerception
+                self.fast_stereo=FastTargetPerception(self.config,self.output/'fast_stereo').start()
             if self.paths:
                 from .planning import MeasuredPlanner,calibrated_model
                 self.paths.planner=MeasuredPlanner(self.config,model=calibrated_model(self.config))
             from mujoco_conveyor_sorting.runtime.backends.orbbec import OrbbecCameraBackend
-            values=dict(self.config.raw['camera'])
+            from .fast_perception import camera_settings
+            values=camera_settings(self.config)
             values.update(enable_color=True,require_color=True,timestamp_source='device',
                 serial_number=self.calibration['serial_number'],calibration_id=self.calibration['calibration_id'],
                 camera_to_world_cv=self.calibration['depth_to_base_cv'])
@@ -267,6 +281,7 @@ class FixedFreezeWorker(Thread):
             if capture_thread:capture_thread.join(timeout=2.)
             if camera:camera.stop()
             self.pool.shutdown(wait=True,cancel_futures=False)
+            if self.fast_stereo:self.fast_stereo.close()
             self.pending.clear()
             self.finish()
             if self.paths:self.paths.close()
@@ -283,6 +298,7 @@ class FixedFreezeWorker(Thread):
 def arguments(argv=None):
     parser=argparse.ArgumentParser(description='固定位置单帧工件点云测试：只开相机，不连接CAN，不执行机械臂。')
     parser.add_argument('--config',type=Path,required=True)
+    parser.add_argument('--fast-stereo',action='store_true',help='同曝光Fast双目工件重建，保持只开相机')
     parser.add_argument('--belt-speed-cm-s',type=float,required=True)
     parser.add_argument('--freeze-upstream-cm',type=float,default=50.)
     parser.add_argument('--tolerance-cm',type=float,default=2.)
@@ -298,6 +314,7 @@ def arguments(argv=None):
         parser.error('冻结位置、容差和运行时间无效')
     try:
         config=CellConfig.load(args.config)
+        if args.fast_stereo:config.raw['fast_stereo_enabled']=True
         speed=args.belt_speed_cm_s/100.
         cell_limit=config.raw['maximum_measured_speed_m_s']
         # This executable has no robot/CAN execution path. Admit the stated
@@ -333,6 +350,7 @@ def main(argv=None):
             belt_speed_cm_s=args.belt_speed_cm_s,freeze_upstream_cm=args.freeze_upstream_cm,
             tolerance_cm=args.tolerance_cm,planning=not args.no_plan,can_connections=0,
             robot_commands_sent=0,camera_connections=0,
+            fast_stereo_enabled=config.raw.get('fast_stereo_enabled',False),
             velocity_policy=interface_velocity_policy(config)),ensure_ascii=False))
         return 0
     # Qt and camera SDK import only when the user actually runs the test.

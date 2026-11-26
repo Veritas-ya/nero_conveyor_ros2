@@ -89,3 +89,28 @@ def test_private_search_copy_preserves_scene_plane_hull_and_original_surface():
     np.testing.assert_array_equal(copy.plane_to_base,surface.plane_to_base)
     np.testing.assert_array_equal(copy.hull_xy,surface.hull_xy)
     assert surface.scene_bounds_xy_m is None
+
+
+@pytest.mark.parametrize('clearance,accepted',[(.015,True),(.003,False),(-.003,False)])
+def test_configured_edge_margin_shared_by_locator_and_full_geometry(monkeypatch,clearance,accepted):
+    import cv2
+    config,frame,surface=data()
+    monkeypatch.setattr(BeltSurface,'matches_frame',lambda *a:True)
+    original=NativeDepthLocator(config,surface,frame).locate(frame)[0][0]
+    edge=original.position[1]+clearance
+    hull=cv2.convexHull(np.array([[-.9,-.5],[.8,-.5],[.8,edge],[-.9,edge]],np.float32))
+    surface=replace(surface,hull_xy=hull,bounds_xy_m=np.array([[-.9,.8],[-.5,edge]]))
+    old,old_report=NativeDepthLocator(config,surface,frame).locate(frame)
+    assert not old
+    assert old_report['size_decisions'][0]['reason']=='belt_edge'
+    config.raw['perception_belt_edge_margin_m']=.005
+    candidates,report=NativeDepthLocator(config,surface,frame).locate(frame)
+    assert bool(candidates)==accepted
+    assert report['size_decisions'][0]['belt_edge_margin_m']==.005
+    if accepted:
+        detection,*_=frozen_geometry(config,frame,np.eye(4),surface,candidates[0],10.,clock=lambda:10.2)
+        assert len(detection['object_points'])==100
+        assert len(candidates[0].seed_pixel_indices)==100
+    else:
+        with pytest.raises(TargetNotReady):
+            full(frame,surface,belt_edge_margin_m=.005)

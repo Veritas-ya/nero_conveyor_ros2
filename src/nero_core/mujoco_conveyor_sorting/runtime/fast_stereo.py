@@ -39,7 +39,7 @@ class FastStereoResult:
     K_crop: np.ndarray
     timings_s: dict[str, float]
     provenance: dict[str, Any]
-    artifact_prefix: str
+    artifact_prefix: str | None
 
 
 def _json_default(value):
@@ -97,8 +97,9 @@ class FastStereoProcessBackend:
     """
     def __init__(self, output_directory, *, python_executable=None, repository=None,
                  checkpoint=None, startup_timeout_s=120., request_timeout_s=30.,
-                 compiler_include_dirs=None):
+                 compiler_include_dirs=None, retain_artifacts=True):
         self.output_directory = Path(output_directory).resolve()
+        self.retain_artifacts = retain_artifacts
         self.output_directory.mkdir(parents=True, exist_ok=True)
         self.python_executable = Path(python_executable or CACHE / 'env/bin/python').absolute()
         self.repository = Path(repository or CACHE / 'repo').resolve()
@@ -195,7 +196,7 @@ class FastStereoProcessBackend:
             if self.compiler_include_dirs:
                 environment['CPATH'] = os.pathsep.join(self.compiler_include_dirs +
                                                        ([environment['CPATH']] if environment.get('CPATH') else []))
-            self._log = (self.output_directory / 'worker.log').open('a', encoding='utf-8')
+            self._log = (self.output_directory/'worker.log' if self.retain_artifacts else Path(os.devnull)).open('a', encoding='utf-8')
             self._replies = queue.Queue()
             try:
                 self.process = subprocess.Popen(command, cwd=PROJECT, env=environment,
@@ -207,9 +208,10 @@ class FastStereoProcessBackend:
                                                 name='fast-stereo-output', daemon=True)
                 self._reader.start()
                 self.provenance = self._receive('ready', None, self.startup_timeout_s)['provenance']
-                _write_json(self.output_directory / 'backend.json', {
-                    'command': command, 'compiler_include_dirs': self.compiler_include_dirs,
-                    'network': self.provenance, 'hardware_connections': False})
+                if self.retain_artifacts:
+                    _write_json(self.output_directory / 'backend.json', {
+                        'command': command, 'compiler_include_dirs': self.compiler_include_dirs,
+                        'network': self.provenance, 'hardware_connections': False})
             except Exception as error:
                 self.close()
                 if isinstance(error, FastStereoUnavailable):
@@ -230,7 +232,8 @@ class FastStereoProcessBackend:
                 return dict(self.health(), already_warmed=True)
             reply = self._request('warmup', shape=list(shape))
             self._warmed_shapes.add(shape)
-            _write_json(self.output_directory / f'warmup_{shape[0]}x{shape[1]}.json', reply)
+            if self.retain_artifacts:
+                _write_json(self.output_directory / f'warmup_{shape[0]}x{shape[1]}.json', reply)
             return reply
 
     def health(self):
@@ -264,17 +267,20 @@ class FastStereoProcessBackend:
                 self.start()
             started = time.monotonic()
             self._calls += 1
-            stem = self.output_directory / f'call_{self._calls:04d}'
+            stem = self.output_directory / (f'call_{self._calls:04d}' if self.retain_artifacts else 'current')
             input_path = stem.with_suffix('.input.npz')
             output_path = stem.with_suffix('.output.npz')
+            if not self.retain_artifacts:
+                output_path.unlink(missing_ok=True)
             with stage('input_npz_write'):
                 np.savez(input_path, left_ir=left, right_ir=right,
                          K_crop=cropped_K, baseline_m=np.asarray(baseline))
             request_metadata = {'crop_xyxy': list(crop), 'full_shape': list(full_shape),
                                 'capture_metadata': frozen_metadata,
                                 'input': str(input_path), 'output': str(output_path)}
-            with stage('request_json_write'):
-                _write_json(stem.with_suffix('.request.json'), request_metadata)
+            if self.retain_artifacts:
+                with stage('request_json_write'):
+                    _write_json(stem.with_suffix('.request.json'), request_metadata)
             with stage('request_and_reply'):
                 reply = self._request('refine', **request_metadata)
             try:
@@ -298,18 +304,24 @@ class FastStereoProcessBackend:
                                   new_observation=False, input_resized=False,
                                   hidden_surface_completion=False,
                                   left_right_threshold_applied=False)
-                with stage('result_json_write'):
-                    _write_json(stem.with_suffix('.result.json'), {
-                        'timings_s': dict(timings, **parent_timings), 'provenance': provenance})
+                if self.retain_artifacts:
+                    with stage('result_json_write'):
+                        _write_json(stem.with_suffix('.result.json'), {
+                            'timings_s': dict(timings, **parent_timings), 'provenance': provenance})
                 timings.update(parent_timings)
                 self._completed_refinements += 1
                 return FastStereoResult(reconstructed, depth, disparity, crop,
-                                        cropped_K, timings, provenance, str(stem))
+                                        cropped_K, timings, provenance, str(stem) if self.retain_artifacts else None)
             except (OSError, ValueError, KeyError) as error:
                 self.close()
                 raise FastStereoUnavailable(f'Fast结果不可用：{error}') from error
         finally:
-            self._lock.release()
+            try:
+                if not self.retain_artifacts:
+                    (self.output_directory/'current.input.npz').unlink(missing_ok=True)
+                    (self.output_directory/'current.output.npz').unlink(missing_ok=True)
+            finally:
+                self._lock.release()
 
     def close(self):
         with self._lock:

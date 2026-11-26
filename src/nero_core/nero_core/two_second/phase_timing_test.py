@@ -24,7 +24,7 @@ DEFAULT_BASE = ROOT/'src/nero_bringup/config/two_second.hardware.legacy_observed
 def prepare_test(base, output, *, follow_s=.1, join_times=(1.1,),
                  brake_times=(.4, .6, .9, 1.2), mode='robust', stop_interval=None,
                  maximum_target_length_m=.20, timing_history_root=None, timing_history_run=None,
-                 local_target_geometry_enabled=None):
+                 local_target_geometry_enabled=None, delivery_repair_enabled=False):
     """Write a private snapshot. Site settings and motion limits are never edited."""
     base, output = Path(base).resolve(strict=True), Path(output).resolve()
     if output.exists():
@@ -56,6 +56,10 @@ def prepare_test(base, output, *, follow_s=.1, join_times=(1.1,),
             '15ms residual timing, 3mm position and 4m/s2 TCP bounds are design assumptions; '
             'not measured uncertainty or no-slip guarantees. Gripper timing fields are '
             'retained as assumptions, not used as a fixed-follow feasibility certificate.'}
+    if delivery_repair_enabled:
+        from .delivery_repair import DEFAULTS, KEY as REPAIR_KEY
+        raw[REPAIR_KEY] = {**DEFAULTS, 'enabled': True}
+        raw['grasp_workpiece_collision_check_enabled'] = True
     from .planning_timing_history import startup_estimate
     initial, initial_source = startup_estimate(
         ROOT/'runs/phase_timing_test' if timing_history_root is None else timing_history_root,
@@ -78,6 +82,7 @@ def prepare_test(base, output, *, follow_s=.1, join_times=(1.1,),
             'phase_timing': raw[KEY], 'algorithm': 'discrete_candidate_search_not_global_optimization',
             'maximum_target_length_m':maximum_target_length_m,
             'local_target_geometry_enabled':raw.get('local_target_geometry_enabled', True),
+            'delivery_repair':raw.get('delivery_repair', {'enabled':False}),
             'host':platform.node(), 'measured_planning_initial_s':initial,
             'measured_planning_initial_source':initial_source,
             'source_sha256': source_hashes(), 'physical_parameters_validated': False,
@@ -169,6 +174,8 @@ def main(argv=None):
     cycles.add_argument('--continuous', action='store_true')
     parser.add_argument('--preview', action='store_true')
     parser.add_argument('--record-rgbd', action='store_true')
+    parser.add_argument('--enable-delivery-repair', action='store_true',
+                        help='普通抓取交付超时后，优先复用旧轨迹修正；失败再重规划')
     parser.add_argument('--freeze-source', choices=['single_exposure_native_depth', 'tracked'],
                         default='single_exposure_native_depth')
     args = parser.parse_args(argv)
@@ -186,7 +193,8 @@ def main(argv=None):
             join_times=args.join_times, brake_times=args.brake_times, mode=args.mode,
             stop_interval=args.stop_interval, maximum_target_length_m=args.max_target_length_cm/100.,
             timing_history_run=args.timing_history_run,
-            local_target_geometry_enabled=False if args.full_frame_geometry else None)
+            local_target_geometry_enabled=False if args.full_frame_geometry else None,
+            delivery_repair_enabled=args.enable_delivery_repair)
         output = config.parent
         write_new(output/'invocation.json', {'arguments': vars(args), 'effective_config': str(config),
             'execution_requested': args.execute, 'actual_hardware_execution_verified': False})
@@ -202,7 +210,7 @@ def main(argv=None):
             forwarded += ['--belt-speed-cm-s', str(args.belt_speed_cm_s)]
         forwarded += ['--continuous'] if args.continuous else ['--count', str(args.count)]
         if args.preview: forwarded.append('--preview')
-        if args.record_rgbd: forwarded.append('--record-rgbd')
+        if args.record_rgbd or args.enable_delivery_repair: forwarded.append('--record-rgbd')
         print(f'[阶段时长实验] 配置：{config}', flush=True)
         timing = CellConfig.load(config).raw
         print(f'[工件识别] {"候选局部处理，边界不确定时回退" if timing["local_target_geometry_enabled"] else "原完整帧处理"}', flush=True)
@@ -210,6 +218,8 @@ def main(argv=None):
               f'来源 {timing["measured_planning_initial_source"].get("run", timing["measured_planning_initial_source"]["policy"])}', flush=True)
         print(f'[工件尺寸] 识别长边上限 {args.max_target_length_cm:g} cm；完整点云仍用于抓姿和碰撞检查', flush=True)
         print(f'[阶段时长实验] 固定跟随 {args.follow_s:g}s；接近 {args.join_times}；减速 {args.brake_times}', flush=True)
+        if args.enable_delivery_repair:
+            print('[交付补救] 已开启：旧轨迹修正复用 → 剩余预算重规划；自动记录原轨迹、修正轨迹及拒绝原因。', flush=True)
         print('[阶段时长实验] 跟随时间未经闭合实测验证；夹持确认允许跨越减速段。', flush=True)
         code = hardware_main(forwarded, freeze_source=args.freeze_source,
                              phase_timing_hardware_test=True)

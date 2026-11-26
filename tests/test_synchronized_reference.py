@@ -144,6 +144,34 @@ def test_schedule_rejects_when_follow_cannot_fit():
             advance_s=.1,join_s=2.,synchronized_s=2.,follow_s=.8,follow_bounds=[-.2,.28])
 
 
+def test_bin_downstream_of_grasp_region_can_join_upstream_then_follow():
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from nero_core.two_second.hover_math import HoverPrefix
+    bin_tcp = np.array([.41, .1, .72])
+    args = dict(capture_s=0., grasp_position=[-.75,0.,.55], velocity=[.284,0.,0.],
+        standby_position=bin_tcp, direction=[1.,0.,0.], now_s=.25, planning_reserve_s=.1,
+        advance_s=.1, join_s=2.5, synchronized_s=.1, follow_s=.3, follow_bounds=[-.2,.38])
+    with pytest.raises(ValueError, match='do not fit'):
+        schedule_forward_join(**args)
+    schedule = schedule_forward_join(**args, from_bin=True)
+    assert -.2 <= schedule['sync_start_coordinate_m'] < schedule['follow_end_coordinate_m'] <= .38
+    ref = replace(make_reference(start=bin_tcp), capture_tcp_world=np.array(args['grasp_position']),
+        velocity_world=np.array(args['velocity']), start_s=schedule['join_start_s'], prealign_s=2.5,
+        duration_s=2.6, bin_descent_s=.6, bin_clearance_m=.08)
+    for t, height in [(1.9,.08), (2.5,0.), (2.6,0.)]:
+        xyz, vel, _ = ref.position_derivatives(t)
+        np.testing.assert_allclose(xyz, ref.capture_tcp_world + ref.velocity_world*(ref.start_s+t)
+            + [0.,0.,height], atol=1e-9)
+        np.testing.assert_allclose(vel, ref.velocity_world, atol=1e-9)
+    hover = HoverPrefix(SimpleNamespace(reference=ref), np.array(args['direction']), 1.4, .3,
+                        .04, bin_join_min_m=-.2)
+    np.testing.assert_allclose(hover.sample(0.)[0], bin_tcp)
+    xyz, vel, _ = hover.position_derivatives(hover.sync_s)
+    np.testing.assert_allclose(xyz, ref.capture_tcp_world+ref.velocity_world*(ref.start_s+hover.sync_s)+[0.,0.,.04])
+    np.testing.assert_allclose(vel, ref.velocity_world)
+
+
 @pytest.mark.parametrize('speed,expected', [(.0957, 2.), (.2, 1.5)])
 def test_speed_and_window_select_join_duration_together(speed, expected):
     valid = []

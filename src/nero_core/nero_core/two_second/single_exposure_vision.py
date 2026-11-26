@@ -14,7 +14,6 @@ import numpy as np
 
 from mujoco_conveyor_sorting.runtime.belt_surface import BeltSurface,BeltSurfaceNotReady
 from mujoco_conveyor_sorting.runtime.depth_calibration import apply_runtime_depth_calibration
-from mujoco_conveyor_sorting.runtime.feedback_clock import mapped_stamp
 from mujoco_conveyor_sorting.runtime.single_pick import PickRejected,TargetNotReady
 from .fixed_freeze import ExposureBuffer,NativeDepthLocator,frozen_geometry
 from .grasp import VisibleOBBError
@@ -33,7 +32,7 @@ class SingleExposureVision(LiveVision):
         self.buffer=ExposureBuffer(config.raw.get('single_exposure_buffer_frames',16))
         self.pending=deque(maxlen=3)
         self.reader_thread=Thread(target=self._receive,name='single-exposure-raw-camera')
-        self.locator=None;self.locator_report={};self.d2c=None
+        self.locator=None;self.locator_report={};self.slowest_locator_report={};self.d2c=None
 
     def start(self):
         # Factory D2C requires the actual first frame, just like the viewer.
@@ -49,9 +48,9 @@ class SingleExposureVision(LiveVision):
         if self.reader_thread.ident is not None:self.reader_thread.join(timeout=2.)
         if self.reader_thread.is_alive():raise RuntimeError('单帧冻结相机接收线程尚未退出')
 
-    def consume(self,identity):
-        super().consume(identity)
-        with self.lock:self.pending.clear()
+    def _consume_locked(self,identity):
+        super()._consume_locked(identity)
+        self.pending.clear()
 
     def resume_targets(self):
         # Same production rule: only the existing confirmed-return owner calls
@@ -62,11 +61,14 @@ class SingleExposureVision(LiveVision):
 
     def diagnostics(self):
         result=super().diagnostics()
-        with self.lock:pending=len(self.pending);locator=dict(self.locator_report)
+        with self.lock:
+            pending=len(self.pending);locator=dict(self.locator_report)
+            slowest=dict(self.slowest_locator_report)
         result.update(freeze_source='single_exposure_native_depth',
             multiframe_matching_used=False,raw_frame_buffer=self.buffer.diagnostics(),
             single_frame_locator=locator,pending_exposures=pending,
-            capture_state_source='actual_robot_feedback_with_original_200ms_pairing_limit')
+            slowest_single_frame_locator=slowest,
+            capture_state_source='historical_joint_brackets_or_current_feedback_200ms')
         return result
 
     def _receive(self):
@@ -119,7 +121,7 @@ class SingleExposureVision(LiveVision):
             with progress.measure('single_exposure_geometry'):
                 detection,center,velocity,grasps,overlap=frozen_geometry(self.config,frame,self.d2c,
                     surface,candidate,captured,clock=time.monotonic,
-                    robot_model=self.geometry_model,robot_state=state)
+                    robot_model=self.geometry_model,robot_state=state,fast_stereo=self.fast_stereo)
         except (TargetNotReady,VisibleOBBError,EntryNotReady) as error:
             progress.block('waiting_target_geometry',getattr(error,'reason',None) or
                 getattr(error,'details',{}).get('reason','single_frame_geometry_rejected'),
@@ -166,29 +168,20 @@ class SingleExposureVision(LiveVision):
             self.latest=item;self.pending.clear()
         self.progress.mark_ready()
 
-    def _paired_state(self,captured):
-        self.progress.enter('pairing_feedback')
-        with self.progress.measure('feedback_pairing'):state=self.capture_feedback(captured)
-        if state is None:
-            self.progress.block('waiting_feedback','feedback_missing');return None
-        stamps=[mapped_stamp(state,kind) for kind in ('joint','pose')]
-        if any(stamp is None or abs(stamp-captured)>.2 for stamp in stamps):
-            self.progress.block('waiting_feedback',
-                'feedback_time_missing' if any(s is None for s in stamps) else 'feedback_frame_skew',
-                capture_monotonic_s=captured,feedback_monotonic_s=stamps,maximum_skew_s=.2)
-            return None
-        return state
-
     def _process_frame(self,raw):
+        received_age=max(0.,time.monotonic()-raw.header.received_time)
         sink=getattr(self,'frame_sink',None)
-        if sink is not None:sink(raw,self.d2c)
+        if sink is not None:
+            with self.progress.measure('frame_sink'):sink(raw,self.d2c)
         self.progress.frame(sequence=raw.header.sequence,clock_epoch=raw.header.clock_epoch,
-            source_device_s=raw.header.source_time,received_monotonic_s=raw.header.received_time)
+            source_device_s=raw.header.source_time,received_monotonic_s=raw.header.received_time,
+            receive_to_processing_s=received_age)
         with self.lock:
             if raw.header.clock_epoch!=self.clock_epoch:return
             if (self.active_task is not None and not self.lookahead_enabled) or self.latest is not None:
                 self.progress.enter('task_active_camera_only');return
-        frame=apply_runtime_depth_calibration(raw,self.calibration,self.d2c)
+        with self.progress.measure('calibration'):
+            frame=apply_runtime_depth_calibration(raw,self.calibration,self.d2c)
         try:captured=depth_capture_timing(frame)['depth_sample_monotonic_estimate']
         except PickRejected as error:
             with self.lock:
@@ -198,6 +191,8 @@ class SingleExposureVision(LiveVision):
             return
         with self.lock:
             if captured<self.minimum_capture_s:return
+        self.progress.annotate_frame(capture_monotonic_s=captured,
+            capture_to_receive_s=raw.header.received_time-captured)
         if not 0<=time.monotonic()-captured<=self.config.raw['maximum_observation_age_s']:
             self.progress.block('waiting_fresh_observation','observation_stale_before_detection');return
         surface=getattr(self.model,'measured_belt_surface',None)
@@ -214,7 +209,13 @@ class SingleExposureVision(LiveVision):
         self.progress.enter('single_frame_depth_location')
         with self.progress.measure('single_frame_depth_location'):
             candidates,report=self.locator.locate(frame,robot_model=self.model,robot_state=state)
-        with self.lock:self.locator_report={**report,'frame_sequence':frame.header.sequence}
+        with self.lock:
+            self.locator_report={**report,'frame_sequence':frame.header.sequence,
+                'receive_to_processing_s':received_age,
+                'exposure_age_after_location_s':time.monotonic()-captured}
+            total=(report.get('timings_s') or {}).get('total',0.)
+            if total>self.slowest_locator_report.get('timings_s',{}).get('total',-1.):
+                self.slowest_locator_report=dict(self.locator_report)
         if len(candidates)!=1:
             self.progress.block('waiting_target_geometry','no_single_depth_component',
                 candidate_count=len(candidates),locator=report)

@@ -37,7 +37,7 @@ def test_preview_stores_planned_fk_and_same_exposure_without_hardware(tmp_path, 
                 reference=SimpleNamespace(contact_xyz=np.array([1.,0.,1.]),contact_s=2.,start_s=self.clock()+.102))
     monkeypatch.setattr(module,'calibrated_model',lambda config:Model())
     monkeypatch.setattr(module,'MeasuredPlanner',Planner)
-    monkeypatch.setattr(module,'obb_grasps',lambda *a:([np.eye(4)],{}))
+    monkeypatch.setattr(module,'obb_grasps',lambda *a,**kw:([np.eye(4)],{}))
     monkeypatch.setattr(module,'prediction_velocity',lambda *a:np.array([.1,0,0]))
     monkeypatch.setattr(module,'speed_report',lambda *a:{'source':'test'})
     monkeypatch.setattr(module,'MeasuredTarget',lambda *a:SimpleNamespace(capture_s=a[1],speed_report=a[12]))

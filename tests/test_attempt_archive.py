@@ -120,7 +120,7 @@ def test_trace_export_evaluates_arrays_once(tmp_path,monkeypatch):
     from mujoco_conveyor_sorting.runtime.execution_trace import ExecutionTrace
     trace=ExecutionTrace()
     calls=[];original=trace.arrays
-    def arrays():calls.append(1);return original()
+    def arrays(**kwargs):calls.append(1);return original(**kwargs)
     monkeypatch.setattr(trace,'arrays',arrays)
     result=trace.write(tmp_path)
     assert 'write_error' not in result and len(calls)==1

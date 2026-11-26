@@ -43,7 +43,8 @@ def target(index=1):
         sequence=index,speed_report={},grasps=(None,),detection={})
 
 
-def test_continuous_mixed_results_rearm_after_return_and_persist_with_bounded_memory():
+@pytest.mark.parametrize('hover', [False, True])
+def test_continuous_mixed_results_rearm_after_return_and_persist_with_bounded_memory(hover):
     cancelled=Event();at_wait=True;attempt=0;saved=[];consumed=[];events=[]
     class Vision:
         clock_epoch=0
@@ -70,7 +71,7 @@ def test_continuous_mixed_results_rearm_after_return_and_persist_with_bounded_me
         saved.append(index)
         if index==50:cancelled.set()
     result={'completed_feedback_cycles':0};reports=[];executors=[];vision=Vision()
-    run_pick_cycles(NS(raw={'maximum_observation_age_s':1.}),None,None,vision,
+    run_pick_cycles(NS(raw={'maximum_observation_age_s':1., 'hover_descent':{'enabled':hover}}),None,None,vision,
         count=None,cancelled=cancelled,result=result,reports=reports,executors=executors,
         set_phase=lambda *a,**kw:None,journal=NS(emit=lambda name,**kw:events.append(name)),
         executor_factory=Executor,finish_attempt=persist,clock=lambda:10.)
@@ -99,7 +100,8 @@ def test_ctrl_c_waiting_never_constructs_an_executor(cancel_race):
 
 
 @pytest.mark.parametrize('status',['cycle_completed_from_feedback','attempt_cancelled_returned_to_wait'])
-def test_an_unconfirmed_return_never_rearms(status):
+@pytest.mark.parametrize('hover', [False, True])
+def test_an_unconfirmed_return_never_rearms(status, hover):
     calls=[]
     vision=NS(clock_epoch=0,poll=lambda:target(),consume=lambda *a:None,
         resume_targets=lambda:calls.append('rearm'))
@@ -107,7 +109,7 @@ def test_an_unconfirmed_return_never_rearms(status):
         def __init__(self,*a,**kw):pass
         def run(self,item):return {'status':status,'returned_to_wait':False}
     with pytest.raises(RuntimeError,match='等待位'):
-        run_pick_cycles(NS(raw={'maximum_observation_age_s':1.}),None,None,vision,
+        run_pick_cycles(NS(raw={'maximum_observation_age_s':1., 'hover_descent':{'enabled':hover}}),None,None,vision,
             count=None,cancelled=Event(),result={'completed_feedback_cycles':0},reports=[],executors=[],
             set_phase=lambda *a,**kw:None,journal=NS(emit=lambda *a,**kw:None),
             executor_factory=Executor,finish_attempt=lambda *a:None,clock=lambda:10.)
@@ -115,7 +117,8 @@ def test_an_unconfirmed_return_never_rearms(status):
 
 
 @pytest.mark.parametrize('preview',[False,True])
-def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_path,monkeypatch,preview):
+@pytest.mark.parametrize('save',[True,False])
+def test_sigint_entry_respects_archive_mode_and_closes_all_device_doubles(tmp_path,monkeypatch,preview,save):
     from test_two_second_diagnostics import wire_offline_entry
     entry,path,calls=wire_offline_entry(monkeypatch,'waiting')
     # This fixture tests cancellation of the original serial owner; the
@@ -153,6 +156,7 @@ def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_pa
     next_attempt_started=Event()
     class Trace:
         def write(self,directory):
+            calls.append('write_trace')
             if directory.name=='cycle_001':
                 # A synchronous first archive cannot satisfy this: the next
                 # executor must start before the first disk operation ends.
@@ -165,6 +169,7 @@ def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_pa
             self.trace=Trace();self.events=[];self.event_logging_errors=[]
             self.command_history=NS(diagnostics=lambda:{'offline_test_only':True})
         def run(self,item):
+            calls.append(('cycle',item.sequence))
             if item.sequence==2:next_attempt_started.set()
             return {'status':'cycle_completed_from_feedback' if item.sequence==1 else
                 'attempt_cancelled_returned_to_wait','returned_to_wait':True}
@@ -173,7 +178,14 @@ def test_sigint_entry_persists_both_results_and_closes_all_device_doubles(tmp_pa
     output=tmp_path/'continuous'
     argv=['--config',str(path),'--continuous','--execute','--belt-speed-cm-s','5.95','--output',str(output)]
     if preview:argv.append('--preview')
+    if not save:argv.append('--no-save')
     assert entry.main(argv)==1
+    if not save:
+        assert not output.exists() and 'write_trace' not in calls
+        assert [('cycle',1),('cycle',2)]==[v for v in calls if isinstance(v,tuple) and v[0]=='cycle']
+        assert calls.count('close_test_device')==calls.count('close_test_camera')==calls.count('close_test_vision')==1
+        assert calls.count('close_test_viewer')==int(preview)
+        return
     summary=json.loads((output/'summary.json').read_text())
     assert summary['status']=='cancelled' and summary['received_signal']=='SIGINT'
     assert summary['continuous'] and summary['requested_count'] is None

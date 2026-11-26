@@ -122,7 +122,7 @@ def assess_reference(cfg, ref, *, join_cache=None):
     # allow confirmation to continue during braking, as scheduled_attempt does.
     # This is a time allocation constraint, NOT proof of physical jaw closure.
     required = (spec['follow_candidates_s'][0] if closure == 'fixed_follow_experiment' else
-                spec['gripper_close_time_s'] + GRIP_CONFIRMATION_DWELL_S
+                spec['gripper_close_time_s'] + cfg.raw.get('grip_confirmation_dwell_s', GRIP_CONFIRMATION_DWELL_S)
                 + 1./cfg.settings.control_hz
                 + (spec['gripper_time_margin_s']+dt if robust else 0.))
     sync_start = ref.position_derivatives(ref.prealign_s)[0]
@@ -137,6 +137,8 @@ def assess_reference(cfg, ref, *, join_cache=None):
                       stop_bounds[1]-float(stop@cfg.direction)-displacement_pad)
     join_key = tuple(np.r_[ref.start_tcp_world, sync_start, ref.velocity_world,
                           ref.prealign_s-ref.rotate_first_s])
+    if getattr(ref,'relative_descent_s',0.):
+        join_key += (ref._join.x.tobytes(), ref._join.c.tobytes())
     cached = None if join_cache is None else join_cache.get(join_key)
     if cached is None:
         join_range = polynomial_range(ref._join)
@@ -183,6 +185,9 @@ def binding(cfg, ref):
     fields = ('capture_s', 'start_s', 'duration_s', 'capture_tcp_world', 'velocity_world',
               'start_tcp_world', 'start_quaternion_wxyz', 'target_quaternion_wxyz',
               'follow_s', 'brake_s', 'prealign_s', 'rotate_first_s')
+    if getattr(ref,'relative_descent_s',0.):
+        fields += ('relative_descent_s','relative_sync_s','approach_clearance_m','object_axes_world',
+                   'height_lead_s','height_normal_world','brake_rise_m')
     data = {'spec': cfg.raw[KEY], 'reference': {k: getattr(ref, k) for k in fields},
         'workspace': cfg.workspace, 'follow_bounds': cfg.follow_bounds, 'direction': cfg.direction,
         'advance': cfg.raw['command_advance_s'], 'control_hz': cfg.settings.control_hz,

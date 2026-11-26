@@ -46,13 +46,21 @@ def plane_pixel_steps(camera_to_plane, intrinsics, point):
                      distance*(dv-ray*dv[2]/ray[2])])
 
 
-def filter_target_mask(frame, depth_to_color, mask, points_plane, camera_to_plane):
+def filter_target_mask(frame, depth_to_color, mask, points_plane, camera_to_plane, *, support_seed=None):
     """Keep measured foreground with RGB and local metric-depth support.
 
     Reuse the shape measurement's five-point/4 mm/3.5-pixel support rule.
     There is no shape prior, replacement depth or erosion of every boundary.
     """
     clean = exclude_green_belt(frame, depth_to_color, mask)
+    non_green_count = int(np.count_nonzero(clean))
+    if support_seed is not None and np.any(clean & ~support_seed):
+        # At the measured search boundary the support radius needs the whole
+        # connected surface, including native depth just outside the window.
+        # Choose the local context before the single metric neighbour query.
+        _, labels = cv2.connectedComponents(clean.astype(np.uint8), connectivity=8)
+        selected = np.unique(labels[clean & support_seed])
+        clean &= np.isin(labels, selected)
     rows, cols = np.nonzero(clean)
     points = points_plane[clean]
     radius = None
@@ -64,7 +72,8 @@ def filter_target_mask(frame, depth_to_color, mask, points_plane, camera_to_plan
         clean[rows[distances[:, -1] > radius], cols[distances[:, -1] > radius]] = False
     return clean, {'source': 'native_depth_rgb_and_metric_neighbor_support',
                    'input_points': int(np.count_nonzero(mask)),
-                   'green_rejected': int(np.count_nonzero(mask))-len(points),
+                   'green_rejected': int(np.count_nonzero(mask))-non_green_count,
+                   **({'outside_support_context': non_green_count-len(points)} if support_seed is not None else {}),
                    'unsupported_rejected': len(points)-int(np.count_nonzero(clean)),
                    'retained_points': int(np.count_nonzero(clean)),
                    'neighbor_count_including_self': 5, 'support_radius_m': radius,

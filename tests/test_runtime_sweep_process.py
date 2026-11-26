@@ -123,6 +123,40 @@ def test_200ms_feedback_lifetime_does_not_allow_arbitrary_slow_monitor():
     with pytest.raises(ValueError): SweepSettings.from_raw({'runtime_sweep_hz':5.})
 
 
+def test_previous_release_geometry_survives_worker_transfer_only_for_bin_departure():
+    from nero_core.two_second.runtime_sweep import restore_scene
+    _, planner, path = fixture()
+    points = np.array([[.3,.4,.2]])
+    planner.bin_departure_tree = cKDTree(points)
+    snapshot = scene_snapshot(planner, path)
+    points[:] = 0.
+    restore_scene(planner, snapshot)
+    np.testing.assert_allclose(planner.bin_departure_tree.data, [[.3,.4,.2]])
+    snapshot.pop('bin_departure_points')
+    restore_scene(planner, snapshot)
+    assert planner.bin_departure_tree is None
+
+
+def test_released_cloud_collision_reports_runtime_chord_and_measured_start():
+    path = NS(stage='recovery_return', position=lambda t:np.full(7, .016))
+    actual = np.zeros(7)
+    def reject(q, *args, **kwargs):
+        if q[0] > 0.:
+            raise PickRejected('离框路径与上一件释放点云相交', details={
+                'kind':'bin_departure_released_workpiece', 'geometry':'left_finger_geom', 'sample_elapsed_s':2.46})
+    request = dict(joints=actual, width_m=.099, dispatch_s=10.1, until_s=10.11,
+        origin_s=10., advance_s=.09, pose_s=10.1, moving_target=False, contact=False,
+        payload=False, allow_belt_support=False)
+    with pytest.raises(PickRejected, match='上一件释放点云') as failure:
+        sweep(NS(valid=reject), path, request)
+    details = failure.value.details
+    assert details['dispatch_reference_elapsed_s'] == details['sweep_target_elapsed_s'] == pytest.approx(.19)
+    assert details['chord_fraction'] == .5 and 'sample_elapsed_s' not in details
+    assert details['runtime_sweep'] and details['geometry'] == 'left_finger_geom'
+    np.testing.assert_array_equal(details['measured_joints_rad'], actual)
+    np.testing.assert_array_equal(details['checked_joints_rad'], np.full(7, .008))
+
+
 @pytest.mark.parametrize('obstacle,payload',[(False,False),(True,False),(False,True)])
 def test_process_geometry_matches_parent_geometry(worker, obstacle, payload):
     config,p,path=fixture()
@@ -473,3 +507,31 @@ def test_refresh_uses_original_packet_times_and_new_contact_boundary():
     assert request['source_s']==1.01 and request['pose_s']==1.02
     assert request['contact'] and request['until_s']==1.105
     assert request['payload_local'] is template['payload_local']
+
+
+@pytest.mark.parametrize('outcome',['fresh','duplicate','deadline','moved','cancelled'])
+def test_intercept_prime_with_backlogged_can_feedback(outcome):
+    from nero_core.two_second.streaming import intercept_prime_feedback
+    now=[10.];q=np.zeros(7)
+    def sample(stamp):
+        return dict(joints=list(q),width_m=.1,force_n=0.,pose_stamp=stamp,joint_stamp=stamp+.001,gripper_stamp=stamp)
+    old=sample(9.827)
+    def read():
+        if outcome=='duplicate' or now[0]<10.040:
+            return old if now[0]-old['pose_stamp'] <= .2 else None
+        state=sample(now[0]-.015)
+        if outcome=='moved':state['joints'][0]=.02
+        return state
+    def active(*args):
+        if outcome=='cancelled':raise PickRejected('cancelled')
+    e=NS(clock=lambda:now[0],sleep=lambda dt:now.__setitem__(0,now[0]+dt),
+         device=NS(snapshot_nowait=read),version=1,feedback_stamps={},
+         config=NS(settings=NS(open_width_m=.1,min_force_n=1.)),_active=active,_emit=lambda *args:None,planner=NS(model=NS(check_feedback=lambda state:None)))
+    path=NS(identity=(0,1,4),q0=q);deadline=10.075 if outcome=='deadline' else 13.
+    if outcome=='fresh':
+        state,refreshed=intercept_prime_feedback(e,old,path,deadline,1,0,SweepSettings())
+        assert refreshed and state['pose_stamp']>old['pose_stamp'] and now[0]-state['pose_stamp']<.02
+    else:
+        with pytest.raises(PickRejected):
+            intercept_prime_feedback(e,old,path,deadline,1,0,SweepSettings())
+        assert now[0]<deadline

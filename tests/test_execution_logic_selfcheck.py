@@ -15,13 +15,15 @@ def test_close_confirmation_starts_after_actual_command_completed(monkeypatch):
     import nero_core.two_second.streaming as module
     e,device,clock=executor_fixture()
     e.config.raw['trajectory_profile']='smooth';starts=[];sends=[]
+    e.config.raw['grip_confirmation_dwell_s']=.05
     original=device.grip
     def grip(width,force):
         original(width,force);clock.sleep(.02);sends.append(clock())
     device.grip=grip
     original_confirmation=module.GripConfirmation
-    def confirmation(opening,force,requested):
-        starts.append(requested);return original_confirmation(opening,force,requested)
+    def confirmation(opening,force,requested,**kwargs):
+        assert kwargs['dwell_s']==.05
+        starts.append(requested);return original_confirmation(opening,force,requested,**kwargs)
     monkeypatch.setattr(module,'GripConfirmation',confirmation)
     e.planner.attach_measured=lambda *a:None
     class Sender:

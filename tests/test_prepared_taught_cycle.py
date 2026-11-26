@@ -307,8 +307,10 @@ def test_jerk_bound_preserves_geometry_and_limits_the_full_polynomial():
     np.testing.assert_allclose(result.curve(t*result.duration/path.duration),path.curve(t),atol=1e-11)
 
 
-def test_executor_uses_prepared_paths_and_checks_actual_release_before_return(monkeypatch):
-    from concurrent.futures import ThreadPoolExecutor
+@pytest.mark.parametrize('outcome', ['complete_bundle', 'late_return', 'changed_release', 'blocked_return',
+                                      'superseded_return'])
+def test_executor_uses_prepared_paths_and_checks_actual_release_before_return(monkeypatch,outcome):
+    from concurrent.futures import Future, ThreadPoolExecutor
     from test_two_second_hardware import executor_fixture
     from nero_core.two_second import prepared_cycle,stationary_hold,release
     e,device,clock=executor_fixture();cfg,p,q=fixture();order=[]
@@ -317,8 +319,13 @@ def test_executor_uses_prepared_paths_and_checks_actual_release_before_return(mo
     device.width=.04;device.force=2.
     carry=retime_samples(np.linspace(0.,1.,6),np.linspace(q(0.),q(.3),6),cfg,-np.ones(7),np.ones(7),
         identity=e.owner,version=1,stage='prepared_taught_carry')
-    returning=replace(carry,stage='prepared_taught_return')
-    bundle=PreparedCycle(e.owner,7,replace(carry,diagnostics={'pieces':[]}),replace(returning,diagnostics={'pieces':[]}))
+    returning=retime_samples(np.linspace(0.,1.,6),np.linspace(q(.3),q(0.),6),cfg,-np.ones(7),np.ones(7),
+        identity=e.owner,version=2,stage='prepared_taught_return')
+    split = outcome != 'complete_bundle'
+    pending = Future()
+    if split:
+        e.carry_service=NS(plan_return=lambda *a,**kw:pending,discard=pending.cancel)
+    bundle=PreparedCycle(e.owner,7,replace(carry,diagnostics={'pieces':[]}),None if split else replace(returning,diagnostics={'pieces':[]}))
     monkeypatch.setattr(prepared_cycle,'prepare_cycle',lambda *a,**kw:order.append('prepare_all') or bundle)
     class Hold:
         def __init__(self,*a,**kw):pass
@@ -327,13 +334,36 @@ def test_executor_uses_prepared_paths_and_checks_actual_release_before_return(mo
         def check(self):pass
     monkeypatch.setattr(stationary_hold,'StationaryHold',Hold);monkeypatch.setattr(release,'StationaryHold',Hold)
     e.planner.validate_release_opening=lambda s:order.append('opening_checked')
-    e.planner.release_measured=lambda s:order.append('actual_release_estimate')
-    e.planner.check_path=lambda *a,**kw:order.append('check_actual_return')
+    def release_measured(state):
+        order.append('actual_release_estimate')
+        e.planner.released_tree=object()
+    e.planner.release_measured=release_measured
+    def checked(*a,**kw):
+        order.append('check_actual_return')
+        if outcome=='blocked_return' or (outcome=='changed_release' and 'replan' not in order):
+            raise PickRejected('实际释放场景碰撞')
+    e.planner.check_path=checked
+    monkeypatch.setattr(prepared_cycle,'prepare_empty_return',lambda *a,**kw:order.append('replan') or returning)
+    grip=device.grip
+    def open_grip(width,force):
+        assert order[-1]=='actual_release_estimate'
+        grip(width,force)
+        if split:
+            assert not pending.done()  # carry and release did not wait on the return route
+            pending.set_result(replace(returning, identity=(9,9,9)) if outcome=='superseded_return' else returning)
+    device.grip=open_grip
     def stream(path,**kw):
         order.append(path.stage);device.q=path.q1.copy();e.rest_anchor=path.q1.copy();return device.snapshot()
     monkeypatch.setattr(e,'_stream',stream)
     with ThreadPoolExecutor(max_workers=1) as pool:
+        if outcome in ('blocked_return','superseded_return'):
+            with pytest.raises(PickRejected):
+                e._prepared_taught_cycle(pool,device.snapshot(),NS(epoch=0))
+            assert 'prepared_taught_carry' in order and 'prepared_taught_return' not in order
+            assert ('replan' in order)==(outcome=='blocked_return')
+            return
         e._prepared_taught_cycle(pool,device.snapshot(),NS(epoch=0))
+    assert ('replan' in order)==(outcome=='changed_release')
     assert order.index('prepare_all')<order.index('prepared_taught_carry')
     assert order.index('actual_release_estimate')<order.index('check_actual_return')<order.index('prepared_taught_return')
     assert order.count('prepared_taught_carry')==1

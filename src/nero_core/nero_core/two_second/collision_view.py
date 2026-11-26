@@ -77,15 +77,15 @@ def restore_frame(metadata, arrays):
 
 def read_packet(path):
     path=Path(path)
-    metadata=json.loads(path.read_text())
     with np.load(path.with_suffix('.npz'),allow_pickle=False) as data:
-        arrays={key:data[key] for key in data.files}
+        metadata=json.loads(str(data['metadata'])) if path.suffix=='.npz' else json.loads(path.read_text())
+        arrays={key:data[key] for key in data.files if key!='metadata'}
     frame=None if metadata.get('camera') is None else restore_frame(metadata['camera'],arrays)
     return {'metadata':metadata,'arrays':arrays,'frame':frame,
             'd2c':np.eye(4) if frame is None else np.asarray(metadata['camera']['depth_to_color_cv'])}
 
 
-def save_packet(directory, packet):
+def save_packet(directory, packet, *, latest_only=False):
     directory=Path(directory); directory.mkdir(exist_ok=True,parents=True)
     meta=dict(packet['metadata']); arrays=dict(packet['arrays'])
     meta['camera']=frame_metadata(packet['frame'],packet['d2c'])
@@ -94,9 +94,13 @@ def save_packet(directory, packet):
     if frame is not None:
         arrays.update(frame_depth_m=frame.depth_m)
         if frame.rgb is not None:arrays['frame_rgb']=frame.rgb
-    stem=directory/meta['collision_id']
+    stem=directory/('collision' if latest_only else meta['collision_id'])
+    if latest_only:
+        arrays['metadata']=np.asarray(json.dumps(json_value(meta),ensure_ascii=False,allow_nan=False))
     with stem.with_suffix('.npz.tmp').open('wb') as stream:np.savez(stream,**arrays)
     stem.with_suffix('.npz.tmp').replace(stem.with_suffix('.npz'))
+    if latest_only:
+        return stem.with_suffix('.npz')
     if frame is not None and frame.rgb is not None:
         image=overlay_collision(frame.rgb,frame,packet['d2c'],arrays)
         if not cv2.imwrite(str(stem.with_suffix('.png')),cv2.cvtColor(image,cv2.COLOR_RGB2BGR)):

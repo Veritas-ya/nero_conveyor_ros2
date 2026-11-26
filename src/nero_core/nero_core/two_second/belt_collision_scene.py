@@ -44,17 +44,23 @@ def install_belt_surface(model, target):
     if frame is not None and (frame.header.sequence != target.sequence
             or frame.header.clock_epoch != target.epoch):
         raise PickRejected('带面点云与本次目标帧/时钟代次不匹配')
-    finite = np.isfinite(points).all(axis=1)
     # Read only the already-deprojected points of the selected exposure.
     local = (points-plane[:3,3]) @ plane[:3,:3]
-    inside = ((local[:,:2] >= bounds[:,0]) & (local[:,:2] <= bounds[:,1])).all(axis=1)
-    selected = np.flatnonzero(finite & inside & (np.abs(local[:,2]) < BELT_SUPPORT_BAND_M))
-    if not len(selected):
+    x, y, height = local.T
+    # These three finite intervals jointly reject every non-finite local
+    # coordinate. A non-finite input cannot map to a finite rigid transform.
+    inside = ((x >= bounds[0,0]) & (x <= bounds[0,1])
+              & (y >= bounds[1,0]) & (y <= bounds[1,1])
+              & (np.abs(height) < BELT_SUPPORT_BAND_M))
+    n_selected = int(np.count_nonzero(inside))
+    if not n_selected:
         raise PickRejected('本帧没有有效实测带面碰撞点；不会用空场景代替')
-    sampled = voxel_downsample(points[selected], voxel_size_m=model.belt_scene_filter_config.voxel_size_m,
+    selected = None if n_selected == len(points) else np.flatnonzero(inside)
+    belt_points = points if selected is None else points[selected]
+    sampled = voxel_downsample(belt_points, voxel_size_m=model.belt_scene_filter_config.voxel_size_m,
                                max_error_m=.004)
-    retained = selected[sampled.retained_indices]
-    scene = np.array(points[retained], copy=True)
+    retained = sampled.retained_indices.copy() if selected is None else selected[sampled.retained_indices]
+    scene = points[retained]
     source_pixels = observation.get('scene_pixel_indices')
     native_pixels = None
     if source_pixels is not None:
@@ -72,8 +78,8 @@ def install_belt_surface(model, target):
         'calibration_id':None if frame is None else frame.calibration_id,
         'input_scene_points':int(observation.get('scene_input_count_before_prefilter', len(points))),
         'scene_prefilter_scope':observation.get('scene_prefilter_scope', OBSERVED_SCENE),
-        'prefiltered_scene_points':len(points),'native_belt_points':len(selected),
-        'excluded_non_belt_points':int(observation.get('scene_input_count_before_prefilter', len(points)))-len(selected),'collision_points':len(scene),
+        'prefiltered_scene_points':len(points),'native_belt_points':n_selected,
+        'excluded_non_belt_points':int(observation.get('scene_input_count_before_prefilter', len(points)))-n_selected,'collision_points':len(scene),
         'support_band_m':BELT_SUPPORT_BAND_M,'bounds_xy_m':bounds.tolist(),
         'plane_to_base':plane.tolist(),'downsample':sampled.statistics,
         'synthetic_points':0,'rails_modelled':False,

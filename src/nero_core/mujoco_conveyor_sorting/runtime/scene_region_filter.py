@@ -109,7 +109,7 @@ def _observed_voxels(points, voxel_size_m):
     if not len(points):
         return (np.empty(0, dtype=np.int64), np.empty((0, 3), dtype=np.int64),
                 np.empty(0, dtype=np.int64), np.empty(0, dtype=np.int64),
-                np.empty(0, dtype=float))
+                np.empty(0, dtype=float), np.empty(0, dtype=float))
     with np.errstate(over='ignore', invalid='ignore'):
         cells = np.floor(points/voxel_size_m)
     if (not np.isfinite(cells).all() or np.any(cells < -(2.**63))
@@ -118,10 +118,19 @@ def _observed_voxels(points, voxel_size_m):
     # Sort once, then reduce contiguous cells. This preserves native-row
     # ties and the original lexicographic cell order without scatter passes.
     cells = cells.astype(np.int64)
-    order = np.lexsort((cells[:, 2], cells[:, 1], cells[:, 0]))
-    sorted_cells = cells[order]
-    starts = np.r_[0, 1+np.flatnonzero(np.any(sorted_cells[1:] != sorted_cells[:-1], axis=1))]
-    keys = sorted_cells[starts]
+    limit = 1 << 20
+    if cells.min() >= -limit and cells.max() < limit:
+        # Three signed 21-bit coordinates fit losslessly in one int64.
+        # The signed top field and biased low fields preserve XYZ ordering.
+        packed = (cells[:, 0] << 42) | ((cells[:, 1]+limit) << 21) | (cells[:, 2]+limit)
+        order = np.argsort(packed, kind='stable')
+        ordered = packed[order]
+        starts = np.r_[0, 1+np.flatnonzero(ordered[1:] != ordered[:-1])]
+    else:
+        order = np.lexsort((cells[:, 2], cells[:, 1], cells[:, 0]))
+        sorted_cells = cells[order]
+        starts = np.r_[0, 1+np.flatnonzero(np.any(sorted_cells[1:] != sorted_cells[:-1], axis=1))]
+    keys = cells[order[starts]]
     counts = np.diff(np.r_[starts, len(points)])
     inverse = np.empty(len(points), dtype=np.int64)
     inverse[order] = np.repeat(np.arange(len(starts), dtype=np.int64), counts)
@@ -129,13 +138,14 @@ def _observed_voxels(points, voxel_size_m):
     lower = np.minimum.reduceat(grouped, starts, axis=0)
     upper = np.maximum.reduceat(grouped, starts, axis=0)
     centers = lower+(upper-lower)*.5
-    distances_squared = np.einsum('ij,ij->i', points-centers[inverse], points-centers[inverse])
+    offsets = points-centers[inverse]
+    distances_squared = np.einsum('ij,ij->i', offsets, offsets)
     closest = np.minimum.reduceat(distances_squared[order], starts)
     selected = distances_squared == closest[inverse]
     representatives = np.minimum.reduceat(np.where(selected[order], order, len(points)), starts)
     errors = np.linalg.norm(points-points[representatives[inverse]], axis=1)
     max_errors = np.maximum.reduceat(errors[order], starts)
-    return representatives, keys, inverse, counts, max_errors
+    return representatives, keys, inverse, counts, max_errors, errors
 
 
 def filter_scene_region(points, plane_to_base=None, config=None):
@@ -246,17 +256,20 @@ def voxel_downsample(points, voxel_size_m=.005, max_error_m=.004):
     if not np.isfinite(numeric_points).all():
         raise ValueError('scene point cloud must contain finite coordinates')
     points = points.copy()
-    primary, keys, inverse, counts, primary_errors = _observed_voxels(numeric_points, voxel_size_m)
+    primary, keys, inverse, counts, primary_errors, input_errors = _observed_voxels(
+        numeric_points, voxel_size_m)
     coverage = primary[inverse]
-    input_errors = np.linalg.norm(numeric_points-numeric_points[coverage], axis=1)
     extra = np.flatnonzero(input_errors > max_error_m)
     coverage[extra] = extra
     input_errors[extra] = 0.
-    representatives = np.unique(np.concatenate((primary, extra)))
-    assignment = np.searchsorted(representatives, coverage)
-    representative_counts = np.bincount(assignment, minlength=len(representatives))
-    representative_errors = np.zeros(len(representatives))
-    np.maximum.at(representative_errors, assignment, input_errors)
+    # Coverage already uses original row indices. Accumulate on those indices
+    # directly and retain their ascending order, without a sort and search.
+    counts_by_row = np.bincount(coverage, minlength=len(points))
+    representatives = np.flatnonzero(counts_by_row)
+    representative_counts = counts_by_row[representatives]
+    errors_by_row = np.zeros(len(points))
+    np.maximum.at(errors_by_row, coverage, input_errors)
+    representative_errors = errors_by_row[representatives]
     maximum_error = float(representative_errors.max()) if len(representatives) else 0.
     statistics = {
         'algorithm': 'observed_voxel_primary_with_bounded_error_retention',

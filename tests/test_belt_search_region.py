@@ -86,9 +86,9 @@ def test_invalid_projection_height_rejected(height):
 def test_field_configs_reference_the_adopted_measured_direction_and_footprint(name):
     config=Path(__file__).parents[1]/'src/nero_bringup/config'
     site=yaml.safe_load((config/name).read_text())
-    provenance=json.loads((config/'calibration/belt_direction_20261113_single_pass.json').read_text())
+    provenance=json.loads((config/'calibration/belt_direction_20261124_single_pass.json').read_text())
     np.testing.assert_allclose(site['belt_direction_base'],provenance['belt_direction_base'],atol=1e-12)
     assert np.linalg.norm(site['belt_direction_base'])==pytest.approx(1.)
-    assert provenance['measurement_type']=='camera_only_single_pass_obb_center_motion'
-    assert provenance['retained_frame_count']==len(provenance['retained_frame_sequences'])==17
+    assert provenance['measurement_type']=='camera_only_single_pass_visible_obb_center_motion'
+    assert provenance['retained_frame_count']==len(provenance['retained_frame_sequences'])==64
     assert site['perception_search_region']=='measured_belt_footprint'

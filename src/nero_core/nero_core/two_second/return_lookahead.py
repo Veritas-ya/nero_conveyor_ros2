@@ -13,6 +13,10 @@ from .prepared_cycle import nominal_state
 from .lookahead_selection import latest_dispatch, pending_error
 
 
+def skip_late_return(config):
+    return config.raw.get('lookahead_late_return_policy', 'replan') == 'skip_target'
+
+
 @dataclass(frozen=True)
 class PreparedIntercept:
     target: object
@@ -23,15 +27,19 @@ class PreparedIntercept:
     ready_s: float
     submitted_s: float | None = None
 
-    def validate(self, config, epoch, now):
+    def validate(self, config, epoch, now, *, allow_expired_for_repair=False):
         plan, target, planner = self.plan, self.target, self.planner
         deadline = plan.reference.start_s-config.raw['command_advance_s']
         if (epoch != target.epoch or plan.target is not target
                 or plan.path.identity != target.identity or planner.identity != target.identity
                 or plan.path.version != planner.version or plan.scene_revision != planner.scene_revision
                 or plan.reference.capture_s != target.capture_s):
-            raise PickRejected('预取轨迹的目标、曝光、版本或场景已失效')
-        if not np.isfinite(deadline) or now >= deadline:
+            raise PickRejected('预取轨迹的目标、曝光、版本或场景已失效',
+                details={'reason':'lookahead_plan_invalidated'})
+        from .delivery_repair import enabled
+        repair_handoff = (allow_expired_for_repair and enabled(config)
+                          and not skip_late_return(config))
+        if not np.isfinite(deadline) or (now >= deadline and not repair_handoff):
             raise PickRejected('预取模型路径已生成，但原发送预约已过期', details={
                 'reason': 'lookahead_send_deadline_missed', 'model_path_generated': True,
                 'send_deadline_monotonic_s': deadline, 'send_margin_s': deadline-now})
@@ -97,11 +105,12 @@ class ReturnLookahead:
         with self.lock:
             if identity != self.owner:
                 return
-            if self.available_s != float(expected_ready_s):
+            if not skip_late_return(self.config) and self.available_s != float(expected_ready_s):
                 self.schedule_revision += 1
             self.available_s = float(expected_ready_s)
         self.emit('lookahead_return_window', identity=identity,
-            expected_ready_monotonic_s=expected_ready_s, readiness_is_prediction=True)
+            expected_ready_monotonic_s=expected_ready_s, readiness_is_prediction=True,
+            affects_intercept_schedule=not skip_late_return(self.config))
 
     def _check_wait_state(self, state, *, previous=None):
         from .streaming import fresh_feedback
@@ -111,9 +120,33 @@ class ReturnLookahead:
         fresh_feedback(state, self.clock(), previous)
         validate_start_state(self.config, state, tolerance_rad=TRAJECTORY_ARRIVAL_TOLERANCE_RAD)
 
+    def _validate_handoff(self, item):
+        # The fixed reservation policy never hands an expired plan to repair.
+        item.validate(self.config, self.vision.clock_epoch, self.clock(),
+            allow_expired_for_repair=not skip_late_return(self.config))
+
+    def _expire_ready(self):
+        """Expire even while return/feedback is missing; release the queue slot."""
+        if not skip_late_return(self.config):
+            return False
+        with self.lock:
+            item = self.ready
+            if item is None:
+                return False
+            deadline = item.plan.reference.start_s-self.config.raw['command_advance_s']
+            now = self.clock()
+            if now < deadline:
+                return False
+            self.discard_ready(item, PickRejected('预取轨迹的既定发送时刻已过', details={
+                'reason': 'lookahead_send_deadline_missed',
+                'send_deadline_monotonic_s': deadline, 'send_margin_s': deadline-now}))
+            return True
+
     @staticmethod
     def _start_changed(state, start):
-        return (np.max(abs(np.asarray(state['joints'])-np.asarray(start['joints']))) > .005
+        # Reuse accepts the same one-degree joint error as confirmed return.
+        return (np.max(abs(np.asarray(state['joints'])-np.asarray(start['joints'])))
+                > TRAJECTORY_ARRIVAL_TOLERANCE_RAD
                 or abs(state['width_m']-start['width_m']) > .002)
 
     def _accept_wait_snapshot(self, state):
@@ -127,6 +160,8 @@ class ReturnLookahead:
                         error.details.get('reason') != 'feedback_clock_epoch_changed'):
                     raise
                 self.wait_clock_confirmation = WaitClockConfirmation()
+                if skip_late_return(self.config) and self.target is not None:
+                    self._reject(self.target, error, generated=self.ready is not None)
                 self.ready = self.planning_start_state = None
                 self.schedule_revision += 1  # Invalidate any worker still solving.
             else:
@@ -162,7 +197,7 @@ class ReturnLookahead:
             except (PickRejected, KeyError, TypeError, ValueError) as error:
                 if self.wait_clock_confirmation is not None:
                     self.wait_clock_confirmation = WaitClockConfirmation()
-                if self.wait_state is not None:
+                if self.wait_state is not None and not skip_late_return(self.config):
                     self.schedule_revision += 1
                 self.wait_state = None
                 self.wait_feedback_error = str(error)
@@ -172,6 +207,12 @@ class ReturnLookahead:
             self.wait_feedback_error = None
             start = self.ready.start_state if self.ready is not None else self.planning_start_state
             if self.return_confirmed and start is not None and self._start_changed(snapshot, start):
+                if skip_late_return(self.config):
+                    self._reject(self.target, PickRejected('实际回位与预取起点不符，跳过该工件', details={
+                        'reason': 'lookahead_start_mismatch',
+                        'actual_joints_rad': snapshot['joints'],
+                        'planned_joints_rad': start['joints']}), generated=self.ready is not None)
+                    return True
                 old_source = 'ready_plan' if self.ready is not None else 'inflight_plan'
                 self.ready = None
                 self.planning_start_state = None
@@ -182,16 +223,18 @@ class ReturnLookahead:
                     actual_joints_rad=snapshot['joints'], planned_joints_rad=start['joints'],
                     joint_error_rad=(np.asarray(snapshot['joints'])-np.asarray(start['joints'])).tolist(),
                     robot_commands=0)
-            elif restored and self.return_confirmed:
+            elif restored and self.return_confirmed and not skip_late_return(self.config):
                 self.schedule_revision += 1
             return True
 
     def confirm_return(self, state):
         with self.lock:
+            self._expire_ready()
             self.return_confirmed = True
-            self.available_s = max(self.available_s or float('-inf'),
-                self.clock()+self.config.raw['lookahead_return_margin_s'])
-            self.schedule_revision += 1
+            if not skip_late_return(self.config):
+                self.available_s = max(self.available_s or float('-inf'),
+                    self.clock()+self.config.raw['lookahead_return_margin_s'])
+                self.schedule_revision += 1
             self.update_wait_state(state)
 
     def diagnostics(self):
@@ -202,6 +245,7 @@ class ReturnLookahead:
                 'target_identity': None if self.target is None else self.target.identity,
                 'model_path_generated': self.ready is not None, 'rejected_targets': self.rejected,
                 'planning_requires_return_schedule': False,
+                'late_return_policy': self.config.raw.get('lookahead_late_return_policy', 'replan'),
                 'schedule_revision': self.schedule_revision,
                 'attempted_schedule_revision': self.attempted_revision,
                 'deferred_planning_attempts': self.deferred,
@@ -226,6 +270,8 @@ class ReturnLookahead:
             robot_commands=0)
 
     def poll_ready(self):
+        if self._expire_ready():
+            return None
         with self.lock:
             if self.error is not None:
                 raise RuntimeError('下一件预取失败：'+str(self.error)) from self.error
@@ -242,7 +288,7 @@ class ReturnLookahead:
             error = pending_error(self.vision, item.target, self.config, self.clock())
             if error is not None:
                 raise error
-            item.validate(self.config, self.vision.clock_epoch, self.clock())
+            self._validate_handoff(item)
         except PickRejected as error:
             self.discard_ready(item, error)
             return None
@@ -261,7 +307,7 @@ class ReturnLookahead:
             error = pending_error(self.vision, item.target, self.config, self.clock())
             if error is not None:
                 raise error
-            item.validate(self.config, self.vision.clock_epoch, self.clock())
+            self._validate_handoff(item)
             self.planner = previous_planner
             self.planner.intercept_not_before_s = None
             self.ready = self.target = None
@@ -270,6 +316,17 @@ class ReturnLookahead:
             return item
 
     def discard_ready(self, item, error):
+        if skip_late_return(self.config):
+            with self.lock:
+                if self.ready is not item:
+                    return
+                if getattr(error, 'details', {}).get('reason') == 'lookahead_send_deadline_missed':
+                    reason = ('到既定发送时刻仍未回到等待位，跳过该工件' if not self.return_confirmed
+                              else '未在既定发送时刻前完成接管，跳过该工件')
+                    error = PickRejected(reason, details={**error.details,
+                        'return_confirmed': self.return_confirmed, 'next_action': 'skip_target'})
+                self._reject(item.target, error, generated=True)
+            return
         if getattr(error, 'details', {}).get('reason') != 'lookahead_send_deadline_missed':
             with self.lock:
                 if self.ready is item:
@@ -313,6 +370,8 @@ class ReturnLookahead:
         return None
 
     def _step(self):
+        if self._expire_ready():
+            return
         with self.lock:
             ready = self.ready
             if self.owner is None:
@@ -331,12 +390,16 @@ class ReturnLookahead:
                 error = pending_error(self.vision, ready.target, self.config, self.clock())
                 if error is not None:
                     raise error
-                ready.validate(self.config, self.vision.clock_epoch, self.clock())
+                self._validate_handoff(ready)
             except PickRejected as error:
                 self.discard_ready(ready, error)
             else:
                 deadline = ready.plan.reference.start_s-self.config.raw['command_advance_s']
-                if not confirmed and available is not None and deadline < available:
+                from .delivery_repair import enabled
+                if enabled(self.config) and self.clock() >= deadline:
+                    self.status = 'expired_model_waiting_owner_repair'
+                elif (not skip_late_return(self.config) and not confirmed
+                      and available is not None and deadline < available):
                     self._reschedule(ready, PickRejected('回位预测晚于原发送预约，重新规划下一件', details={
                         'reason': 'lookahead_return_prediction_changed',
                         'send_deadline_monotonic_s': deadline,
@@ -396,8 +459,8 @@ class ReturnLookahead:
                 source = 'configured_wait_model_waypoint'
             self.attempted_revision = revision
         planner = self.planner
-        planner.intercept_not_before_s = max(available or float('-inf'),
-            self.clock()+self.config.raw['lookahead_return_margin_s'])
+        planner.intercept_not_before_s = (None if skip_late_return(self.config) else
+            max(available or float('-inf'), self.clock()+self.config.raw['lookahead_return_margin_s']))
         if start is None:
             start = nominal_state(planner.model, self.config.standby, self.config.settings.open_width_m)
         with self.lock:
@@ -421,14 +484,14 @@ class ReturnLookahead:
         try:
             plan = planner.intercept(target, start, cancelled=invalid)
             item = PreparedIntercept(target, planner, plan, start, owner, self.clock(), submitted)
-            item.validate(self.config, self.vision.clock_epoch, self.clock())
+            self._validate_handoff(item)
             if invalid():
                 raise PickRejected('预取规划已取消或所属回程已改变')
         except PickRejected as error:
             if self.stop.is_set() or self.cancelled.is_set() or self.owner != owner:
                 return
             expired = pending_error(self.vision, target, self.config, self.clock())
-            if (expired is None
+            if (not skip_late_return(self.config) and expired is None
                     and (not self.return_confirmed or self.schedule_revision != revision)):
                 with self.lock:
                     if self.owner != owner or self.target is not target:

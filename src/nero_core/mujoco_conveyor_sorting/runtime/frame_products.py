@@ -61,9 +61,10 @@ def frame_products(frame, d2c):
 
 def green_rgb_mask(frame, d2c):
     products = frame_products(frame, d2c)
-    hsv = products.get('rgb_to_hsv', lambda: cv2.cvtColor(frame.rgb, cv2.COLOR_RGB2HSV))
-    return products.get('green_rgb_mask', lambda: cv2.inRange(
-        hsv, np.array([35, 40, 35]), np.array([95, 255, 255])) > 0)
+    def compute():
+        hsv = products.get('rgb_to_hsv', lambda: cv2.cvtColor(frame.rgb, cv2.COLOR_RGB2HSV))
+        return cv2.inRange(hsv, np.array([35, 40, 35]), np.array([95, 255, 255])) > 0
+    return products.get('green_rgb_mask', compute)
 
 
 def world_points(frame, d2c):

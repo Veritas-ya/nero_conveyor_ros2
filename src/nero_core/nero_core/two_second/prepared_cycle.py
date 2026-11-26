@@ -1,4 +1,4 @@
-"""Prepare current-payload taught transport and empty return before moving."""
+"""Plan loaded transport and empty return with their respective scene and payload."""
 from dataclasses import dataclass, replace
 import time
 import numpy as np
@@ -16,7 +16,7 @@ class PreparedCycle:
     identity: tuple
     scene_revision: int
     carry: TimedPath
-    returning: TimedPath
+    returning: TimedPath | None
 
 
 def concatenate(paths, *, identity, version, stage):
@@ -63,7 +63,8 @@ def direct_return(planner, config, start, opening, *, cancelled):
            tuple(config.velocity_limits), tuple(config.acceleration_limits),
            tuple(model.command_lower), tuple(model.command_upper),
            config.settings.control_hz, config.raw.get('taught_joint_jerk_limit_rad_s3'),
-           config.raw.get('trajectory_profile'), config.raw.get('geometry_check_hz'))
+           config.raw.get('trajectory_profile'), config.raw.get('geometry_check_hz'),
+           config.raw.get('post_grasp_retime_enabled', False))
     cached = getattr(planner, '_direct_return_template', None)
     if cached is not None and cached[0] == key:
         started = time.monotonic()
@@ -94,12 +95,47 @@ def direct_return(planner, config, start, opening, *, cancelled):
         payload=False, start_joints=start, cancelled=cancelled)
     path = limit_jerk(path, config.raw.get('taught_joint_jerk_limit_rad_s3'),
                       config.settings.control_hz)
+    if config.raw.get('post_grasp_retime_enabled', False):
+        from .post_grasp_timing import accelerate_path
+        path = accelerate_path(planner, path, opening, payload=False, cancelled=cancelled)
     path = replace(path, diagnostics={**path.diagnostics, 'route_template_reused': False})
     planner._direct_return_template = (key, path)
     return path
 
 
-def prepare_cycle(planner, config, state, start_joints, *, cancelled, recovery=False):
+def prepare_empty_return(planner, config, start, *, cancelled, recovery=False):
+    """Build an empty route against the released cloud already installed."""
+    segments = config.raw['taught_segments']
+    prefix = 'prepared_taught_recovery' if recovery else 'prepared_taught'
+    def return_route(*args, **kwargs):
+        path = planner.route(*args, **kwargs)
+        return limit_jerk(path, config.raw.get('taught_joint_jerk_limit_rad_s3'), config.settings.control_hz)
+    opening = config.settings.open_width_m
+    return_parts = []
+    if config.raw.get('taught_return_strategy', 'recorded_then_wait') == 'direct_to_wait':
+        return_parts.append(direct_return(planner, config, start, opening, cancelled=cancelled))
+    else:
+        returning = segments['return']
+        if np.max(abs(start-returning.joints[0])) > 1e-9:
+            return_parts.append(return_route(nominal_state(planner.model, start, opening),
+                stage='return_connect', goal_joints=returning.joints[0], payload=False,
+                start_joints=start, cancelled=cancelled))
+            start = return_parts[-1].q1
+        return_parts.append(certify_taught(planner, config, returning,
+            nominal_state(planner.model, start, opening), start, payload=False, cancelled=cancelled))
+        start = return_parts[-1].q1
+        if np.max(abs(start-config.standby)) > 1e-9:
+            return_parts.append(return_route(nominal_state(planner.model, start, opening),
+                stage='return', goal_joints=config.standby, payload=False,
+                start_joints=start, cancelled=cancelled))
+    result_return = concatenate(return_parts, identity=planner.identity,
+        version=planner.version, stage=prefix+'_return')
+    if cancelled():
+        raise PickRejected('空载回程规划已取消')
+    return result_return
+
+
+def prepare_cycle(planner, config, state, start_joints, *, cancelled, recovery=False, carry_only=False):
     segments = config.raw['taught_segments']
     if planner.payload_local is None:
         raise PickRejected('预计算搬运缺少当前工件载物估计')
@@ -174,32 +210,23 @@ def prepare_cycle(planner, config, state, start_joints, *, cancelled, recovery=F
         if not config.raw.get('experimental_direct_drop_guard'):
             carry = concatenate((first, connecting, transfer), identity=planner.identity,
                 version=planner.version, stage=prefix+'_carry')
+        elif (config.raw.get('post_grasp_retime_enabled', False) and
+              config.raw.get('direct_drop_continuous_carry', False)):
+            from .post_grasp_timing import accelerate_path
+            carry = accelerate_path(planner, carry, width, payload=True, cancelled=cancelled)
+            angle = check_final_orientation(planner, carry, width, drop,
+                config.raw['experimental_direct_drop_guard']['radius_m']/2., cancelled=cancelled)
+            carry.diagnostics['drop_orientation_schedule']['max_final_orientation_error_rad'] = angle
         # Certify the nominal released cloud now. The final actual release
         # estimate is checked again while the gripper opening is confirmed.
         at_drop = nominal_state(planner.model, transfer.q1, width)
         planner.validate_release_opening(at_drop)
+        if cancelled():
+            raise PickRejected('搬运规划已取消')
+        if carry_only:
+            return PreparedCycle(planner.identity, planner.scene_revision, carry, None)
         planner.release_measured(at_drop)
-        opening = config.settings.open_width_m
-        start = transfer.q1
-        return_parts = []
-        if config.raw.get('taught_return_strategy', 'recorded_then_wait') == 'direct_to_wait':
-            return_parts.append(direct_return(planner, config, start, opening, cancelled=cancelled))
-        else:
-            returning = segments['return']
-            if np.max(abs(start-returning.joints[0])) > 1e-9:
-                return_parts.append(route(nominal_state(planner.model, start, opening),
-                    stage='return_connect', goal_joints=returning.joints[0], payload=False,
-                    start_joints=start, cancelled=cancelled))
-                start = return_parts[-1].q1
-            return_parts.append(certify_taught(planner, config, returning,
-                nominal_state(planner.model, start, opening), start, payload=False, cancelled=cancelled))
-            start = return_parts[-1].q1
-            if np.max(abs(start-config.standby)) > 1e-9:
-                return_parts.append(route(nominal_state(planner.model, start, opening),
-                    stage='return', goal_joints=config.standby, payload=False,
-                    start_joints=start, cancelled=cancelled))
-        result_return = concatenate(return_parts, identity=planner.identity,
-            version=planner.version, stage=prefix+'_return')
+        result_return = prepare_empty_return(planner, config, carry.q1, cancelled=cancelled, recovery=recovery)
         if cancelled():
             raise PickRejected('预计算示教链已取消')
         return PreparedCycle(planner.identity, planner.scene_revision, carry, result_return)

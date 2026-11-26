@@ -81,8 +81,11 @@ class ExperimentArchive:
         return name
 
     def _frame(self, frame, d2c):
-        return (frame_metadata(frame, d2c),
-            {'frame_rgb':frame.rgb, 'frame_depth_m':frame.depth_m})
+        arrays = {'frame_rgb':frame.rgb, 'frame_depth_m':frame.depth_m}
+        for side in ('left_ir','right_ir'):
+            value=getattr(frame,side,None)
+            if value is not None:arrays['frame_'+side]=value
+        return frame_metadata(frame, d2c), arrays
 
     def offer_geometry_rejection(self,frame,d2c,state,identity,surface,indices,details):
         meta,arrays=self._frame(frame,d2c)
@@ -106,11 +109,13 @@ class ExperimentArchive:
                 velocity=target.velocity, speed_report=target.speed_report,
                 capture_state=target.state,
                 detection={k:detection[k] for k in ('belt_region','obb','plane','width','height',
-                    'footprint_m','camera_origin_base_m','local_processing','freeze_delivery') if k in detection},
+                    'footprint_m','camera_origin_base_m','local_processing','freeze_delivery','near_camera_footprint',
+                    'fast_stereo','grasp_depth_refinement','target_geometry_source','depth_separation') if k in detection},
                 depth_description='Frozen calibrated native depth; do not calibrate twice',
                 physical_success=None)
             arrays.update(points=target.points, grasps=np.asarray(target.grasps))
-            for k in ('scene_points','scene_pixel_indices','mask'):
+            for k in ('scene_points','scene_pixel_indices','mask','native_object_points','grasp_target_mask',
+                      'grasp_point_keep_mask','object_seed_pixel_indices'):
                 if k in detection: arrays[k] = detection[k]
             name = self._offer('target', meta, arrays)
             if name is None:
@@ -120,6 +125,7 @@ class ExperimentArchive:
             self._error('target', error)
 
     def bind_planner(self, planner):
+        planner.experiment_archive = self
         original = planner.intercept
         clock = getattr(planner, 'clock', time.monotonic)
         @wraps(original)
@@ -155,7 +161,8 @@ class ExperimentArchive:
                     'stage':path.stage, 'duration_s':path.duration, 'planning_s':path.planning_s,
                     'reference':{k:getattr(plan.reference,k) for k in
                         ('capture_s','start_s','duration_s','follow_s','brake_s','prealign_s',
-                         'rotate_first_s','capture_tcp_world','velocity_world','start_tcp_world',
+                         'rotate_first_s','bin_descent_s','bin_clearance_m','brake_rise_m','height_lead_s','height_normal_world',
+                         'relative_descent_s','relative_sync_s','approach_clearance_m','object_axes_world','capture_tcp_world','velocity_world','start_tcp_world',
                          'start_quaternion_wxyz','target_quaternion_wxyz') if hasattr(plan.reference,k)},
                     'diagnostics':path.diagnostics, 'timings_s':plan.timings_s,
                     'candidate_failures':plan.failures,

@@ -209,8 +209,14 @@ def test_independent_check_config_keeps_taught_paths_and_never_imports_devices(m
     assert result['candidate_retry_policy']=='coarse_first'
     assert result['freeze_source']=='single_exposure_native_depth'
     assert result['hardware_connections']==result['commands_sent']==0
-    assert set(result['taught_segments'])=={'transfer','return'}
-    assert result['prealign_orientation_s']==1.1 and result['brake_duration_s']==.9
+    # The active site returns directly to wait; that policy does not load a
+    # recorded return segment. Explicit taught-return sites still load both.
+    import yaml
+    saved=yaml.safe_load(path.read_text())
+    policy=saved.get('taught_return_strategy')
+    assert set(result['taught_segments'])==({'transfer'} if policy=='direct_to_wait' else {'transfer','return'})
+    assert result['prealign_orientation_s']==saved['prealign_orientation_s']
+    assert result['brake_duration_s']==saved['brake_duration_s']
     assert not output.exists() and path.read_bytes()==before
 
 

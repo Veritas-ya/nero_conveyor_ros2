@@ -185,13 +185,19 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
                   robot_model=None, robot_state=None, maximum_target_height_m=None,
                   measured_surface=None, scene_scope='observed_scene',target_seed_pixel_indices=None,
                   maximum_target_length_m=.16, belt_edge_margin_m=.025,
-                  belt_near_camera_margin_m=0., belt_direction_base=None):
+                  belt_near_camera_margin_m=0., belt_direction_base=None, retain_native_seed=False,
+                  rgb_cloud_completion=True, minimum_complete_height_m=.035, native_region_mask=None):
     """Reuse the existing foreground component detector; do not guess a class.
 
     A measured belt search region is reused within the same camera session;
     simple mode also excludes green foreground. Every exposure still supplies
     its own native metric depth, transformed into the measured plane frame.
     """
+    batch = native_region_mask is not None
+    if batch and (target_shape != 'simple' or rgb_cloud_completion or target_seed_pixel_indices is not None
+                  or scene_scope != 'measured_belt_surface_only' or native_region_mask.dtype != np.bool_
+                  or native_region_mask.shape != frame.depth_m.shape):
+        raise ValueError('native region extraction requires a complete same-frame simple depth region')
     seed_indices=None
     if target_seed_pixel_indices is not None:
         seed_indices=np.asarray(target_seed_pixel_indices)
@@ -254,7 +260,10 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
                       & (flat[..., 2] <= pipeline.maximum_height))
         in_search_xy = ((flat[..., 0] >= lower[0]) & (flat[..., 0] <= upper[0])
                         & (flat[..., 1] >= lower[1]) & (flat[..., 1] <= upper[1]))
-        foreground = foreground_height & in_search_xy
+        # The surrounding depth provides local metric neighbour support. A
+        # trigger at the ROI boundary also owns its complete native component.
+        support_area = in_search_xy | native_region_mask if batch else in_search_xy
+        foreground = foreground_height if batch else foreground_height & in_search_xy
     if robot_model is not None:
         # Use the exposure-paired state, never the model's last planning pose.
         # Mask only target segmentation; preserve native RGB-D and scene points.
@@ -276,13 +285,19 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
         from .shape_pick import filter_target_mask
         clean_mask, target_filter = filter_target_mask(
             frame, depth_to_color, foreground, flat,
-            base_to_plane @ frame.camera_to_world_cv)
+            base_to_plane @ frame.camera_to_world_cv,
+            **({'support_seed': support_area} if batch else {}))
+        if batch:
+            # Context sets the original metric support radius but cannot become
+            # a target of this trigger. Each raw region owns disjoint pixels.
+            foreground = foreground & native_region_mask
+            clean_mask &= native_region_mask
         rejected_target_depth = foreground & ~clean_mask
         # The green-belt quantiles select where to find a part, not where
         # that part ends. Recover only complete foreground components that
         # contain a supported search seed; unrelated outside components stay
         # in the scene. Do not run the metric density test on the whole room.
-        if clean_mask.any():
+        if not batch and clean_mask.any():
             from .shape_pick import exclude_green_belt
             complete_foreground = foreground_height.copy()
             complete_foreground = exclude_green_belt(frame, depth_to_color, complete_foreground)
@@ -350,7 +365,7 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
         candidates=[c for c,overlap in zip(candidates,overlaps) if overlap>=.5]
         seed_selection['candidate_count_after_selection']=len(candidates)
     filter_stages['candidates_after_seed']=len(candidates)
-    if len(candidates) != 1:
+    if not batch and len(candidates) != 1:
         if diagnostic is not None:
             mask = np.logical_or.reduce([c.mask for c in candidates]) if candidates else np.zeros_like(frame.depth_m, dtype=bool)
             diagnostic({'object_points': points[mask], 'mask': mask, 'plane': plane,
@@ -364,219 +379,239 @@ def detect_target(frame, depth_to_color, *, fit_plane, green_belt_points, diagno
                                       'component_size_diagnostics':pipeline.last_component_workload,
                                       'target_self_filter': target_self_filter,
                                       **({'same_exposure_seed_selection':seed_selection} if seed_selection else {})})
-    c = candidates[0]
-    if target_filter is not None:
-        # Only rejected depth belonging to THIS target's original component
-        # is removed from collision input. Other components remain obstacles,
-        # even if their colour/density disqualified them as a grasp target.
+    original_labels = None
+    if target_filter is not None and candidates:
         _, original_labels = cv2.connectedComponents(foreground.astype(np.uint8), connectivity=8)
-        label = original_labels.flat[np.flatnonzero(c.mask)[0]]
-        rejected_target_depth &= original_labels == label
-        target_filter['selected_target_points'] = int(np.count_nonzero(c.mask))
-        target_filter['scene_rejected_target_depth_points'] = int(np.count_nonzero(rejected_target_depth))
-        target_filter['roi_selects_complete_components'] = True
-        target_filter['selected_points_outside_search_roi'] = int(np.count_nonzero(
-            c.mask & ~in_search_xy))
-    if target_shape not in ('shape', 'simple', 'geometry', 'auto', 'cylinder'):
-        raise ValueError('target_shape must be shape, simple, geometry, auto or cylinder')
-    if target_shape == 'shape':
-        from .shape_pick import shape_observation, ShapeGeometryNotReady
+
+    def describe(c, target_filter, rejected_target_depth):
+        if target_filter is not None:
+            # Only rejected depth belonging to THIS target's original component
+            # is removed from collision input. Other components remain obstacles,
+            # even if their colour/density disqualified them as a grasp target.
+            label = original_labels.flat[np.flatnonzero(c.mask)[0]]
+            rejected_target_depth &= original_labels == label
+            target_filter['selected_target_points'] = int(np.count_nonzero(c.mask))
+            target_filter['scene_rejected_target_depth_points'] = int(np.count_nonzero(rejected_target_depth))
+            target_filter['roi_selects_complete_components'] = True
+            target_filter['selected_points_outside_search_roi'] = int(np.count_nonzero(
+                c.mask & ~in_search_xy))
+        if target_shape not in ('shape', 'simple', 'geometry', 'auto', 'cylinder'):
+            raise ValueError('target_shape must be shape, simple, geometry, auto or cylinder')
+        if target_shape == 'shape':
+            from .shape_pick import shape_observation, ShapeGeometryNotReady
+            try:
+                observation = shape_observation(
+                    frame, depth_to_color, c, points, flat,
+                    plane_to_base, base_to_plane @ frame.camera_to_world_cv,
+                    plane, hull, recognizer=shape_recognizer, diagnostic=diagnostic)
+                observation['belt_region'] = belt_region
+                observation['target_self_filter'] = target_self_filter
+                return observation
+            except ShapeGeometryNotReady as error:
+                raise TargetNotReady(str(error), reason='shape_geometry') from error
+            except ValueError as error:
+                raise PickRejected(str(error)) from error
+        object_points = points[c.mask]
+        heights = flat[c.mask, 2]
+        height = float(np.quantile(heights, .98))
+        extent = np.asarray(c.feature_vector[:2])
+        # Compare the same horizontal axes at different heights. A large extra
+        # span confined to low boundary points is NOT evidence of a long object;
+        # it can reflect mixed depths or an unmodelled varying cross-section.
+        median_depth = float(np.median(frame.depth_m[c.mask]))
+        pixel_allowance = median_depth/frame.depth_intrinsics.fx + median_depth/frame.depth_intrinsics.fy
+        yaw_pca = float(c.raw_yaw)
+        axes = np.array([[np.cos(yaw_pca), -np.sin(yaw_pca)],
+                         [np.sin(yaw_pca), np.cos(yaw_pca)]])
+        projections = flat[c.mask, :2] @ axes
+        q = pipeline.robust_extent_quantile
+        full_span = np.diff(np.quantile(projections, [q, 1-q], axis=0), axis=0)[0] + pixel_allowance
+        upper_mask = heights >= .75*height
+        shape = {'full_span_along_pca_axes_m': full_span.tolist(),
+                 'upper_slice_min_height_m': .75*height,
+                 'upper_slice_points': int(upper_mask.sum()),
+                 'status': 'insufficient_upper_points',
+                 'note': 'depth-contour consistency only; not a shape classification or measured diameter'}
+        inconsistent = False
+        if target_shape == 'simple':
+            shape = {'status': 'not_required_in_simple_mode'}
+        elif upper_mask.sum() >= pipeline.minimum_mask_pixels:
+            upper_span = np.diff(np.quantile(projections[upper_mask], [q, 1-q], axis=0), axis=0)[0] + pixel_allowance
+            inconsistent = bool(np.any((full_span-upper_span > .020) & (full_span > 1.30*upper_span)))
+            shape.update(upper_span_along_same_axes_m=upper_span.tolist(),
+                         status='inconsistent' if inconsistent else 'no_large_boundary_extension')
+        cylinder = {'accepted': False, 'reasons': ['not_requested']}
+        if target_shape in ('auto', 'cylinder'):
+            from .depth_shape import fit_upright_cylinder
+            # Depth geometry supplies dimensions; RGB only rejects points that
+            # project onto the GREEN belt instead of the current visible part.
+            to_depth = inverse(frame.camera_to_world_cv)
+            depth_pts = object_points @ to_depth[:3, :3].T + to_depth[:3, 3]
+            color_pts = depth_pts @ depth_to_color[:3, :3].T + depth_to_color[:3, 3]
+            uv, _ = cv2.projectPoints(color_pts, np.zeros(3), np.zeros(3),
+                                      frame.color_intrinsics.matrix, np.asarray(frame.color_intrinsics.distortion))
+            uv = uv.reshape(-1, 2)
+            pix = np.rint(np.nan_to_num(np.clip(uv, -1, max(frame.rgb.shape[:2])), nan=-1)).astype(int)
+            inside = (color_pts[:, 2] > 0) & np.isfinite(uv).all(axis=1)
+            inside &= (pix[:, 0] >= 0) & (pix[:, 0] < frame.rgb.shape[1])
+            inside &= (pix[:, 1] >= 0) & (pix[:, 1] < frame.rgb.shape[0])
+            keep = inside.copy()
+            hsv = cv2.cvtColor(frame.rgb, cv2.COLOR_RGB2HSV)
+            green_rgb = cv2.inRange(hsv, np.array([35, 40, 35]), np.array([95, 255, 255])) > 0
+            keep[inside] &= ~green_rgb[pix[inside, 1], pix[inside, 0]]
+            cylinder = fit_upright_cylinder(flat[c.mask][keep], pixel_size_m=pixel_allowance/2)
+            cylinder.update(rgb_depth_points_retained=int(keep.sum()),
+                            rgb_depth_points_rejected=int((~keep).sum()),
+                            rgb_check='project native depth through factory D2C; reject green belt pixels')
+        if diagnostic is not None:
+            diagnostic({'object_points': object_points, 'mask': c.mask, 'plane': plane,
+                        'height': height, 'footprint_m': extent.tolist(), 'shape_consistency': shape,
+                        'cylinder_fit': cylinder, 'target_cloud_filter': target_filter})
+        if target_shape == 'cylinder' and not cylinder['accepted']:
+            raise TargetNotReady('深度圆柱拟合未通过：'+', '.join(cylinder['reasons']),
+                                 reason='cylinder_fit')
+        if inconsistent and not cylinder['accepted']:
+            raise TargetNotReady(f'深度轮廓随高度明显变化：全轮廓{np.round(full_span*1000,1)} mm，'
+                                 f'上层{np.round(upper_span*1000,1)} mm；请核对保存的目标叠加图，不能将全轮廓直接当实物尺寸',
+                                 reason='inconsistent_contour')
+        # The entry is intentionally limited to small, upright parts. No T-LESS
+        # identity or hidden dimensions are invented from the prototype above.
+        # Long dimension is independent of jaw opening. Opening is checked below
+        # along the chosen TCP Y axis, not by applying one bound to both dimensions.
+        if not minimum_complete_height_m <= height <= .11 or not .015 <= min(extent) <= max(extent) <= pipeline.maximum_footprint:
+            raise TargetNotReady(f'工件尺寸不适合本测试：高{height*1000:.1f} mm，外形{extent*1000} mm',
+                                 reason='target_size', details={'height_m': height,
+                                     'footprint_m': extent.tolist(), 'height_range_m': [minimum_complete_height_m, .11],
+                                     'maximum_target_length_m':pipeline.maximum_footprint})
+        center_plane = np.asarray(cylinder['center_xy_m']) if cylinder['accepted'] else c.position[:2]
+        # Simple test: use the upper depth points for location, so low boundary
+        # tails do not shift the target. No circle fit or shape-quality gate.
+        # Keep the COMPLETE component for collision checking below.
+        localization_points = object_points
+        localization_confidence = float(c.orientation_confidence)
+        localization_yaw = float(c.raw_yaw)
+        if target_shape == 'simple':
+            select = heights >= .60*height
+            if select.sum() >= 20:
+                localization_points = object_points[select]
+                xy = flat[c.mask][select, :2]
+                eigenvalues, eigenvectors = np.linalg.eigh(np.cov(xy.T))
+                projected = xy @ eigenvectors
+                lo, hi = np.quantile(projected, [q, 1-q], axis=0)
+                center_plane = (.5*(lo+hi)) @ eigenvectors.T
+                localization_confidence = float((eigenvalues[-1]-eigenvalues[0])/max(eigenvalues.sum(), 1e-12))
+                localization_yaw = float(np.arctan2(eigenvectors[1, -1], eigenvectors[0, -1]))
+        if target_shape != 'simple' and cv2.pointPolygonTest(hull, tuple(map(float, center_plane)), True) < .06:
+            raise TargetNotReady('工件离带面边缘太近，原装张开夹爪的边缘余量不足', reason='target_edge')
+        center = plane_to_base[:3, :3] @ np.r_[center_plane, 0.] + plane_to_base[:3, 3]
+        z = -n
+        # Near-circular parts have no observable yaw: choose fixed base-projected X.
+        yaw = localization_yaw if localization_confidence >= .2 and not cylinder['accepted'] else 0.
+        x = plane_to_base[:3, :3] @ np.array([np.cos(yaw), np.sin(yaw), 0])
+        rotation = np.column_stack((x, np.cross(z, x), z))
+        # Stock fingers open along local +/-Y. For low-confidence yaw (fixed X)
+        # or unusual shapes, the PCA short dimension is not necessarily jaw width.
+        closing_projection = localization_points @ rotation[:, 1]
+        lower_width, upper_width = np.quantile(closing_projection, [q, 1-q])
+        grasp_width = float(upper_width-lower_width+pixel_allowance)
+        if cylinder['accepted']:
+            grasp_width = float(cylinder['diameter_m']+cylinder['measurement_margin_m'])
+        opening = PickSettings().open_width_m
+        side_clearance = .010
+        if grasp_width + 2*side_clearance > opening:
+            raise TargetNotReady(f'实际夹持方向宽{grasp_width*1000:.1f} mm，'
+                                 f'夹爪开口{opening*1000:.0f} mm，需每侧保留{side_clearance*1000:.0f} mm余量',
+                                 reason='grasp_width')
+        grasp = np.eye(4); grasp[:3, :3] = rotation
+        # Nominal TCP is 10 mm behind fingertips. Keep tips >=10 mm above belt.
+        grasp[:3, 3] = center + n * max(.02, height-.015)
+        target_mask = c.mask
+        visible_rgb_mask = None
+        visible_completion = None
+        if target_shape == 'simple' and rgb_cloud_completion:
+            from .visible_target import selected_rgb_silhouette, visible_depth_mask
+            visible_rgb_mask, visible_completion = selected_rgb_silhouette(frame, depth_to_color, c.mask)
+            if visible_rgb_mask is not None:
+                complete, lower_support = visible_depth_mask(
+                    frame, depth_to_color, visible_rgb_mask, flat, plane)
+                complete, support_filter = filter_target_mask(
+                    frame, depth_to_color, complete, flat, base_to_plane @ frame.camera_to_world_cv)
+                added = complete & ~c.mask
+                if robot_model is not None and added.any():
+                    self_check = robot_model.classify_robot_points(points[added], robot_state,
+                        camera_origin=frame.camera_to_world_cv[:3, 3])
+                    complete[added] = ~self_check.removed_mask
+                    visible_completion['extension_self_filter'] = self_check.statistics
+                target_mask = c.mask | complete
+                visible_completion.update(
+                    seed_depth_pixels=int(c.mask.sum()), completed_native_pixels=int(target_mask.sum()),
+                    added_native_pixels=int(np.count_nonzero(target_mask & ~c.mask)),
+                    lower_support_height_m=lower_support, support_filter=support_filter,
+                    applies_to='visible_geometry_after_original_target_selection',
+                    original_foreground_selection_height_m=pipeline.minimum_height)
+                object_points = points[target_mask]
+                if target_filter is not None:
+                    target_filter['visible_target_completion'] = visible_completion
+                if diagnostic is not None:
+                    diagnostic({'object_points': object_points, 'mask': target_mask, 'plane': plane,
+                        'height': height, 'footprint_m': extent.tolist(), 'shape_consistency': shape,
+                        'cylinder_fit': cylinder, 'target_cloud_filter': target_filter})
+        scene_fields = {}
+        if not batch:
+            valid = (frame.depth_m > 0) & np.isfinite(points).all(axis=2)
+            scene_mask = valid & ~target_mask & ~rejected_target_depth
+            scene_input_count = int(np.count_nonzero(scene_mask))
+            if scene_scope == 'measured_belt_surface_only':
+                # Conservative broad phase in the already-computed plane grid. The
+                # planner still performs its exact, same-frame belt predicate before
+                # publishing the voxel cloud and KD tree. The epsilon covers float
+                # roundoff between the two algebraically equivalent transforms.
+                scene_bounds = np.asarray(belt_region.get('scene_bounds_xy_m', belt_region['bounds_xy_m']))
+                epsilon = 1e-8
+                scene_mask &= (np.abs(flat[..., 2]) <= .005 + epsilon)
+                scene_mask &= (flat[..., 0] >= scene_bounds[0, 0]-epsilon) & (flat[..., 0] <= scene_bounds[0, 1]+epsilon)
+                scene_mask &= (flat[..., 1] >= scene_bounds[1, 0]-epsilon) & (flat[..., 1] <= scene_bounds[1, 1]+epsilon)
+            elif scene_scope != 'observed_scene':
+                raise ValueError('unknown scene scope')
+            scene_pixel_indices = np.flatnonzero(scene_mask)
+            scene_fields = dict(scene_points=points[scene_mask], scene_pixel_indices=scene_pixel_indices,
+                                scene_input_count_before_prefilter=scene_input_count)
+        # The batch caller attaches the single full-frame belt scene at freeze.
+        return {'grasp': grasp, 'center': center, 'height': height, 'width': grasp_width,
+                'maximum_target_length_m':maximum_target_length_m,
+                'component_size_diagnostics':pipeline.last_component_workload,
+                'footprint_m': extent.tolist(), 'open_clearance_per_side_m': (opening-grasp_width)/2,
+                'shape_consistency': shape,
+                'cylinder_fit': cylinder,
+                'target_geometry_source': ('upper_depth_geometry' if target_shape == 'simple' else
+                                           'depth_cylinder_candidate' if cylinder['accepted'] else 'depth_foreground_envelope'),
+                'localization_points': len(localization_points),
+                'plane': plane, 'belt_region': belt_region, 'mask': target_mask, 'object_points': object_points,
+                **({'object_seed_pixel_indices':np.flatnonzero(c.mask)} if retain_native_seed else {}),
+                **scene_fields, 'scene_prefilter_scope': scene_scope, 'points': points,
+                'points_plane': flat, '_frame_products': products,
+                'component_extraction': pipeline.last_component_workload,
+                'visible_target_rgb_mask': visible_rgb_mask, 'visible_target_completion': visible_completion,
+                'target_cloud_filter': target_filter,
+                'target_self_filter': target_self_filter,
+                '_rejected_target_depth_mask':rejected_target_depth,
+                **({'same_exposure_seed_selection':seed_selection} if seed_selection else {}),
+                'camera_origin_base_m': frame.camera_to_world_cv[:3, 3].copy(),
+                'orientation_confidence': 0. if cylinder['accepted'] else localization_confidence,
+                'category': 'unknown; geometry-only single-part pick'}
+
+    if not batch:
+        return describe(candidates[0], target_filter, rejected_target_depth)
+    # One final segmentation can separate more than one visible workpiece.
+    # Describe each final component independently; a rejected neighbour does
+    # not suppress a valid component or change its collision mask.
+    detections, rejections = [], []
+    for component in candidates:
         try:
-            observation = shape_observation(
-                frame, depth_to_color, c, points, flat,
-                plane_to_base, base_to_plane @ frame.camera_to_world_cv,
-                plane, hull, recognizer=shape_recognizer, diagnostic=diagnostic)
-            observation['belt_region'] = belt_region
-            observation['target_self_filter'] = target_self_filter
-            return observation
-        except ShapeGeometryNotReady as error:
-            raise TargetNotReady(str(error), reason='shape_geometry') from error
-        except ValueError as error:
-            raise PickRejected(str(error)) from error
-    object_points = points[c.mask]
-    heights = flat[c.mask, 2]
-    height = float(np.quantile(heights, .98))
-    extent = np.asarray(c.feature_vector[:2])
-    # Compare the same horizontal axes at different heights. A large extra
-    # span confined to low boundary points is NOT evidence of a long object;
-    # it can reflect mixed depths or an unmodelled varying cross-section.
-    median_depth = float(np.median(frame.depth_m[c.mask]))
-    pixel_allowance = median_depth/frame.depth_intrinsics.fx + median_depth/frame.depth_intrinsics.fy
-    yaw_pca = float(c.raw_yaw)
-    axes = np.array([[np.cos(yaw_pca), -np.sin(yaw_pca)],
-                     [np.sin(yaw_pca), np.cos(yaw_pca)]])
-    projections = flat[c.mask, :2] @ axes
-    q = pipeline.robust_extent_quantile
-    full_span = np.diff(np.quantile(projections, [q, 1-q], axis=0), axis=0)[0] + pixel_allowance
-    upper_mask = heights >= .75*height
-    shape = {'full_span_along_pca_axes_m': full_span.tolist(),
-             'upper_slice_min_height_m': .75*height,
-             'upper_slice_points': int(upper_mask.sum()),
-             'status': 'insufficient_upper_points',
-             'note': 'depth-contour consistency only; not a shape classification or measured diameter'}
-    inconsistent = False
-    if target_shape == 'simple':
-        shape = {'status': 'not_required_in_simple_mode'}
-    elif upper_mask.sum() >= pipeline.minimum_mask_pixels:
-        upper_span = np.diff(np.quantile(projections[upper_mask], [q, 1-q], axis=0), axis=0)[0] + pixel_allowance
-        inconsistent = bool(np.any((full_span-upper_span > .020) & (full_span > 1.30*upper_span)))
-        shape.update(upper_span_along_same_axes_m=upper_span.tolist(),
-                     status='inconsistent' if inconsistent else 'no_large_boundary_extension')
-    cylinder = {'accepted': False, 'reasons': ['not_requested']}
-    if target_shape in ('auto', 'cylinder'):
-        from .depth_shape import fit_upright_cylinder
-        # Depth geometry supplies dimensions; RGB only rejects points that
-        # project onto the GREEN belt instead of the current visible part.
-        to_depth = inverse(frame.camera_to_world_cv)
-        depth_pts = object_points @ to_depth[:3, :3].T + to_depth[:3, 3]
-        color_pts = depth_pts @ depth_to_color[:3, :3].T + depth_to_color[:3, 3]
-        uv, _ = cv2.projectPoints(color_pts, np.zeros(3), np.zeros(3),
-                                  frame.color_intrinsics.matrix, np.asarray(frame.color_intrinsics.distortion))
-        uv = uv.reshape(-1, 2)
-        pix = np.rint(np.nan_to_num(np.clip(uv, -1, max(frame.rgb.shape[:2])), nan=-1)).astype(int)
-        inside = (color_pts[:, 2] > 0) & np.isfinite(uv).all(axis=1)
-        inside &= (pix[:, 0] >= 0) & (pix[:, 0] < frame.rgb.shape[1])
-        inside &= (pix[:, 1] >= 0) & (pix[:, 1] < frame.rgb.shape[0])
-        keep = inside.copy()
-        hsv = cv2.cvtColor(frame.rgb, cv2.COLOR_RGB2HSV)
-        green_rgb = cv2.inRange(hsv, np.array([35, 40, 35]), np.array([95, 255, 255])) > 0
-        keep[inside] &= ~green_rgb[pix[inside, 1], pix[inside, 0]]
-        cylinder = fit_upright_cylinder(flat[c.mask][keep], pixel_size_m=pixel_allowance/2)
-        cylinder.update(rgb_depth_points_retained=int(keep.sum()),
-                        rgb_depth_points_rejected=int((~keep).sum()),
-                        rgb_check='project native depth through factory D2C; reject green belt pixels')
-    if diagnostic is not None:
-        diagnostic({'object_points': object_points, 'mask': c.mask, 'plane': plane,
-                    'height': height, 'footprint_m': extent.tolist(), 'shape_consistency': shape,
-                    'cylinder_fit': cylinder, 'target_cloud_filter': target_filter})
-    if target_shape == 'cylinder' and not cylinder['accepted']:
-        raise TargetNotReady('深度圆柱拟合未通过：'+', '.join(cylinder['reasons']),
-                             reason='cylinder_fit')
-    if inconsistent and not cylinder['accepted']:
-        raise TargetNotReady(f'深度轮廓随高度明显变化：全轮廓{np.round(full_span*1000,1)} mm，'
-                             f'上层{np.round(upper_span*1000,1)} mm；请核对保存的目标叠加图，不能将全轮廓直接当实物尺寸',
-                             reason='inconsistent_contour')
-    # The entry is intentionally limited to small, upright parts. No T-LESS
-    # identity or hidden dimensions are invented from the prototype above.
-    # Long dimension is independent of jaw opening. Opening is checked below
-    # along the chosen TCP Y axis, not by applying one bound to both dimensions.
-    if not .035 <= height <= .11 or not .015 <= min(extent) <= max(extent) <= pipeline.maximum_footprint:
-        raise TargetNotReady(f'工件尺寸不适合本测试：高{height*1000:.1f} mm，外形{extent*1000} mm',
-                             reason='target_size', details={'height_m': height,
-                                 'footprint_m': extent.tolist(), 'height_range_m': [.035, .11],
-                                 'maximum_target_length_m':pipeline.maximum_footprint})
-    center_plane = np.asarray(cylinder['center_xy_m']) if cylinder['accepted'] else c.position[:2]
-    # Simple test: use the upper depth points for location, so low boundary
-    # tails do not shift the target. No circle fit or shape-quality gate.
-    # Keep the COMPLETE component for collision checking below.
-    localization_points = object_points
-    localization_confidence = float(c.orientation_confidence)
-    localization_yaw = float(c.raw_yaw)
-    if target_shape == 'simple':
-        select = heights >= .60*height
-        if select.sum() >= 20:
-            localization_points = object_points[select]
-            xy = flat[c.mask][select, :2]
-            eigenvalues, eigenvectors = np.linalg.eigh(np.cov(xy.T))
-            projected = xy @ eigenvectors
-            lo, hi = np.quantile(projected, [q, 1-q], axis=0)
-            center_plane = (.5*(lo+hi)) @ eigenvectors.T
-            localization_confidence = float((eigenvalues[-1]-eigenvalues[0])/max(eigenvalues.sum(), 1e-12))
-            localization_yaw = float(np.arctan2(eigenvectors[1, -1], eigenvectors[0, -1]))
-    if target_shape != 'simple' and cv2.pointPolygonTest(hull, tuple(map(float, center_plane)), True) < .06:
-        raise TargetNotReady('工件离带面边缘太近，原装张开夹爪的边缘余量不足', reason='target_edge')
-    center = plane_to_base[:3, :3] @ np.r_[center_plane, 0.] + plane_to_base[:3, 3]
-    z = -n
-    # Near-circular parts have no observable yaw: choose fixed base-projected X.
-    yaw = localization_yaw if localization_confidence >= .2 and not cylinder['accepted'] else 0.
-    x = plane_to_base[:3, :3] @ np.array([np.cos(yaw), np.sin(yaw), 0])
-    rotation = np.column_stack((x, np.cross(z, x), z))
-    # Stock fingers open along local +/-Y. For low-confidence yaw (fixed X)
-    # or unusual shapes, the PCA short dimension is not necessarily jaw width.
-    closing_projection = localization_points @ rotation[:, 1]
-    lower_width, upper_width = np.quantile(closing_projection, [q, 1-q])
-    grasp_width = float(upper_width-lower_width+pixel_allowance)
-    if cylinder['accepted']:
-        grasp_width = float(cylinder['diameter_m']+cylinder['measurement_margin_m'])
-    opening = PickSettings().open_width_m
-    side_clearance = .010
-    if grasp_width + 2*side_clearance > opening:
-        raise TargetNotReady(f'实际夹持方向宽{grasp_width*1000:.1f} mm，'
-                             f'夹爪开口{opening*1000:.0f} mm，需每侧保留{side_clearance*1000:.0f} mm余量',
-                             reason='grasp_width')
-    grasp = np.eye(4); grasp[:3, :3] = rotation
-    # Nominal TCP is 10 mm behind fingertips. Keep tips >=10 mm above belt.
-    grasp[:3, 3] = center + n * max(.02, height-.015)
-    target_mask = c.mask
-    visible_rgb_mask = None
-    visible_completion = None
-    if target_shape == 'simple':
-        from .visible_target import selected_rgb_silhouette, visible_depth_mask
-        visible_rgb_mask, visible_completion = selected_rgb_silhouette(frame, depth_to_color, c.mask)
-        if visible_rgb_mask is not None:
-            complete, lower_support = visible_depth_mask(
-                frame, depth_to_color, visible_rgb_mask, flat, plane)
-            complete, support_filter = filter_target_mask(
-                frame, depth_to_color, complete, flat, base_to_plane @ frame.camera_to_world_cv)
-            added = complete & ~c.mask
-            if robot_model is not None and added.any():
-                self_check = robot_model.classify_robot_points(points[added], robot_state,
-                    camera_origin=frame.camera_to_world_cv[:3, 3])
-                complete[added] = ~self_check.removed_mask
-                visible_completion['extension_self_filter'] = self_check.statistics
-            target_mask = c.mask | complete
-            visible_completion.update(
-                seed_depth_pixels=int(c.mask.sum()), completed_native_pixels=int(target_mask.sum()),
-                added_native_pixels=int(np.count_nonzero(target_mask & ~c.mask)),
-                lower_support_height_m=lower_support, support_filter=support_filter,
-                applies_to='visible_geometry_after_original_target_selection',
-                original_foreground_selection_height_m=pipeline.minimum_height)
-            object_points = points[target_mask]
-            if target_filter is not None:
-                target_filter['visible_target_completion'] = visible_completion
-            if diagnostic is not None:
-                diagnostic({'object_points': object_points, 'mask': target_mask, 'plane': plane,
-                    'height': height, 'footprint_m': extent.tolist(), 'shape_consistency': shape,
-                    'cylinder_fit': cylinder, 'target_cloud_filter': target_filter})
-    valid = (frame.depth_m > 0) & np.isfinite(points).all(axis=2)
-    scene_mask = valid & ~target_mask & ~rejected_target_depth
-    scene_input_count = int(np.count_nonzero(scene_mask))
-    if scene_scope == 'measured_belt_surface_only':
-        # Conservative broad phase in the already-computed plane grid. The
-        # planner still performs its exact, same-frame belt predicate before
-        # publishing the voxel cloud and KD tree. The epsilon covers float
-        # roundoff between the two algebraically equivalent transforms.
-        scene_bounds = np.asarray(belt_region.get('scene_bounds_xy_m', belt_region['bounds_xy_m']))
-        epsilon = 1e-8
-        scene_mask &= (np.abs(flat[..., 2]) <= .005 + epsilon)
-        scene_mask &= (flat[..., 0] >= scene_bounds[0, 0]-epsilon) & (flat[..., 0] <= scene_bounds[0, 1]+epsilon)
-        scene_mask &= (flat[..., 1] >= scene_bounds[1, 0]-epsilon) & (flat[..., 1] <= scene_bounds[1, 1]+epsilon)
-    elif scene_scope != 'observed_scene':
-        raise ValueError('unknown scene scope')
-    scene_pixel_indices = np.flatnonzero(scene_mask)
-    return {'grasp': grasp, 'center': center, 'height': height, 'width': grasp_width,
-            'maximum_target_length_m':maximum_target_length_m,
-            'component_size_diagnostics':pipeline.last_component_workload,
-            'footprint_m': extent.tolist(), 'open_clearance_per_side_m': (opening-grasp_width)/2,
-            'shape_consistency': shape,
-            'cylinder_fit': cylinder,
-            'target_geometry_source': ('upper_depth_geometry' if target_shape == 'simple' else
-                                       'depth_cylinder_candidate' if cylinder['accepted'] else 'depth_foreground_envelope'),
-            'localization_points': len(localization_points),
-            'plane': plane, 'belt_region': belt_region, 'mask': target_mask, 'object_points': object_points,
-            'scene_points': points[scene_mask], 'scene_prefilter_scope': scene_scope,
-            'scene_input_count_before_prefilter': scene_input_count, 'points': points,
-            'points_plane': flat, '_frame_products': products,
-            'scene_pixel_indices': scene_pixel_indices,
-            'component_extraction': pipeline.last_component_workload,
-            'visible_target_rgb_mask': visible_rgb_mask, 'visible_target_completion': visible_completion,
-            'target_cloud_filter': target_filter,
-            'target_self_filter': target_self_filter,
-            '_rejected_target_depth_mask':rejected_target_depth,
-            **({'same_exposure_seed_selection':seed_selection} if seed_selection else {}),
-            'camera_origin_base_m': frame.camera_to_world_cv[:3, 3].copy(),
-            'orientation_confidence': 0. if cylinder['accepted'] else localization_confidence,
-            'category': 'unknown; geometry-only single-part pick'}
+            detections.append(describe(component, dict(target_filter), rejected_target_depth.copy()))
+        except TargetNotReady as error:
+            rejections.append({'message': str(error), **error.details})
+    return detections, rejections
 
 
 def stable_target(observations):
@@ -772,6 +807,13 @@ class RobotModel:
                 envelope = HalfspaceIntersection(padded, vertices.mean(axis=0)).intersections
                 self.mesh_bounds[g, margin] = (envelope.min(axis=0)-1e-9,
                                                envelope.max(axis=0)+1e-9)
+        # These geometry memberships and conservative radii belong to this model.
+        # Poses and the frozen target tree are still read on every collision check.
+        self.moving_target_query_groups = {}
+        for contact in (False, True):
+            ids = np.array([g for g in self.meshes if not (contact and g in self.fingers)], dtype=int)
+            radii = np.array([self.collision_radii[g] + 1e-9 for g in ids])
+            self.moving_target_query_groups[contact] = (ids, radii)
         self._target_broadphase_geom_ids = tuple(self.meshes)
         if self.simd_broadphase_enabled:
             # Compile/load the small optional SIMD kernel during model setup,
@@ -1140,11 +1182,26 @@ class RobotModel:
         return frozenset(g for g, value in zip(kernel.geometry_ids, possible) if value)
 
     def _self_filter_bodies(self, data):
-        return [ConvexBody(
-            g, self.model.body(self.model.geom_bodyid[g]).name, equations, self.mesh_vertices[g],
-            data.geom_xpos[g].copy(), data.geom_xmat[g].reshape(3, 3).copy(),
+        # Local padded hulls do not move in their own frame. Rebuilding their
+        # HalfspaceIntersection at every measured joint change cost ~30 ms.
+        # Cache geometry only: each exposure still gets its own FK and point
+        # classification, including the full original padding/shadow tests.
+        key = tuple((g, self.model.body(self.model.geom_bodyid[g]).name,
+            equations.tobytes(), self.mesh_vertices[g].tobytes(),
             self.self_filter.config.padding_for(self.model.body(self.model.geom_bodyid[g]).name))
-            for g, (equations, _) in self.meshes.items()]
+            for g, (equations, _) in self.meshes.items())
+        cached = getattr(self, '_self_filter_local_hulls', None)
+        if cached is None or cached[0] != key:
+            templates = []
+            for (g, (equations, _)), (_, name, _, _, padding) in zip(self.meshes.items(), key):
+                body = ConvexBody(g, name, equations, self.mesh_vertices[g].copy(),
+                                  np.zeros(3), np.eye(3), padding)
+                for field in ('equations', 'vertices', 'padded_equations'):
+                    getattr(body, field).setflags(write=False)
+                templates.append(body)
+            cached = self._self_filter_local_hulls = (key, tuple(templates))
+        return [body.at_pose(data.geom_xpos[body.geom_id],
+                            data.geom_xmat[body.geom_id].reshape(3, 3)) for body in cached[1]]
 
     def self_filter_bodies_for_state(self, state):
         """Build private FK bodies from captured feedback, preserving planning state."""
@@ -1621,7 +1678,10 @@ class PickCycle:
         if state['force_n'] < self.cfg.min_force_n:
             if self.force_lost_since is None: self.force_lost_since = self.clock()
             if self.clock()-self.force_lost_since > .25:
-                raise PickRejected('夹持力持续丢失，停止机械臂')
+                raise PickRejected('夹持力持续丢失，停止机械臂', details={
+                    'reason': 'grip_force_lost', 'width_m': float(state['width_m']),
+                    'confirmed_width_m': float(self.held_width),
+                    'force_n': float(state['force_n'])})
         else:
             self.force_lost_since = None
 

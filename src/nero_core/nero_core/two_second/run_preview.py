@@ -78,20 +78,25 @@ class RunPreviewWorker(Thread):
                     snap['frozen_speed'].update(calibration_id=target_frame.calibration_id,
                         serial_number=target_frame.serial_number)
                 self.events_key=key
-        records=sorted((self.run_directory/'collisions').glob('collision_*.json'))
+        live_collision=self.run_directory/'preview/collision.npz'
+        records=([live_collision] if live_collision.is_file() else
+                 sorted((self.run_directory/'collisions').glob('collision_*.json')))
         keys=[p.stem for p in records]
         if records:
             chosen=next((p for p in records if p.stem==selected),records[-1])
-            if chosen.stem!=self.collision_key or changed:
+            revision = chosen.stat().st_mtime_ns if chosen == live_collision else chosen.stem
+            if revision!=self.collision_key or changed:
                 packet=read_packet(chosen)
                 snap.update(collision=packet,scene=packet['arrays']['scene_points_base_m'],
                     scene_source=('measured_belt_surface_only' if packet['metadata'].get(
                         'environment_collision_scope')=='measured_belt_surface_only' else
                         'original_RobotModel.install_scene'))
-                self.collision_key=chosen.stem
+                self.collision_key=revision
+                snap['selected_collision']=packet['metadata']['collision_id'] if chosen == live_collision else chosen.stem
                 if self.frame_key is None:
                     snap.update(frame=packet['frame'],d2c=packet['d2c'],replay=True)
-            snap['selected_collision']=chosen.stem
+            if chosen == live_collision:
+                keys = [snap['selected_collision']]
         collision=snap.get('collision')
         if (collision and snap.get('production_plan') and
                 collision['metadata'].get('target_identity') != snap['production_target']):

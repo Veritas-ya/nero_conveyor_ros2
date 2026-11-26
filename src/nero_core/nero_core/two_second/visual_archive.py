@@ -10,8 +10,9 @@ from .diagnostics import json_value
 
 
 class VisualArchive:
-    def __init__(self, output, emit, *, live=False, direction=(1.,0.,0.), path_model_factory=None):
+    def __init__(self, output, emit, *, live=False, direction=(1.,0.,0.), path_model_factory=None, live_only=False):
         self.directory=Path(output); self.emit=emit; self.live=live
+        self.live_only = live_only
         self.queue=Queue(maxsize=8); self.stop=Event(); self.lock=Lock()
         self.frame=None; self.last_frame_write=-float('inf')
         self.speed=None;self.direction=np.asarray(direction,dtype=float).copy()
@@ -140,9 +141,12 @@ class VisualArchive:
                         self._plan(packet['plan'],packet['width_m'])
                     else:
                         prepare_view(packet)
-                        path=save_packet(self.directory/'collisions',packet)
-                        self.saved.append(str(path))
-                        self.emit('collision_saved',collision_id=packet['metadata']['collision_id'],path=str(path))
+                        if self.live_only:
+                            save_packet(self.directory/'preview', packet, latest_only=True)
+                        else:
+                            path=save_packet(self.directory/'collisions',packet)
+                            self.saved.append(str(path))
+                            self.emit('collision_saved',collision_id=packet['metadata']['collision_id'],path=str(path))
                 did_work=self._live_frame(force=self.stop.is_set()) or did_work
             except Exception as error:
                 did_work=True

@@ -130,6 +130,58 @@ def test_held_workpiece_goes_to_configured_bin_before_release_and_return(recover
     assert not any(x[0] == 'stop' for x in r.device.commands)
 
 
+@pytest.mark.parametrize('location', ['in_bin', 'no_clearance_gain', 'outside_bin', 'already_clear'])
+def test_empty_bin_handoff_confirms_measured_lift_before_return(recovery, location):
+    from scipy.spatial import cKDTree
+    r = recovery
+    p = r.e.planner
+    p.config = r.e.config
+    p.config.raw.update(workpiece_collision_margin_m=.002, experimental_direct_drop_guard={
+        'drop_tcp_xyz_base_m':[0., 0., .21], 'radius_m':.2, 'required_min_z_m':.16, 'margin_m':.01})
+    tree = cKDTree([[.01, 0., .247]])
+    p.bin_departure_tree = tree
+    r.e.bin_start = SimpleNamespace(released_tree=tree)
+    model = p.model
+    model.gripper_geometries = (0,)
+    model.mesh_vertices = {0:np.zeros((1, 3))}
+    model.data = SimpleNamespace(geom_xmat=np.eye(3).reshape(1, 9), geom_xpos=np.zeros((1, 3)))
+    model.model = SimpleNamespace(geom=lambda _:SimpleNamespace(name='left_finger_geom'))
+    pose = np.eye(4)
+    pose[:3, 3] = [.25 if location == 'outside_bin' else 0., 0., .21]
+    model.tcp = lambda:pose.copy()
+    def measured_fk(state):
+        height = .26 if location == 'already_clear' else .20
+        if location != 'no_clearance_gain':
+            height += 8. * (state['joints'][0] - .05)
+        model.data.geom_xpos[0, 2] = height
+    model.check_feedback = measured_fk
+    timed_check = p.check_path
+    def require_release_scene(*args, **kwargs):
+        assert p.bin_departure_tree is tree
+        return timed_check(*args, **kwargs)
+    p.check_path = require_release_scene
+
+    if location == 'no_clearance_gain':
+        with pytest.raises(RecoveryFailed, match='实测净空未确认'):
+            r.e.run(r.target)
+        expected = ['recovery_bin_lift']
+        assert sum(x[0] == 'stop' for x in r.device.commands) == 1
+    else:
+        assert r.e.run(r.target)['returned_to_wait']
+        expected = ['recovery_bin_lift', 'recovery_return'] if location == 'in_bin' else ['recovery_return']
+    assert [call[1] for call in r.calls if call[0] == 'route'] == expected
+    assert [call[1] for call in r.calls if call[0] == 'timed_check'] == expected
+    assert p.bin_departure_tree is None  # The executor retires the scene after this attempt.
+    confirmations = [row['data'] for row in r.e.events if row['event'] == 'recovery_bin_clearance_confirmed']
+    if location == 'in_bin':
+        goal = next(call[3] for call in r.calls if call[:2] == ('route', 'recovery_bin_lift'))
+        np.testing.assert_allclose(goal[:3, 3], [0., 0., .21 + max(p.config.settings.lift_m, .059)])
+        np.testing.assert_allclose(goal[:3, :3], pose[:3, :3])
+        assert confirmations[0]['lowest_gripper_z_m'] > confirmations[0]['required_z_m'] == pytest.approx(.249)
+    else:
+        assert not confirmations
+
+
 @pytest.mark.parametrize('held', [False, True])
 def test_workpiece_collision_during_retreat_returns_without_estop(recovery, held):
     from nero_core.two_second.workpiece_contact import recovery_contact_allowed

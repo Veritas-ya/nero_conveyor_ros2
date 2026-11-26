@@ -6,7 +6,7 @@ import time
 import numpy as np
 from .feedback_clock import FeedbackClock
 from .motion_lease import MotionLease
-from .feedback_pairing import JointFeedbackHistory
+from .feedback_pairing import JointFeedbackHistory, capture_joint_pairing_valid
 from .coherent_flange import CoherentFlangeCache, POSE_CAN_IDS
 ROOT = Path(__file__).resolve().parents[2]
 FEEDBACK_MAX_AGE_S = .2
@@ -76,14 +76,24 @@ class Hardware:
         self._pose_group_cache = CoherentFlangeCache(max_age_s=FEEDBACK_MAX_AGE_S)
         self._pose_group_capture_error = None
         self._joint_feedback_history=JointFeedbackHistory(FEEDBACK_MAX_AGE_S)
+        self._capture_feedback_wakeups = set()
         self._joint_history_capture_error=None
         # Copy feedback under the same lock as in-place CAN decoding.
         for parser in (self.robot._parser,self.gripper._parser):
             original=parser.parse_packet
-            def guarded(*args, _original=original, **kwargs):
+            # The SDK invokes both parsers on each received frame. Only use
+            # this shortcut for its known table-driven no-op on an unknown ID.
+            rx_map = None
+            if hasattr(parser, '_rx_map'):
+                from pyAgxArm.protocols.can_protocol.drivers.core.table_driven import TableDriven
+                if original.__func__ is TableDriven.parse_packet:
+                    rx_map = parser._rx_map
+            def guarded(*args, _original=original, _rx_map=rx_map, **kwargs):
                 callback_entered = time.monotonic()
+                frame = args[0] if args else kwargs['rx_can_frame']
+                if _rx_map is not None and frame.arbitration_id not in _rx_map:
+                    return None
                 with self.lock:
-                    frame = args[0] if args else kwargs['rx_can_frame']
                     timing = self._feedback_clock.receive((_original.__self__, frame.arbitration_id),
                         frame.timestamp, callback_entered=callback_entered)
                     decoded = _original(*args,**kwargs)
@@ -108,7 +118,14 @@ class Hardware:
                             # Do not break CAN decoding; a missing coherent
                             # group is reported by snapshot and never invented.
                             self._pose_group_capture_error = f'{type(error).__name__}: {error}'
-                    return decoded
+                    if decoded is None or not self._capture_feedback_wakeups:
+                        return decoded
+                    wakeups, self._capture_feedback_wakeups = self._capture_feedback_wakeups, set()
+                # Only signal after releasing the decoder lock. Image processing
+                # and all state validation stay on the existing geometry lanes.
+                for wakeup in wakeups:
+                    wakeup.set()
+                return decoded
             parser.parse_packet=guarded
         comm=self.robot.create_comm()
         # Reuse the SDK receive timeout, rather than treating one aged sample
@@ -222,22 +239,31 @@ class Hardware:
         interpolation, not an encoder-internal sample-time measurement.
         The result is scene evidence and must never authorize robot motion.
         """
-        if not np.isfinite(captured) or not self.lock.acquire(blocking=False):
+        if not np.isfinite(captured):
             return None
+        pair, _ = self.snapshot_for_captures((captured,))
+        return pair[1] if pair is not None else None
+
+    def snapshot_for_captures(self, capture_times, *, wakeup=None):
+        """Return (first paired exposure, wakeup armed). A busy cache cannot arm a signal."""
+        if not self.lock.acquire(blocking=False):
+            return None, False
         try:
             # Hold the receive lock across both reads: a clock reset must not
             # mix a current snapshot from one epoch with another's history.
             state = self.snapshot_nowait()
-            if state is None:
-                return None
-            joints, evidence = self._joint_feedback_history.at(captured)
-            if joints is None or evidence['maximum_bracket_span_s'] > .05:
-                return None
-            state = dict(state)
-            state.update(joints=list(joints), capture_joint_pairing=dict(evidence),
-                capture_state_role='self_filter_only_not_motion_feedback',
-                capture_gripper_state_basis='current_measured_width_not_interpolated')
-            return state
+            if state is not None:
+                for captured in capture_times:
+                    joints, evidence = self._joint_feedback_history.at(captured)
+                    if joints is not None and evidence['maximum_bracket_span_s'] <= .05:
+                        paired = dict(state, joints=list(joints), capture_joint_pairing=dict(evidence),
+                            capture_state_role='self_filter_only_not_motion_feedback',
+                            capture_gripper_state_basis='current_measured_width_not_interpolated')
+                        if capture_joint_pairing_valid(paired, captured):
+                            return (captured, paired), False
+            if wakeup is not None:
+                self._capture_feedback_wakeups.add(wakeup)
+            return None, wakeup is not None
         finally:
             self.lock.release()
 
@@ -259,6 +285,8 @@ class Hardware:
                     parts = [getattr(self.robot._parser, name, None) for name in POSE_JOINT_PACKETS[3:]]
                     timings = []
                     for name, part in zip(POSE_JOINT_PACKETS[3:], parts):
+                        if part is None:
+                            raise FeedbackPending(missing=[name])
                         timing = getattr(part, 'feedback_time', None)
                         if timing is None:
                             raise FeedbackPending(missing=[name+':clock_mapping_missing'])
@@ -293,11 +321,11 @@ class Hardware:
 
             def read(message, label, *, aggregate=False):
                 try:
+                    if message is None:
+                        raise FeedbackPending(missing=[label])
                     if live_clock:
                         if aggregate:
                             # All real constituent packets were checked below.
-                            if message is None:
-                                raise FeedbackPending(missing=[label])
                             return message.msg
                         timing = getattr(message, 'feedback_time', None)
                         if timing is None:

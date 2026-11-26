@@ -30,9 +30,11 @@ def step_name(stage):
         'return_wait_precision': '等待位末段精定位',
         'recovery_checking': '恢复状态检查', 'recovery_settling': '恢复前位置保持',
         'planning_recovery_lift': '恢复抬升规划', 'recovery_lift': '恢复抬升',
+        'planning_recovery_bin_lift': '规划空爪竖直离框', 'recovery_bin_lift': '空爪竖直离框',
         'planning_recovery_transfer': '恢复入框规划', 'recovery_transfer': '恢复入框',
         'recovery_release': '恢复投放', 'planning_recovery_return': '恢复回位规划',
-        'recovery_return': '恢复回等待位', 'recovery_open_empty': '回位后张爪',
+        'recovery_return': '恢复回等待位', 'recovery_open_empty': '空爪张开确认',
+        'recovery_grip_checking': '原位复核夹持',
     }.get(stage, short(stage or '启动'))
 
 
@@ -51,6 +53,7 @@ class ConsoleProgress:
         self.pending_wait, self.pending_wait_s = None, -math.inf
         self.failed = self.grip_reported = False
         self.fixed_speed = None
+        self.buffered_freeze = False
         self.planning_start_rotation = None
 
     def observe(self, row):
@@ -71,12 +74,43 @@ class ConsoleProgress:
             elif 'taught_playback_enabled' in data:
                 start += '；自动规划投放'
             self.write(start)
+            if data.get('delivery_repair', {}).get('enabled'):
+                self.write('[交付补救] 已开启：超时先修正复用旧轨迹；失败再按剩余预算重规划')
             if data.get('environment_collision_scope') == 'measured_belt_surface_only':
                 self.write('[避障] 环境仅检查实测带面点云；保留自碰撞')
             if data.get('grasp_workpiece_collision_check_enabled', True):
                 self.write('[工件] 抓取阶段检查机器人与目标工件点云碰撞')
             else:
                 self.write('[工件] 抓取阶段不检查机器人与目标工件点云碰撞')
+        elif event == 'native_hover_fallback_enabled':
+            speed = data['configured_speed_m_s']*100.
+            self.write(f'[跟随补救] 已接入普通规划失败分支，带速 {speed:g} cm/s（实验模式）')
+            self.buffered_freeze = data.get('freeze_during_pick', False)
+            group = data.get('next_pick_group')
+            if group in ('A', 'B', 'C'):
+                strategy = {'A':'只从等待位接取', 'B':'放料位优先', 'C':'按发送期限优先等待位'}[group]
+                self.write(f'[起点实验] {group} 组，{strategy}')
+            elif data.get('direct_bin_pick'):
+                self.write('[连续抓取] 下一件冻结后按预计放料时间预规划，放料后选择等待位或料框起点')
+            elif self.buffered_freeze:
+                self.write('[跟随补救] 抓取期间继续冻结下一件，确认回位后接手规划')
+        elif event == 'fast_cloud_delivered':
+            self.write(f'[Fast点云] 已交付云 {data["cloud_id"]}，曝光帧 {data["frame_sequence"]}，{data["point_count"]} 点')
+        elif event == 'target_frozen' and self.buffered_freeze and data.get('active_task') is not None:
+            self.write(f'[冻结] 执行 {data["active_task"]} 期间已缓存工件 {data["identity"]}（曝光 #{data["frame_sequence"]}）')
+        elif event == 'next_pick_preplan_submitted':
+            origin = '等待位' if data['origin'] == 'wait' else '投放位'
+            delay = ('' if data.get('frozen_s') is None else
+                     f'，距冻结 {data["submitted_s"]-data["frozen_s"]:.3f} 秒')
+            self.write(f'[第二抓] 工件 {data["identity"]} 已提交{origin}预规划{delay}')
+        elif event == 'next_pick_preplan_finished' and not data['superseded']:
+            origin = '等待位' if data['origin'] == 'wait' else '投放位'
+            elapsed = (data['ready_s'] if data['ready_s'] is not None else data['completed_s']) - data['submitted_s']
+            outcome = ('候选已算出，待现场复核' if data['ready_s'] is not None else
+                       '未交付候选，' + short(data['error']))
+            self.write(f'[第二抓] 工件 {data["identity"]} 的{origin}预规划用时 {elapsed:.3f} 秒，{outcome}')
+        elif event == 'frozen_target_expired' and self.buffered_freeze and data['reason'] == 'past_follow_region':
+            self.write(f'[冻结] 工件 {data["identity"]} 已越过抓取区，移出队列')
         elif event == 'phase_started':
             phase = data['phase']
             if phase == 'loading_dependencies':
@@ -148,7 +182,13 @@ class ConsoleProgress:
         elif event == 'cycle_finished':
             completed = data.get('completed_feedback_cycles', data['cycle_index'])
             progress=str(completed) if self.total is None else f'{completed}/{self.total}'
-            self.write(f'[完成] 第 {progress} 件动作与反馈周期结束，已回等待位')
+            next_id = data.get('report', {}).get('next_target_identity')
+            if next_id is None:
+                self.write(f'[完成] 第 {progress} 件动作与反馈周期结束，已回等待位')
+            elif data['report'].get('returned_to_wait'):
+                self.write(f'[完成] 第 {progress} 件已放料并回到等待位，接手工件 {next_id}')
+            else:
+                self.write(f'[完成] 第 {progress} 件已放料，从料框直接接手工件 {next_id}')
         elif event == 'attempt_recovered':
             self.write('[恢复] 本次抓取已取消，已回等待位，等待下一件')
         elif event == 'run_failed':
@@ -220,7 +260,17 @@ class ConsoleProgress:
 
     def _execution(self, row):
         event, data = row['event'], row['data']
-        if event == 'attempt_cancelled':
+        if event == 'next_pick_origin_selected':
+            start = '等待位' if data['origin'] == 'wait' else '放料位'
+            self.write(f'[第二抓] 选用{start}，原因为 {data.get("reason", "")}')
+        elif event == 'next_pick_preplan_adopted':
+            self.write('[第二抓] 预计算轨迹已通过实测起点及场景复核')
+        elif event == 'hover_fallback_triggered':
+            self.write('[跟随补救] 普通轨迹未交付，尝试跟随后下降：'+short(data['normal_error']))
+        elif event == 'hover_branch_selected':
+            self.write('[跟随补救] 同步反馈通过，接入下降抓取' if data['branch']=='descent'
+                else '[跟随补救] 下降条件未满足，执行已检查的停车轨迹')
+        elif event == 'attempt_cancelled':
             self.write('[取消] '+short(data['error'])+'；正在检查恢复路径')
             route = data.get('details', {}).get('route_diagnostics', {})
             examples = route.get('rejection_examples', [])
@@ -259,7 +309,12 @@ class ConsoleProgress:
                 '[恢复] 先放入配置料框，再回等待位' if data['carrying'] else '[恢复] 规划空爪返回等待位')
         elif event == 'taught_cycle_preparing':
             self.write('[轨迹] 用实际夹持状态复核提前准备的搬运路径' if data.get('using_prediction') else
-                '[轨迹] 一次准备本次抬升、投放和返回路径')
+                ('[轨迹] 正在准备抬升和带载投放路径' if data.get('split_carry_return')
+                 else '[轨迹] 一次准备本次抬升、投放和返回路径'))
+        elif event == 'taught_carry_prepared':
+            self.write(f'[轨迹] 带载投放已就绪，约 {data["carry_duration_s"]:.2f}s；并行规划空载回程')
+        elif event == 'empty_return_prepared':
+            self.write(f'[回位] 空载回程已通过实际放料场景检查，约 {data["duration_s"]:.2f}s')
         elif event == 'taught_cycle_prepared':
             direct = any(item.get('stage')=='direct_drop' for item in data.get('carry_pieces', []))
             if (data.get('continuous_carry') or {}).get('applied'):
@@ -301,7 +356,18 @@ class ConsoleProgress:
             if phase is not None:
                 self.write(f'[时长分配] 接近 {phase["join_s"]:.3f} s；跟随 {phase["follow_s"]:.3f} s；减速 {phase["brake_s"]:.3f} s')
         elif event == 'planning_delivery_missed':
-            self.write('[轨迹] 交付时已错过发送起点，根据实测耗时重新规划')
+            action = {'repair': '优先修正复用旧轨迹', 'skip_target': '跳过该工件，不推迟重算'}
+            self.write('[轨迹] 交付时已错过发送起点，'+action.get(
+                data.get('next_action'), '根据实测耗时重新规划'))
+        elif event == 'delivery_repair_submitted':
+            self.write(f'[补救] 第 {data["repair_attempt"]} 次修正；复用场景和旧轨迹逆解初值')
+        elif event == 'delivery_repair_ready':
+            self.write(f'[补救] 修正通过，耗时 {data["wall_s"]*1000:.1f} ms；'
+                f'交付余量 {data["send_margin_s"]*1000:.1f} ms，继续发送前检查')
+        elif event == 'delivery_repair_rejected':
+            self.write('[补救] 修正未通过：'+data['error'])
+        elif event == 'delivery_repair_fallback_replan':
+            self.write(f'[补救] 转入完整重规划，剩余总预算 {data["remaining_budget_s"]:.3f} s')
         elif event == 'carry_prediction_started':
             self.write('[预规划] 从预计减速终点并行准备抬升、投放和返回')
         elif event == 'carry_prediction_accepted':
@@ -330,6 +396,10 @@ class ConsoleProgress:
             self.write(f'[轨迹] {step_name(data["stage"])}路径已得到，规划 {data["planning_wall_s"]:.2f} s')
         elif event == 'release_open_requested':
             self.write('[投放] 已发送张爪，等待开口反馈')
+        elif event == 'recovery_grip_wait':
+            self.write('[恢复] 保持夹爪闭合，原位复核夹持')
+        elif event == 'recovery_grip_confirmed':
+            self.write('[恢复] 夹持复核通过，先带载投放再回等待位')
 
     def finish(self, result, output):
         if result['status'] == 'requested_feedback_cycles_completed':
@@ -353,8 +423,12 @@ class ConsoleProgress:
                 any(result.get('visualization',{}).get(key) for key in ('errors','dropped','writer_alive')) or
                 result.get('collision_diagnostic_errors') or
                 any(result.get('journal', {}).get(key) for key in ('errors', 'dropped', 'writer_alive', 'observer_errors'))):
-            self.write('[日志] 部分记录保存或终端显示异常，请检查输出目录与写盘状态')
+            self.write('[日志] 部分记录保存或终端显示异常，请检查输出目录与写盘状态' if output is not None
+                       else '[显示] 部分实时诊断更新未完成')
         if (result.get('preview_cleanup_error') or
                 result.get('preview_process_exit_code') not in (None,0) and not result.get('preview_closed_by_parent')):
-            self.write('[画面] 预览进程异常退出，详见 preview/viewer.log')
-        self.write(f'[日志] {Path(output).resolve()}')
+            self.write('[画面] 预览进程异常退出'+('，详见 preview/viewer.log' if output is not None else ''))
+        if output is not None:
+            self.write(f'[日志] {Path(output).resolve()}')
+        else:
+            self.write('[记录] 本次抓取已结束，场次数据未保存')

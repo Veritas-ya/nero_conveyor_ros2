@@ -76,7 +76,8 @@ class TrajectoryPreview:
         observed = np.asarray(track.observed_position_base)
         if np.linalg.norm(np.median(points, axis=0)[:2]-observed[:2]) > gate:
             raise ValueError('工件点云与跟踪目标不匹配')
-        grasps, box = obb_grasps(points, d['belt_region']['plane_to_base'], self.config.canonical_tcp)
+        grasps, box = obb_grasps(points, d['belt_region']['plane_to_base'], self.config.canonical_tcp,
+                               tcp_z_offset_m=self.config.raw.get('grasp_tcp_z_offset_m', 0.))
         if self.planner is None:
             self.planner = MeasuredPlanner(self.config, model=calibrated_model(self.config), clock=time.monotonic)
         planner, model = self.planner, self.planner.model

@@ -7,7 +7,8 @@ from mujoco_conveyor_sorting.runtime.joint_stream_sender import DispatchWindowEx
 from mujoco_conveyor_sorting.runtime.feedback_clock import mapped_stamp
 from mujoco_conveyor_sorting.runtime.types import identity_dict
 from .feedback_gates import (closure_feedback, GripConfirmation, RestArrival,
-    TRAJECTORY_ARRIVAL_TOLERANCE_RAD, ARRIVAL_DWELL_S)
+    TRAJECTORY_ARRIVAL_TOLERANCE_RAD, JOINT_ARRIVAL_TOLERANCE_RAD, ARRIVAL_DWELL_S)
+from .grip_recovery import ClosingGrip
 from .motion_profile import select_motion_profile
 from .wait_precision import enabled_for, finish_wait, JS_ENDPOINT_HOLD_S, MAX_CORRECTION_RAD
 from .runtime_sweep import (SweepSettings, SweepService, PeriodicSweep, scene_snapshot,
@@ -25,11 +26,25 @@ def fresh_feedback(state, now, previous=None):
     for kind in ('pose', 'joint', 'gripper'):
         stamp = mapped_stamp(state, kind)
         if stamp is None or not 0 <= now-stamp <= .2:
+            evidence = state.get('feedback_time', {})
+            callback_lags = {}
+            for key, item in evidence.items():
+                if (isinstance(item, dict) and item.get('host_monotonic_received') is not None
+                        and item.get('mapped_monotonic') is not None):
+                    callback_lags[key] = item['host_monotonic_received']-item['mapped_monotonic']
+            read_at = state.get('feedback_read_monotonic')
             raise PickRejected('实际发送时反馈无效或过期', details={
+                'reason': 'dispatch_feedback_stale_or_invalid',
                 'kind': kind, 'feedback_monotonic_s': stamp,
                 'checked_monotonic_s': now,
                 'feedback_age_s': None if stamp is None else now-stamp,
-                'maximum_age_s': .2})
+                'maximum_age_s': .2,
+                'snapshot_read_monotonic_s': read_at,
+                'snapshot_age_s': None if read_at is None else now-read_at,
+                'packet_ages_s': {name: None if mapped_stamp(state, name) is None
+                    else now-mapped_stamp(state, name) for name in packet_keys},
+                'receive_callback_lags_s': callback_lags,
+                'pose_grouping': state.get('feedback_timing', {}).get('pose_grouping')})
         if previous is not None:
             if kind in previous and stamp < previous[kind]:
                 raise PickRejected('设备反馈时钟倒退', details={'kind': kind, 'previous': previous[kind], 'current': stamp})
@@ -50,12 +65,98 @@ def fresh_feedback(state, now, previous=None):
         previous.update(updates)
 
 
+def intercept_prime_feedback(e, state, path, first_send, version, epoch, settings):
+    """Use reserved time to obtain a coherent snapshot with room for the first sweep."""
+    now = e.clock()
+    period = 1. / settings.hz
+    # Budget one sweep and the next refresh, bounded to half the validity window.
+    age_limit = settings.max_age_s - min(2 * period, settings.max_age_s / 2)
+    def age(sample, at):
+        return at - min(mapped_stamp(sample, 'pose'), mapped_stamp(sample, 'joint'))
+
+    initial_age = age(state, now)
+    if initial_age <= age_limit:
+        return state, False
+    # Only wait before the first scheduled command. Leave a monitoring period
+    # for submission and checking, and bound the wait even on a long reservation.
+    deadline = min(first_send - period, now + settings.max_age_s)
+    evidence = state.get('feedback_time', {})
+    callback_lags = {k: v['host_monotonic_received'] - v['mapped_monotonic']
+        for k, v in evidence.items() if v and v.get('mapped_monotonic') is not None
+        and v.get('host_monotonic_received') is not None}
+    detail = dict(initial_feedback_age_s=initial_age, callback_lags_s=callback_lags,
+                  first_send_s=first_send, maximum_prime_input_age_s=age_limit)
+    while e.clock() < deadline:
+        e._active(path.identity, version, epoch)
+        e.sleep(min(.002, max(0., deadline-e.clock())))
+        sample = e.device.snapshot_nowait()
+        if sample is None:
+            continue
+        read_time = e.clock()
+        fresh_feedback(sample, read_time, e.feedback_stamps)
+        if read_time >= deadline or age(sample, read_time) > age_limit:
+            continue
+        e.planner.model.check_feedback(sample)
+        # Adoption already permits a one-degree measured offset from the
+        # speculative standby waypoint. A refreshed sample must use that same
+        # bound; actual movement DURING this wait retains the tighter bound.
+        path_error = np.asarray(sample['joints'])-path.q0
+        refresh_delta = np.asarray(sample['joints'])-np.asarray(state['joints'])
+        start_detail = dict(
+            path_start_error_rad=path_error.tolist(),
+            path_start_tolerance_rad=TRAJECTORY_ARRIVAL_TOLERANCE_RAD,
+            refresh_joint_delta_rad=refresh_delta.tolist(),
+            refresh_motion_tolerance_rad=JOINT_ARRIVAL_TOLERANCE_RAD,
+            width_m=sample['width_m'], required_width_m=e.config.settings.open_width_m,
+            force_n=sample['force_n'], force_threshold_n=e.config.settings.min_force_n)
+        if (not np.isfinite(path_error).all() or not np.isfinite(refresh_delta).all()
+                or np.max(np.abs(path_error)) > TRAJECTORY_ARRIVAL_TOLERANCE_RAD
+                or np.max(np.abs(refresh_delta)) > JOINT_ARRIVAL_TOLERANCE_RAD
+                or abs(sample['width_m']-e.config.settings.open_width_m) > .002
+                or sample['force_n'] >= e.config.settings.min_force_n):
+            raise PickRejected('等待新反馈期间抓取轨迹起点改变', details={
+                'reason': 'intercept_prime_start_changed', **start_detail})
+        e._emit('intercept_prime_feedback_refreshed', dict(detail,
+            waited_s=read_time-now, refreshed_feedback_age_s=age(sample, read_time),
+            **start_detail))
+        return sample, True
+    raise PickRejected('抓取启动前未及时取得足够新的碰撞检查反馈', details=detail)
+
+
 def stream(executor, path, *, origin, epoch, sender_factory, reference=None, carrying=False,
            release_on_arrival=False):
     e = executor
     identity, version = e.owner, e.version
     if path.identity != identity or path.version != e.planner.version:
         raise PickRejected('规划目标或版本不属于当前任务')
+    guard = getattr(e, 'brake_height_guard', None)
+    rise = e.config.raw.get('brake_no_descent_rise_m', 0.)
+    if reference is not None and rise:
+        from .brake_height import HeightGuard, TcpFK, axes_for
+        cert = path.diagnostics.get('reference_check',{}).get('no_descent',{})
+        begin_height_check = reference.duration_s-e.config.raw['command_advance_s']-1./e.config.settings.control_hz
+        if (getattr(reference,'brake_rise_m',None) != rise or cert.get('rise_m') != rise
+                or cert.get('end_s') != path.duration or origin != reference.start_s
+                or cert.get('start_s') != begin_height_check or cert.get('check_hz') != e.config.settings.control_hz
+                or not np.array_equal(cert.get('normal'), axes_for(e.planner.support)[1])):
+            raise PickRejected('抓取曲线缺少本次带面和参考时钟的禁止下移认证')
+        guard = e.brake_height_guard = HeightGuard(e.planner.support,e.config.tcp,TcpFK(e.planner.model),
+                                                   e.stop_for_height_fault)
+    lift_handoff = reference is None and guard is not None and guard.armed and path.stage in (
+        'lift','prepared_taught_carry','prepared_taught_recovery_carry','recovery_lift',
+        'recovery_bin_lift','recovery_return')
+    if reference is not None and e.config.raw.get('object_relative_approach'):
+        certificate = path.diagnostics.get('reference_check',{}).get('object_relative_approach',{})
+        if (not getattr(reference, 'relative_descent_s', 0.) or origin != reference.start_s
+                or certificate.get('moving_workpiece_checked') is not True
+                or certificate.get('contact_s') != reference.contact_s
+                or certificate.get('alignment_s') != reference.relative_alignment_s
+                or certificate.get('descent_start_s') != reference.relative_alignment_s+reference.relative_sync_s
+                or certificate.get('clearance_m') != reference.approach_clearance_m
+                or reference.capture_s != e.planner.target.capture_s
+                or not np.array_equal(reference.velocity_world, e.planner.target.velocity)
+                or not np.array_equal(reference.object_axes_world, e.planner.target.object_pose[:3,:3])):
+            raise PickRejected('抓取路径缺少与本次参考匹配的高位同步和运动工件认证')
     if reference is not None and 'phase_timing' in e.config.raw:
         from .phase_timing import verify_plan
         if not np.isfinite(origin) or abs(origin-reference.start_s) > 1e-9:
@@ -84,9 +185,14 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
     smooth = reference is not None and hasattr(reference, 'follow_end_s')
     scheduled_attempt = reference is not None and e.config.raw.get('closure_policy', 'feedback') == 'scheduled_attempt'
     follow_end = (reference.follow_end_s if smooth else path.duration)
+    closing_grip = None
     confirmation = None
     arrival = RestArrival(origin+path.duration, tolerance_rad=TRAJECTORY_ARRIVAL_TOLERANCE_RAD,
         dwell_s=0. if release_on_arrival else ARRIVAL_DWELL_S)
+    overlap_arrival = bool(smooth and e.carry_service is not None
+        and e.config.raw.get('prepared_taught_cycle_enabled',False)
+        and e.config.raw.get('taught_playback_enabled',True)
+        and e.config.raw.get('taught_segments'))
     from .return_feedback import ReturnFeedbackCheck, RETURN_STAGES, TRANSPORT_STAGES
     feedback_check = ReturnFeedbackCheck(e.planner.model.check_feedback, e.clock,
         enabled=reference is None and ((not carrying and path.stage in RETURN_STAGES) or
@@ -99,7 +205,7 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
         return request_for(e.planner, state, dispatch=dispatch, origin=origin, advance=advance,
             control_hz=e.config.settings.control_hz, reference=reference, attached=attached,
             smooth=smooth, scheduled_attempt=scheduled_attempt, follow_end=follow_end,
-            grip_confirmed=close['held'] is not None)
+            grip_confirmed=close['held'] is not None, close_sent_s=close['stamp'])
 
     def geometry_guard(now):
         if monitor is not None:
@@ -114,10 +220,12 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
                 raise PickRejected('插值发送目标超出关节规划范围')
 
     def step(state, dispatch, dt):
-        nonlocal confirmation
+        nonlocal confirmation, closing_grip
         e._active(identity, version, epoch)
         fresh_feedback(state, e.clock(), e.feedback_stamps)
         feedback_check.observe(state)
+        if guard is not None and guard.armed:
+            guard.observe(state, path.stage)
         if carrying or (close['held'] is not None and not scheduled_attempt):
             e.holding.check_holding(state)
         elapsed = dispatch+advance-origin
@@ -137,26 +245,40 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
             if not close['sent'] and abs(state['width_m']-e.config.settings.open_width_m) > .002:
                 raise PickRejected('接近期间夹爪开口改变')
             eligible, gate = closure_feedback(reference, tcp, stamp, previous['tcp'], previous['stamp'],
-                command_elapsed=elapsed, support=e.planner.support, gates=e.gates, follow_end_s=follow_end)
+                command_elapsed=elapsed, support=e.planner.support, gates=e.gates, follow_end_s=follow_end,
+                grip_dwell_s=e.config.raw.get('grip_confirmation_dwell_s', .1))
             should_close = elapsed >= reference.duration_s-1e-9 if scheduled_attempt else eligible
+            if guard is not None:
+                should_close = should_close and e.clock()-origin >= cert['start_s']-1e-9
             if not close['sent'] and should_close:
                 with e.command_lock:
                     e._active(identity, version, epoch)
                     e.motion_started = True
+                    if guard is not None:
+                        guard.armed = True
+                        if e.command_history.q is not None:
+                            guard.record_sent(e.command_history.q)
+                        guard.observe(state, path.stage)
+                        guard.check_command(q)
                     close_started = e.clock()
                     e.device.grip(0., e.config.settings.force_n)
                     close_completed = e.clock()
                 # Feedback copied before this actual command cannot start the
                 # physical confirmation dwell, even if it arrives late.
                 close.update(sent=True, stamp=close_completed)
+                closing_grip = ClosingGrip(e.planner.target, close_completed, e.config.settings)
                 confirmation = GripConfirmation(e.config.settings.open_width_m,
-                    e.config.settings.min_force_n, close['stamp'])
+                    e.config.settings.min_force_n, close['stamp'],
+                    dwell_s=e.config.raw.get('grip_confirmation_dwell_s', .1))
                 e._emit('close_during_follow', {'reference_time_s': elapsed,
+                    'grip_confirmation_dwell_s': confirmation.dwell_s,
                     'close_command_started_monotonic_s':close_started,
                     'close_command_completed_monotonic_s':close_completed,
                     'gripper_feedback_before_command_monotonic_s':mapped_stamp(state,'gripper'),
                     'feedback_pose_monotonic_s': stamp, 'closure_policy': 'scheduled_attempt' if scheduled_attempt else 'feedback',
                     'feedback_would_allow_close': bool(eligible), **gate})
+            if closing_grip is not None and close['held'] is None:
+                closing_grip.observe(state)
             grip_stamp = mapped_stamp(state, 'gripper')
             if close['held'] is None and confirmation is not None and confirmation.observe(
                     state['width_m'], state['force_n'], grip_stamp):
@@ -166,6 +288,8 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
                     joint_stamp = mapped_stamp(state, 'joint')
                     e.planner.attach_measured(state, joint_stamp)
                     e._emit('payload_estimate_attached', {'pose_monotonic_s': stamp,
+                        'confirmed_width_m':float(state['width_m']),
+                        'confirmed_force_n':float(state['force_n']),
                         'joint_monotonic_s': joint_stamp, 'attachment_monotonic_s': joint_stamp,
                         'gripper_monotonic_s': grip_stamp, 'reference_time_s': elapsed,
                         'source': 'frozen_visual_prediction_and_latest_joint_fk', 'physical_proof': False})
@@ -188,8 +312,22 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
             until = geometry_guard(dispatch)
             monitor.offer(request_state)
         e.command_history.validate(q, dispatch, limits=motion)
-        if elapsed >= path.duration and previous['endpoint_sent'] and arrival.observe(
-                actual, path.q1, mapped_stamp(state, 'joint')):
+        arrived = False
+        if elapsed >= path.duration and previous['endpoint_sent']:
+            arrived = arrival.observe(actual,path.q1,mapped_stamp(state,'joint'))
+            if (not arrived and overlap_arrival and close['held'] is not None
+                    and arrival.since is not None):
+                # The first fresh, in-tolerance ENDPOINT feedback can start
+                # actual-payload validation. The same dwell continues on
+                # the stationary sender; it is not waived or backdated.
+                e.pending_rest_arrival = arrival
+                e._emit('carry_arrival_overlap_started', {
+                    'joint_feedback_monotonic_s':mapped_stamp(state,'joint'),
+                    'scheduled_endpoint_monotonic_s':origin+path.duration,
+                    'required_stable_s':arrival.dwell_s,
+                    'tolerance_rad':arrival.tolerance_rad})
+                return None
+        if arrived:
             if release_on_arrival:
                 e._emit('drop_arrival_confirmed', {
                     'joint_feedback_monotonic_s': mapped_stamp(state, 'joint'),
@@ -242,6 +380,9 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
         if path.version != e.planner.version:
             raise PickRejected('实际发送前规划版本已过期')
         fresh_feedback(state, dispatch)
+        if guard is not None and guard.armed:
+            guard.observe(state, path.stage)
+            guard.check_command(q)
         if monitor is not None:
             metadata['prepared_until_monotonic_s'] = geometry_guard(dispatch)
         if not metadata['prepared_from_monotonic_s']-1e-9 <= dispatch <= metadata['prepared_until_monotonic_s']+1e-9:
@@ -253,6 +394,12 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
 
     def after_send(dispatch, actual_dt, q, metadata):
         e.motion_started = True
+        if guard is not None and guard.armed:
+            guard.record_sent(q)
+            if lift_handoff and guard.lift_started():
+                guard.armed = False
+                e._emit('brake_height_handoff', {'stage':path.stage,'dispatch_monotonic_s':dispatch,
+                        'feedback':guard.feedback_report()})
         e.command_history.record(dispatch, actual_dt, q, metadata, limits=motion)
         previous['endpoint_sent'] = metadata['reference_time_s'] >= path.duration
 
@@ -283,9 +430,15 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
                 feedback_reader=read_monitor_feedback)
             initial_state = e.device.snapshot()
             fresh_feedback(initial_state, e.clock(), e.feedback_stamps)
+            refreshed = False
+            if reference is not None and origin-advance > e.clock():
+                initial_state, refreshed = intercept_prime_feedback(
+                    e, initial_state, path, origin-advance, version, epoch, sweep_settings)
             monitor_feedback_stamps.update(e.feedback_stamps)
             monitor.prime(geometry_request(initial_state, max(e.clock(), origin-advance), carrying))
             e._active(identity, version, epoch)
+            if refreshed and e.clock() >= origin-advance:
+                raise PickRejected('更新反馈并完成碰撞检查后已超过首条指令发送时刻')
             latest_feedback = [initial_state]
             def read_available_feedback():
                 state = e.device.snapshot_nowait()
@@ -311,7 +464,8 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
             control_hz=e.config.settings.control_hz, clock=e.clock, sleep=e.sleep,
             pause_requested=e.cancelled.is_set, initial_dispatch_time=origin-advance,
             finalize_send=finalize, validate_dispatch=validate_dispatch, **sender_options).start()
-        if reference is not None and getattr(e, 'carry_service', None) is not None:
+        if reference is not None and (getattr(e, 'carry_service', None) is not None
+                                      or getattr(e, 'next_plans', None) is not None):
             e.start_carry_prediction(path, reference)
         while not e.sender.wait_stopped(.002 if monitor is not None else .05):
             e._active(identity, version, epoch)
@@ -347,6 +501,10 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
         e._active(identity, version, epoch)
         if not previous['endpoint_sent']:
             raise PickRejected('发送器退出但未完整交付轨迹终点')
+    except PickRejected as error:
+        if closing_grip is not None:
+            closing_grip.mark_collision(error)
+        raise
     finally:
         if e.sender is not None:
             e.sender.request_stop()
@@ -363,7 +521,9 @@ def stream(executor, path, *, origin, epoch, sender_factory, reference=None, car
     state = finish_wait(e, path, epoch=epoch) if precision else report.last_feedback
     e.rest_anchor = path.q1.copy()
     e._emit('stage_finished', {'stage': path.stage, 'commands': report.command_count,
-        'trajectory_duration_s': path.duration, 'diagnostics': path.diagnostics})
+        'trajectory_duration_s': path.duration, 'diagnostics': path.diagnostics,
+        'arrival_confirmation':('pending_during_carry_validation'
+            if e.pending_rest_arrival is not None else 'completed')})
     if reference is not None:
         e.holding.held_width = None if close['held'] is None else close['held']['width_m']
         e._emit('intercept_attempt_finished', {'close_sent': close['sent'],

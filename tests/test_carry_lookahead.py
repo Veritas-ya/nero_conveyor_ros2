@@ -59,6 +59,86 @@ def candidate():
     return p,state,bundle,result
 
 
+@pytest.mark.parametrize('case', ['queued', 'timely_wait', 'late_wait', 'expired_before_return',
+                                  'empty_queue', 'recovery', 'jaw_loaded', 'joint_drift'])
+def test_prepared_release_decides_between_handoff_and_certified_return(monkeypatch, case):
+    from contextlib import nullcontext
+    from nero_core.two_second.frozen_queue import FrozenEntry
+    from test_failed_attempt_recovery import ImmediatePool
+    p, state, bundle, _ = candidate()
+    e, device, clock = executor_fixture()
+    e.planner, e.config, e.owner = p, p.config, bundle.identity
+    e.config.raw['command_advance_s'] = .1
+    e.config.settings.min_force_n = 1.
+    e.rest_anchor = bundle.carry.q0
+    monkeypatch.setattr('nero_core.two_second.stationary_hold.StationaryHold',
+                        lambda *a, **kw: nullcontext())
+    monkeypatch.setattr('nero_core.two_second.prepared_cycle.prepare_cycle', lambda *a, **kw: bundle)
+    e._prepare = lambda future, *a, **kw: future.result()
+    e.holding.check_holding = lambda state: None
+    stages, owners = [], []
+    def stream(path, **kwargs):
+        device.q = path.q1.copy()
+        stages.append(path.stage)
+        return device.snapshot()
+    e._stream = stream
+    def release(executor, state, *, prepare_return, **kwargs):
+        p.released_tree = object()
+        prepare_return().result()
+        device.width = e.config.settings.open_width_m
+        device.force = 2. if case == 'jaw_loaded' else 0.
+        if case == 'joint_drift':
+            device.q[0] += .05
+        return device.snapshot()
+    monkeypatch.setattr('nero_core.two_second.release.release_at_rest', release)
+    entry = FrozenEntry(NS(identity=(0,1,7), capture_s=clock()), clock())
+    def claim(*, released_owner):
+        owners.append(released_owner)
+        return None if case == 'empty_queue' else entry
+    e.claim_after_release = claim
+    if case in ('timely_wait', 'late_wait', 'expired_before_return'):
+        order = []
+        def choose(owner, frozen, **kw):
+            assert stages == [bundle.carry.stage] and device.force == 0. and frozen is entry
+            order.append('choose')
+            candidate = NS(deadline=lambda cfg:clock()+5., submitted_s=clock()-2., ready_s=clock()-1.)
+            deadline = clock()+(.1 if case == 'expired_before_return' else 5.)
+            return ('bin' if case == 'late_wait' else 'wait'), candidate, {'latest_wait_dispatch_s':deadline}
+        e.pending_targets = lambda: [entry.target]
+        from nero_core.two_second.next_pick import NextPickPlans
+        e.next_plans = NextPickPlans.__new__(NextPickPlans)
+        e.next_plans.config, e.next_plans.clock = e.config, clock
+        e.next_plans.begin = lambda *args: order.append('begin')
+        e.next_plans.offer = lambda owner, item: order.append('offer')
+        e.next_plans.observe_release = lambda owner: order.append('release')
+        e.next_plans.choose = choose
+        e.next_plans.wait_dispatch_lead = lambda candidate: 1.5
+        e.next_plans.bin_candidate = lambda *a, **kw: None
+    args = ImmediatePool(), state, NS(epoch=0, identity=bundle.identity)
+    if case in ('jaw_loaded', 'joint_drift'):
+        with pytest.raises(PickRejected, match='带载|偏离'):
+            e._prepared_taught_cycle(*args)
+        assert not owners and e.next_bin_pick is None and stages == [bundle.carry.stage]
+        return
+    e._prepared_taught_cycle(*args, recovery=case=='recovery')
+    assert owners == ([] if case == 'recovery' else [bundle.identity])
+    if case in ('timely_wait', 'late_wait', 'expired_before_return'):
+        assert order == ['begin', 'offer', 'release', 'choose']
+    if case in ('queued', 'late_wait', 'expired_before_return'):
+        assert stages == [bundle.carry.stage] and e.next_bin_pick.entry is entry
+        assert e.next_bin_pick.origin == 'bin'
+        if case == 'expired_before_return':
+            assert e.next_bin_pick.candidate is None
+        assert e.next_bin_pick.released_tree is p.released_tree
+        np.testing.assert_allclose(e.next_bin_pick.release_joints, bundle.carry.q1)
+    elif case == 'timely_wait':
+        assert stages == [bundle.carry.stage, bundle.returning.stage]
+        assert e.next_bin_pick.entry is entry and e.next_bin_pick.origin == 'wait'
+        np.testing.assert_allclose(device.q, e.config.standby, atol=1e-12)
+    else:
+        assert stages == [bundle.carry.stage, bundle.returning.stage] and e.next_bin_pick is None
+
+
 def validate(p,state,bundle,result,**kw):
     return revalidate_cycle(p,state,bundle.carry.q0,result,token='current',
         source_version=p.version,cancelled=kw.get('cancelled',lambda:False))
@@ -119,7 +199,7 @@ def test_predicts_attachment_then_carries_to_brake_endpoint(monkeypatch):
     from test_runtime_sweep_process import fixture as scene_fixture
     cfg,p,path=scene_fixture();snapshot=scene_snapshot(p,path)
     reference=NS(start_s=1.,follow_end_s=.1)
-    def prepare(private,config,state,start_joints,*,cancelled):
+    def prepare(private,config,state,start_joints,*,cancelled,carry_only=False):
         np.testing.assert_allclose(start_joints,path.q1)
         np.testing.assert_allclose(state['joints'],path.q1)
         # Transport begins at brake end, not at the earlier contact joint state.
@@ -186,8 +266,12 @@ def test_prediction_submission_runs_on_supervisor_before_close():
 
 
 @pytest.mark.parametrize('valid',[True,False,None])
-def test_executor_reuses_prediction_or_replans_with_actual_payload(monkeypatch,valid):
+@pytest.mark.parametrize('private_worker',[False,True])
+def test_executor_reuses_prediction_or_replans_with_actual_payload(monkeypatch,valid,private_worker):
     from test_failed_attempt_recovery import ImmediatePool
+    # Import before patching the hold class; release keeps a module-local alias.
+    from nero_core.two_second import release as release_module
+    from nero_core.two_second import carry_validation
     p,state,bundle,result=candidate()
     e,dev,clock=executor_fixture()
     e.planner=p;e.config=p.config;e.owner=p.identity;e.rest_anchor=bundle.carry.q0
@@ -195,6 +279,17 @@ def test_executor_reuses_prediction_or_replans_with_actual_payload(monkeypatch,v
     future=Future()
     if valid is not None:future.set_result(result if valid else {**result,'ok':False})
     discarded=[];e.carry_service=NS(discard=lambda:discarded.append(True))
+    validations=[]
+    if private_worker:
+        def submit_validation(planner,feedback,anchor,predicted,**kw):
+            validations.append((planner,feedback,predicted))
+            done=Future();done.set_result('worker-certificate')
+            return 'validation-request',done
+        e.carry_service.validate=submit_validation
+        def accept(planner,feedback,anchor,predicted,request,answer,**kw):
+            assert request=='validation-request' and answer=='worker-certificate'
+            return bundle,{'validation_execution':'private_process'}
+        monkeypatch.setattr(carry_validation,'accept_validation',accept)
     e.carry_prediction=('current',future,p.version)
     class Hold:
         def __init__(self,*a,**kw):pass
@@ -214,6 +309,8 @@ def test_executor_reuses_prediction_or_replans_with_actual_payload(monkeypatch,v
     names=[x['event'] for x in e.events]
     if valid:
         assert 'carry_prediction_accepted' in names and 'lift' not in p.calls
+        assert bool(validations)==private_worker
     else:
         assert 'carry_prediction_replanned' in names and 'lift' in p.calls
+        assert not validations
     if valid is None:assert discarded

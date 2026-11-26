@@ -3,7 +3,7 @@
 Unix timestamps cannot identify their epoch across a backwards wall-clock step.
 Ambiguous packets are explicitly unusable; callback receipt never freshens them.
 """
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import math
 import time
 
@@ -22,7 +22,8 @@ class FeedbackTime:
     encoder_sample_time: None = None
 
     def to_dict(self):
-        return asdict(self)
+        # All fields are immutable scalars. Snapshot readers hold the CAN parser lock.
+        return vars(self).copy()
 
 
 class FeedbackClock:

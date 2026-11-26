@@ -262,11 +262,11 @@ def test_degenerate_obb_frame_is_skipped_and_later_frame_can_produce_target(monk
     state = vision.read_feedback()
     captured = state['joint_stamp']
     original = module.obb_grasps
-    def invalid_then_valid(*args):
+    def invalid_then_valid(*args, **kwargs):
         if not calls:
             calls.append(True)
             raise VisibleOBBError('visible XY points cannot define an oriented box')
-        return original(*args)
+        return original(*args, **kwargs)
     calls = []
     monkeypatch.setattr(module, 'obb_grasps', invalid_then_valid)
     args = (frame, np.eye(4), peer, peer.tracks[0], state, captured, 0,
@@ -286,7 +286,7 @@ def test_obb_does_not_hide_unrelated_configuration_errors(monkeypatch):
     vision = vision_fixture(monkeypatch, 'ready')
     frame = vision.camera.read_latest()
     peer, state = vision.meter.latest_snapshot, vision.read_feedback()
-    def invalid_calibration(*args):
+    def invalid_calibration(*args, **kwargs):
         raise ValueError('invalid calibration')
     monkeypatch.setattr(module, 'obb_grasps', invalid_calibration)
     with pytest.raises(ValueError, match='invalid calibration'):
@@ -390,6 +390,8 @@ def wire_offline_entry(monkeypatch, mode, cancel_signal=signal.SIGINT):
                 'width_m':0. if mode=='closed_start' else .1,
                 'force_n':2. if mode=='loaded_start' else 0.,'joint_stamp':time.monotonic()}
         snapshot_nowait = snapshot
+        def snapshot_for_capture(self, captured):
+            raise AssertionError('mock vision must not request a real capture')
         def move_joints(self, joints):
             assert mode in ('wrong_start','return_send_failure','return_cancel'), 'other test modes must not command motion'
             np.testing.assert_allclose(joints, config.standby)
@@ -424,6 +426,8 @@ def wire_offline_entry(monkeypatch, mode, cancel_signal=signal.SIGINT):
         def __init__(self,*a):
             self.progress = VisionProgress()
             self.count = 0
+        def enable_lookahead(self):
+            calls.append('enable_vision_lookahead')
         def start(self): return self
         def close(self): self.progress.finish()
         def consume(self,*a): pass

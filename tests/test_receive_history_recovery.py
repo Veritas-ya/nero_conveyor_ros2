@@ -69,6 +69,25 @@ def test_real_adapter_guard_captures_all_four_can_joint_packet_types_without_rea
     np.testing.assert_allclose(actual,np.arange(1.,8.)*1.0125,atol=1e-11)
     assert report['maximum_bracket_span_s']==pytest.approx(.005)
 
+    # A waiting camera gets a one-shot signal; querying several retained
+    # captures uses one hardware snapshot and can skip a permanently old one.
+    from threading import Event
+    wake = Event()
+    reads = []
+    def snapshot():
+        reads.append(now[0])
+        return {'joints': [0.]*7, 'width_m': .08}
+    hw.snapshot_nowait = snapshot
+    assert hw.snapshot_for_captures((.8,1.018), wakeup=wake)==(None,True) and not wake.is_set()
+    now[0] = 1.02
+    for can_id in JOINT_CAN_AXES:
+        robot._parser.parse_packet(NS(arbitration_id=can_id,timestamp=1001.02,stamp=1.02))
+    assert wake.is_set() and not hw._capture_feedback_wakeups
+    (stamp,state),armed = hw.snapshot_for_captures((.8,1.018), wakeup=wake)
+    assert not armed and stamp==1.018 and len(reads)==2
+    np.testing.assert_allclose(state['joints'],np.arange(1.,8.)*1.018,atol=1e-11)
+    assert state['width_m']==.08 and not state['capture_joint_pairing']['extrapolated']
+
 
 def test_recorded_five_point_zero_one_mm_mismatch_is_within_new_limit():
     model=RobotModel()

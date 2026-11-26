@@ -14,6 +14,9 @@ from .frame_products import frame_products, world_points
 from ..calibration.geometry import inverse
 
 
+NATIVE_CONTEXT_PIXELS = 32
+
+
 def seed_touches_boundary(foreground, seed_rows, seed_cols):
     """Only components joined to this seed can truncate this workpiece."""
     _, labels = cv2.connectedComponents(foreground.astype(np.uint8), connectivity=8)
@@ -51,16 +54,6 @@ def detect_seed_local(frame, depth_to_color, *, detector, **kwargs):
         return fallback('unsupported_input_or_mode')
     height, width = frame.depth_m.shape
     rows, cols = np.unravel_index(seeds, (height, width))
-    # Context is not a maximum object size. Any truncation below falls back.
-    halo = 32
-    y0, y1 = max(0, int(rows.min())-halo), min(height, int(rows.max())+halo+1)
-    x0, x1 = max(0, int(cols.min())-halo), min(width, int(cols.max())+halo+1)
-    report.update(crop_yxyx=[y0,y1,x0,x1], local_depth_pixels=(y1-y0)*(x1-x0))
-    if y0 == 0 or x0 == 0 or y1 == height or x1 == width:
-        return fallback('crop_reaches_native_image_boundary')
-    if (y1-y0)*(x1-x0) >= frame.depth_m.size/2:
-        return fallback('crop_not_smaller_than_half_frame')
-
     # Full native geometry remains necessary for the existing belt collision
     # scope. Build it once; give the crop exact slices, preserving arithmetic.
     products = frame_products(frame, depth_to_color)
@@ -68,14 +61,28 @@ def detect_seed_local(frame, depth_to_color, *, detector, **kwargs):
     transform = inverse(surface.plane_to_base)
     flat_key = ('belt_coordinates', surface.plane_to_base.tobytes())
     flat = products.get(flat_key, lambda: points @ transform[:3,:3].T + transform[:3,3])
-    local_flat = flat[y0:y1,x0:x1]
-    depth = frame.depth_m[y0:y1,x0:x1]
     maximum = kwargs.get('maximum_target_height_m')
     maximum = .12 if maximum is None else float(maximum)
-    raw_foreground = ((depth > 0) & np.isfinite(local_flat).all(axis=2)
-                      & (local_flat[...,2] >= .012) & (local_flat[...,2] <= maximum))
-    # Check unfiltered foreground, before denoising could hide a cut edge.
-    if seed_touches_boundary(raw_foreground, rows-y0, cols-x0):
+    # Context is not a maximum object size. Try one larger native crop before
+    # repeating detection over the entire image. Both attempts must prove the
+    # complete unfiltered seed component fits, followed by the full RGB/depth
+    # support proof below (including disconnected patches and low edges).
+    for halo in (NATIVE_CONTEXT_PIXELS, 2*NATIVE_CONTEXT_PIXELS):
+        y0, y1 = max(0, int(rows.min())-halo), min(height, int(rows.max())+halo+1)
+        x0, x1 = max(0, int(cols.min())-halo), min(width, int(cols.max())+halo+1)
+        report.update(crop_yxyx=[y0,y1,x0,x1], local_depth_pixels=(y1-y0)*(x1-x0),
+                      crop_halo_pixels=halo)
+        if y0 == 0 or x0 == 0 or y1 == height or x1 == width:
+            return fallback('crop_reaches_native_image_boundary')
+        if (y1-y0)*(x1-x0) >= frame.depth_m.size/2:
+            return fallback('crop_not_smaller_than_half_frame')
+        local_flat = flat[y0:y1,x0:x1]
+        depth = frame.depth_m[y0:y1,x0:x1]
+        raw_foreground = ((depth > 0) & np.isfinite(local_flat).all(axis=2)
+                          & (local_flat[...,2] >= .012) & (local_flat[...,2] <= maximum))
+        if not seed_touches_boundary(raw_foreground, rows-y0, cols-x0):
+            break
+    else:
         return fallback('foreground_touches_crop_boundary')
     k = frame.depth_intrinsics
     cropped = replace(frame, depth_m=depth, depth_intrinsics=replace(k,
@@ -107,20 +114,25 @@ def detect_seed_local(frame, depth_to_color, *, detector, **kwargs):
     if (local_mask[:2].any() or local_mask[-2:].any()
             or local_mask[:,:2].any() or local_mask[:,-2:].any()):
         return fallback('completed_target_touches_crop_boundary')
-    silhouette = result.get('visible_target_rgb_mask')
-    if silhouette is None:
-        # A cropped depth island alone cannot certify the complete outline.
-        return fallback('no_closed_rgb_outline')
-    from .visible_target import visible_depth_mask
-    full_support, _ = visible_depth_mask(frame, depth_to_color, silhouette, flat, surface.plane)
-    # Check ALL native rays on the selected RGB outline, including low edges
-    # and disconnected depth patches outside the crop. Do not crop this proof.
-    outside = full_support.copy()
-    outside[y0:y1,x0:x1] = False
-    if outside.any():
-        return fallback('rgb_outline_has_depth_outside_crop')
+    complete_from_rgb = kwargs.get('rgb_cloud_completion', True)
+    if complete_from_rgb:
+        silhouette = result.get('visible_target_rgb_mask')
+        if silhouette is None:
+            # A cropped depth island alone cannot certify the complete outline.
+            return fallback('no_closed_rgb_outline')
+        from .visible_target import visible_depth_mask
+        full_support, _ = visible_depth_mask(frame, depth_to_color, silhouette, flat, surface.plane)
+        # Check ALL native rays on the selected RGB outline, including low edges
+        # and disconnected depth patches outside the crop. Do not crop this proof.
+        outside = full_support.copy()
+        outside[y0:y1,x0:x1] = False
+        if outside.any():
+            return fallback('rgb_outline_has_depth_outside_crop')
 
     mask = expand(local_mask)
+    if 'object_seed_pixel_indices' in result:
+        sy, sx = np.unravel_index(result['object_seed_pixel_indices'], local_mask.shape)
+        result['object_seed_pixel_indices'] = (sy+y0)*width+sx+x0
     rejected = expand(result.pop('_rejected_target_depth_mask'))
     valid = (frame.depth_m > 0) & np.isfinite(points).all(axis=2)
     scene_mask = valid & ~mask & ~rejected
@@ -136,7 +148,7 @@ def detect_seed_local(frame, depth_to_color, *, detector, **kwargs):
         scene_points=points[scene_mask], scene_pixel_indices=np.flatnonzero(scene_mask),
         scene_input_count_before_prefilter=scene_input_count, _frame_products=products,
         _rejected_target_depth_mask=rejected)
-    report.update(applied=True, full_rgb_outline_checked=True, full_belt_scene_preserved=True,
+    report.update(applied=True, full_rgb_outline_checked=complete_from_rgb, full_belt_scene_preserved=True,
                   wall_s=time.monotonic()-started)
     result['local_processing'] = report
     if diagnostic is not None:

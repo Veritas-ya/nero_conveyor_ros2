@@ -8,6 +8,8 @@ from .feedback_gates import TRAJECTORY_ARRIVAL_TOLERANCE_RAD, OpenConfirmation
 from .streaming import fresh_feedback
 from .stationary_hold import StationaryHold
 from .workpiece_contact import recovery_workpiece_contact
+from .bin_recovery import bin_lift_goal
+from .direct_drop_guard import lowest_gripper_point
 
 
 class RecoveryFailed(PickRejected):
@@ -84,10 +86,11 @@ def _recovery_feedback(e,*,epoch,failure=None):
 def _payload_state(e, state):
     width, force = float(state['width_m']), float(state['force_n'])
     opening, minimum_force = e.config.settings.open_width_m, e.config.settings.min_force_n
-    if not np.isfinite([width, force]).all():
+    if (not np.isfinite([width, force]).all() or not 0. <= width <= .11 or force < 0.):
         raise PickRejected('恢复时夹爪反馈无效')
-    if (force < minimum_force and
-            (abs(width-opening) <= .002 or 0. <= width <= .003)):
+    # The existing grip gate excludes widths at or below 3 mm. The closed
+    # jaw end stop can report force even when the grasp missed the workpiece.
+    if width <= .003 or (force < minimum_force and abs(width-opening) <= .002):
         return False
     if (e.holding.held_width is not None and e.planner.payload_local is not None and
             .003 < width < opening-.004 and force >= minimum_force):
@@ -178,10 +181,6 @@ def recover_attempt(e, target, failure):
     state = _recovery_feedback(e,epoch=target.epoch,failure=failure)  # original CAN/enable/driver checks must pass again
     if e.planner.target is not target:
         e.planner.install(target, state)
-    carrying = _payload_state(e, state)
-    if not carrying:
-        e.holding.held_width = None
-        e.planner.payload_local = e.planner.payload_tree = None
     # Include the initial position hold: it is exactly where a missed, closed
     # jaw can still overlap the cancelled task's predicted point cloud.
     enabled = e.config.raw.get('recovery_allow_workpiece_contact', False)
@@ -191,6 +190,15 @@ def recover_attempt(e, target, failure):
             'target_identity': target.identity,
             'scope': 'cancelled_task_workpiece_only',
             'self_environment_and_belt_checks_retained': True})
+        from .grip_recovery import reconfirm_payload
+        state = reconfirm_payload(e, state, failure, epoch=target.epoch)
+        carrying = _payload_state(e, state)
+        if carrying and getattr(e, 'bin_start', None) is not None:
+            e.planner.bin_departure_tree = None
+        if not carrying:
+            e.holding.held_width = None
+            e.holding.force_lost_since = None
+            e.planner.payload_local = e.planner.payload_tree = None
         return _return_to_wait(e, target, failure, state, carrying,
             allow_workpiece_contact=allowed)
 
@@ -200,15 +208,21 @@ def _return_to_wait(e, target, failure, state, carrying, *, allow_workpiece_cont
     from .release import release_at_rest
     e.planner.identity = target.identity
     e.planner.version += 1  # invalidate every old result before any recovery send
-    e.motion_started = True
-    e.device.prepare_motion(e.config.settings.speed_percent,
-        query_limits=e.config.settings.query_controller_limits,
-        requested_velocity_limits=e.config.velocity_limits,
-        requested_acceleration_limits=e.config.acceleration_limits)
+    with e.command_lock:
+        e._active(e.owner, e.version, target.epoch)
+        e.motion_started = True
+        e.device.prepare_motion(e.config.settings.speed_percent,
+            query_limits=e.config.settings.query_controller_limits,
+            requested_velocity_limits=e.config.velocity_limits,
+            requested_acceleration_limits=e.config.acceleration_limits)
     state = _recovery_feedback(e,epoch=target.epoch)
     state = _settle_last_target(e, state, epoch=target.epoch, carrying=carrying,
         sender_factory=JointStreamSender)
     e.planner.model.check_feedback(state)
+    if not carrying and state['width_m'] <= .003:
+        # Release end-stop force before empty return/precision arrival. The
+        # arm has settled; _open_empty checks the full opening geometry.
+        state = _open_empty(e, state, epoch=target.epoch, sender_factory=JointStreamSender)
     if carrying:
         e.planner.reanchor_support(state)
     prepared_taught = bool(carrying and e.config.raw.get('prepared_taught_cycle_enabled', False)
@@ -225,6 +239,13 @@ def _return_to_wait(e, target, failure, state, carrying, *, allow_workpiece_cont
             lift[:3, 3] += e.planner.support*e.config.settings.lift_m
             stages.extend([('recovery_lift', lift, None, True),
                 ('recovery_transfer', e.config.bins[e.config.default_bin], None, True)])
+        elif e.bin_start is not None and e.planner.bin_departure_tree is not None:
+            if e.planner.bin_departure_tree is not e.bin_start.released_tree:
+                raise PickRejected('恢复离框点云与上一件的释放记录不一致')
+            lift = bin_lift_goal(e.planner, state)
+            if lift is not None:
+                goal, required_height = lift
+                stages.append(('recovery_bin_lift', goal, None, False))
         if not prepared_taught:
             stages.append(('recovery_return', None, e.config.standby, False))
         for stage, goal, joints, loaded in stages:
@@ -249,6 +270,16 @@ def _return_to_wait(e, target, failure, state, carrying, *, allow_workpiece_cont
                     raise PickRejected('恢复路径检查已错过发送起点')
             state = e._stream(path, origin=origin,
                 epoch=target.epoch, carrying=loaded)
+            if stage == 'recovery_bin_lift':
+                state = e.device.snapshot()
+                fresh_feedback(state, e.clock(), e.feedback_stamps)
+                e.planner.model.check_feedback(state)
+                measured, geometry = lowest_gripper_point(e.planner.model)
+                clearance = {'lowest_gripper_z_m':measured, 'required_z_m':required_height,
+                             'geometry':geometry}
+                if _payload_state(e, state) or measured < required_height:
+                    raise PickRejected('空爪离框实测净空未确认，停止回位', details=clearance)
+                e._emit('recovery_bin_clearance_confirmed', clearance)
             if stage == 'recovery_transfer':
                 e.stage = 'recovery_release'
                 state = release_at_rest(e, state, epoch=target.epoch, sender_factory=JointStreamSender)

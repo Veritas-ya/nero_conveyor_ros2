@@ -18,14 +18,27 @@ from .grasp import VisibleOBBError, visible_belt_aligned_obb
 from .measured_rgbd import fit_plane, green_belt_points, depth_capture_timing
 from .reference import predict_entry_time, EntryNotReady
 from .synchronized_reference import admit_synchronized_observation, freeze_window_for_speed
+from .tracked_freeze import native_exposure_window, pairing_deadline, upstream_at
 from .diagnostics import VisionProgress
 from .velocity_source import KALMAN, POINT_KALMAN, FIXED, is_fixed, prediction_velocity, speed_report as make_speed_report, policy as velocity_policy
 
 
-def obb_grasps(points_base, plane_to_base, canonical_tcp):
+def offset_grasp_tcp_z(grasps, box, offset_m):
+    """Shift candidate TCPs in base Z; measured object geometry stays fixed."""
+    if (isinstance(offset_m, bool) or not isinstance(offset_m, (int, float))
+            or not np.isfinite(offset_m) or abs(offset_m) > .05):
+        raise ValueError('grasp_tcp_z_offset_m 须为-0.05至0.05米的有限数')
+    adjusted = [np.array(grasp, dtype=float, copy=True) for grasp in grasps]
+    for grasp in adjusted:
+        grasp[2, 3] += offset_m
+    return adjusted, dict(box, grasp_tcp_offset_base_m=[0., 0., float(offset_m)])
+
+
+def obb_grasps(points_base, plane_to_base, canonical_tcp, *, tcp_z_offset_m=0.):
     """Same visible rectangle as simulation, in the MEASURED belt frame.
 
-    TCP origins are the visible box centre. Tool axes use the supplied physical
+    TCP origins are the visible box centre plus the configured base-Z offset.
+    Tool axes use the supplied physical
     canonical-to-TCP calibration; no simulation gripper assets are read.
     """
     plane = rigid_transform(plane_to_base)
@@ -45,7 +58,7 @@ def obb_grasps(points_base, plane_to_base, canonical_tcp):
             grasp[:3, :3] = plane[:3, :3] @ np.column_stack((x, np.cross(z, x), z)) @ tool[:3, :3]
             grasp[:3, 3] = plane[:3, :3] @ np.asarray(box['center_world_m']) + plane[:3, 3]
             result.append(grasp)
-    return result, box
+    return offset_grasp_tcp_z(result, box, tcp_z_offset_m)
 
 
 @dataclass(frozen=True)
@@ -144,6 +157,8 @@ class LiveVision:
         self.geometry_attempts={}
         self.geometry_failure_archives={}
         self.geometry_model=None
+        self.fast_stereo=None
+        self.fast_stereo_lock = Lock()
         self.progress_snapshot = None
         self.perception_diagnostics={}
         self.progress_entry = None
@@ -159,9 +174,24 @@ class LiveVision:
         self.meter = None
         self.camera_consumption={'frames':0,'capture_sequence_skips':0,'max_device_gap_s':0.}
         self._previous_camera_frame=None
+        self.match_in_flight = None
+        self.native_band_only = (config.raw.get('freeze_source') == 'single_exposure_native_depth'
+            and config.raw.get('tracked_freeze_publish_before_upstream_m') is not None)
+        self.single_frame_backup = None
+        self.tracked_feedback_worker = None
+        if config.raw.get('tracked_freeze_publish_before_upstream_m') is not None and is_fixed(config):
+            from .capture_feedback_worker import CaptureFeedbackWorker
+            from .tracked_single_exposure import SingleFrameBackup
+            if not self.native_band_only:
+                self.tracked_feedback_worker = CaptureFeedbackWorker(self, self.geometry_pool, self.geometry_progress,
+                                                                    lambda: time.monotonic())
+            self.single_frame_backup = SingleFrameBackup(self)
 
     def start(self):
-        self.geometry_future=self.geometry_pool.submit(self._warm_geometry_model)
+        if not self.native_band_only:
+            self.geometry_future=self.geometry_pool.submit(self._warm_geometry_model)
+        if self.single_frame_backup is not None:
+            self.single_frame_backup.start()
         self.thread.start()
         return self
 
@@ -222,11 +252,29 @@ class LiveVision:
 
     def _consume_locked(self, identity):
         item=self.frozen_queue.remove(identity,'consumed')
-        if self.lookahead_enabled and item is not None:
+        if (self.lookahead_enabled or self.single_frame_backup is not None) and item is not None:
             self.recent_targets = (self.recent_targets+[item])[-4:]
         if self.frozen_queue.capacity==1:self.geometry_generation+=1
         self.consumed.add(identity)
         self.active_task = identity
+
+    def claim_frozen(self, *, released_owner=None):
+        """Atomically take a valid exposure from idle or the confirmed release owner."""
+        from .lookahead_selection import latest_dispatch
+        with self.lock:
+            if self.error is not None:
+                raise self.error
+            if self.active_task != released_owner:
+                return None
+            if released_owner is not None and (
+                    not self.lookahead_enabled or released_owner[0] != self.clock_epoch):
+                return None
+            self._prune_frozen_locked(time.monotonic(), include_single=True)
+            entry = min(self.frozen_queue.entries, default=None,
+                key=lambda e: (latest_dispatch(e.target, self.config), e.target.capture_s))
+            if entry is not None:
+                self._consume_locked(entry.target.identity)
+            return entry
 
     def resume_targets(self):
         """Rearm after return, preserving exposures when acquisition stayed active."""
@@ -247,36 +295,58 @@ class LiveVision:
             self.lookahead_enabled = True
 
     def capture_feedback(self, captured):
-        reader = getattr(self, 'capture_state_reader', None) if self.lookahead_enabled else None
+        reader = (getattr(self, 'capture_state_reader', None)
+                  if self.lookahead_enabled or self.single_frame_backup is not None else None)
         return self.read_feedback() if reader is None else reader(captured)
 
-    def _paired_state(self, captured):
-        self.progress.enter('pairing_feedback')
-        self.progress.annotate_frame(exposure_age_at_pairing_s=time.monotonic()-captured)
-        with self.progress.measure('feedback_pairing'):
+    def _paired_state(self, captured, *, progress=None):
+        progress = self.progress if progress is None else progress
+        progress.enter('pairing_feedback')
+        progress.annotate_frame(exposure_age_at_pairing_s=time.monotonic()-captured)
+        with progress.measure('feedback_pairing'):
             state = self.capture_feedback(captured)
         if state is None:
-            self.progress.block('waiting_feedback', 'feedback_missing', capture_monotonic_s=captured)
+            progress.block('waiting_feedback', 'feedback_missing', capture_monotonic_s=captured)
             return None
+        return self._validate_capture_state(captured, state, progress)
+
+    def _first_paired_capture(self, requests, progress, wakeup):
+        batch_reader = getattr(self, 'capture_states_reader', None)
+        if batch_reader is not None:
+            pair, armed = batch_reader(tuple(req.captured for req in requests), wakeup=wakeup)
+            if pair is None:
+                return None, armed
+            stamp, state = pair
+            req = next(req for req in requests if req.captured == stamp)
+            if self._validate_capture_state(stamp, state, progress) is not None:
+                return (req, state), False
+            return None, False
+        for req in requests:
+            state = self.capture_feedback(req.captured)
+            if state is not None and self._validate_capture_state(req.captured, state, progress) is not None:
+                return (req, state), False
+        return None, False
+
+    def _validate_capture_state(self, captured, state, progress):
         stamps = [mapped_stamp(state, kind) for kind in ('joint', 'pose')]
-        self.progress.annotate_frame(joint_feedback_monotonic_s=stamps[0],
+        progress.annotate_frame(joint_feedback_monotonic_s=stamps[0],
             pose_feedback_monotonic_s=stamps[1])
         if 'capture_joint_pairing' in state or 'capture_state_role' in state:
             if not capture_joint_pairing_valid(state, captured):
-                self.progress.block('waiting_feedback', 'capture_joint_pairing_invalid',
+                progress.block('waiting_feedback', 'capture_joint_pairing_invalid',
                     capture_monotonic_s=captured, pairing=state.get('capture_joint_pairing'))
                 return None
-            self.progress.annotate_frame(capture_feedback_basis='measured_historical_joint_brackets',
+            progress.annotate_frame(capture_feedback_basis='measured_historical_joint_brackets',
                 capture_joint_pairing=state['capture_joint_pairing'])
         else:
             if any(stamp is None or abs(stamp-captured) > .2 for stamp in stamps):
-                self.progress.block('waiting_feedback',
+                progress.block('waiting_feedback',
                     'feedback_time_missing' if any(s is None for s in stamps) else 'feedback_frame_skew',
                     capture_monotonic_s=captured, feedback_monotonic_s=stamps, maximum_skew_s=.2,
                     joint_monotonic_s=stamps[0], pose_monotonic_s=stamps[1],
                     feedback_minus_capture_s=[None if s is None else s-captured for s in stamps])
                 return None
-            self.progress.annotate_frame(capture_feedback_basis='current_feedback_with_200ms_limit')
+            progress.annotate_frame(capture_feedback_basis='current_feedback_with_200ms_limit')
         return state
 
     def poll_pending(self):
@@ -329,12 +399,36 @@ class LiveVision:
     def repeats_recent_target(self, position, captured):
         """Suppress one physical piece across exposure IDs or tracker ID churn."""
         with self.lock:
-            recent = tuple(self.recent_targets)+tuple(e.target for e in self.frozen_queue.entries)
+            return self._repeats_locked(position, captured)
+
+    def _repeats_locked(self, position, captured, *, frame_sequence=None, mask=None, seed_indices=None):
+        recent = tuple(self.recent_targets)+tuple(e.target for e in self.frozen_queue.entries)
         for item in recent:
             if item.epoch != self.clock_epoch:
                 continue
             dt = captured-item.capture_s
-            if dt < 0:
+            hybrid = self.single_frame_backup is not None
+            if dt < 0 and not hybrid:
+                continue
+            if hybrid and frame_sequence == item.sequence:
+                other = item.detection.get('mask')
+                if other is not None and seed_indices is not None:
+                    if 2*np.count_nonzero(other.ravel()[seed_indices]) >= len(seed_indices):
+                        return True
+                    continue
+                if other is not None and mask is not None and mask.shape == other.shape:
+                    shared = np.count_nonzero(mask & other)
+                    if shared and 2*shared >= min(np.count_nonzero(mask), np.count_nonzero(other)):
+                        return True
+                    continue
+            if hybrid:
+                # A long narrow part and a neighbour beside it can be closer
+                # than half its diagonal. Compare in its measured footprint.
+                box = item.object_pose
+                local = (np.asarray(position)-item.velocity*dt-box[:3,3]) @ box[:3,:2]
+                half_extent = np.asarray(item.detection['obb']['extent_m'])[:2]/2
+                if np.all(np.abs(local) <= half_extent + 1e-9):
+                    return True
                 continue
             predicted = item.entry_position+item.velocity*dt
             radius = max(.025, float(np.linalg.norm(np.ptp(item.points, axis=0)[:2]))*.5)
@@ -363,6 +457,14 @@ class LiveVision:
         } for t in peer.tracks]
         return {**self.progress.snapshot(), 'entry_gate': entry,
                 'frozen_queue':frozen_queue,
+                'single_frame_detection': (self.single_frame_backup.progress.snapshot()
+                    if self.native_band_only and self.single_frame_backup is not None else None),
+                'single_frame_fallback_last_rejection': (self.single_frame_backup.last_rejection
+                    if self.single_frame_backup is not None else None),
+                'capture_feedback_wait': (dict(tracked=(self.tracked_feedback_worker.diagnostics()
+                    if self.tracked_feedback_worker is not None else None),
+                    single_frame=self.single_frame_backup.feedback_worker.diagnostics())
+                    if self.single_frame_backup is not None else None),
                 'grasp_geometry':self.geometry_progress.snapshot(),
                 'geometry_in_flight':self.geometry_future is not None,
                 'perception_detection_mode':self.config.raw.get('perception_detection_mode','rgb_depth'),
@@ -380,6 +482,7 @@ class LiveVision:
                 'camera_consumption':dict(self.camera_consumption),
                 'thresholds': {key: self.config.raw.get(key) for key in (
                     'minimum_speed_span_s', 'maximum_observation_age_s',
+                    'tracked_freeze_upstream_limit_m', 'tracked_freeze_publish_before_upstream_m',
                     'freeze_upstream_distance_m', 'freeze_position_upstream_m',
                     'freeze_position_tolerance_m', 'planning_reserve_s', 'maximum_measured_speed_m_s')}}
 
@@ -464,6 +567,10 @@ class LiveVision:
                 scheduled = admit_synchronized_observation(capture_s, coordinate, along,
                     self.config.follow_bounds, now_s, freeze_window['distance_m'],
                     minimum_upstream_distance_m=freeze_window.get('minimum_distance_m'))
+                cutoff = self.config.raw.get('tracked_freeze_publish_before_upstream_m')
+                if (cutoff is not None and not native_exposure_window(self.config)
+                        and upstream_at(self.config, position, velocity, capture_s, now_s) < cutoff):
+                    raise EntryNotReady('物块已越过冻结发布截止线', 'freeze_publication_deadline')
                 detail['admission_rule'] = ('fixed_capture_position_band; exact_schedule_after_obb'
                     if freeze_window['policy'] == 'fixed_capture_position' else
                     'synchronized_follow_window; exact_schedule_after_obb')
@@ -487,7 +594,11 @@ class LiveVision:
             self.thread.join(timeout=3.)
         if self.thread.is_alive():
             raise RuntimeError('视觉线程尚未退出')
+        if self.tracked_feedback_worker is not None:
+            self.tracked_feedback_worker.close()
         self.geometry_pool.shutdown(wait=True,cancel_futures=True)
+        if self.single_frame_backup is not None:
+            self.single_frame_backup.close()
 
     def _finish_geometry(self):
         # Both the camera loop and completion callback may drain this job.
@@ -497,6 +608,8 @@ class LiveVision:
             future=self.geometry_future
             if future is None or not future.done():return
             self.geometry_future=None
+            if self.match_in_flight is not None and self.match_in_flight[-1] is future:
+                self.match_in_flight = None
             try:result=future.result()
             except BaseException as error:
                 self.error=error
@@ -505,31 +618,79 @@ class LiveVision:
                 return
             if result is None:return
             generation,tracking_generation,item=result
-            delivered=time.monotonic()
-            if not 0<=delivered-item.capture_s<=self.config.raw['maximum_observation_age_s']:
-                self.geometry_progress.block('waiting_fresh_observation','observation_stale_at_delivery',
-                    source_sequence=item.sequence)
-                return
-            peer=self.progress_snapshot
-            if (self.stop.is_set() or generation!=self.geometry_generation or
-                    self.clock_epoch!=item.epoch or (self.active_task is not None and not self.lookahead_enabled) or
-                    item.identity in self.consumed or item.capture_s<self.minimum_capture_s or
-                    peer is None or peer.track_generation!=tracking_generation):
-                return
-            timings=item.detection.setdefault('freeze_delivery', {})
-            timings.update(published_monotonic_s=delivered,
-                exposure_to_ready_s=delivered-item.capture_s,
-                geometry_done_to_publish_s=delivered-timings.get('geometry_done_monotonic_s',delivered))
-            self._prune_frozen_locked(delivered)
-            if not self.frozen_queue.offer(item,delivered,self.config.raw['maximum_observation_age_s']):return
-            active_task = self.active_task
+            publication = self._accept_geometry_locked(generation, tracking_generation, item)
+        self._notify_frozen(item, publication)
+
+    def _accept_geometry_locked(self, generation, tracking_generation, item):
+        peer = self.progress_snapshot
+        if (self.stop.is_set() or self.error is not None or generation != self.geometry_generation or self.clock_epoch != item.epoch
+                or (self.active_task is not None and not self.lookahead_enabled)
+                or item.identity in self.consumed or item.capture_s < self.minimum_capture_s
+                or (tracking_generation is not None and (peer is None or peer.track_generation != tracking_generation))):
+            return None
+        self._prune_frozen_locked(time.monotonic())
+        if self.single_frame_backup is not None and self._repeats_locked(
+                item.center, item.capture_s, frame_sequence=item.sequence, mask=item.detection.get('mask')):
+            return None
+        delivered = time.monotonic()
+        if not 0 <= delivered-item.capture_s <= self.config.raw['maximum_observation_age_s']:
+            self.geometry_progress.block('waiting_fresh_observation','observation_stale_at_delivery',
+                source_sequence=item.sequence)
+            return None
+        cutoff = self.config.raw.get('tracked_freeze_publish_before_upstream_m')
+        capture_distance = float(self.config.follow_bounds[0] - item.entry_position @ self.config.direction)
+        distance = upstream_at(self.config, item.entry_position, item.velocity, item.capture_s, delivered)
+        if cutoff is not None:
+            # Use the more downstream of the track observation and segmented cloud.
+            distance = min(distance, upstream_at(self.config, item.center, item.velocity, item.capture_s, delivered))
+            center_at_capture = float(self.config.follow_bounds[0] - item.center @ self.config.direction)
+            too_early = max(capture_distance, center_at_capture) > self.config.raw['tracked_freeze_upstream_limit_m'] + 1e-9
+            exposure_gate = native_exposure_window(self.config)
+            reason = None
+            if too_early:
+                reason = 'too_far_upstream'
+            elif exposure_gate:
+                if min(capture_distance, center_at_capture) < self.config.raw['native_single_min_capture_upstream_m']-1e-9:
+                    reason = 'exposure_past_native_capture_band'
+                elif distance < self.config.follow_bounds[0]-self.config.follow_bounds[1]:
+                    reason = 'past_follow_region'
+            elif distance < cutoff:
+                reason = 'freeze_publication_deadline'
+            if reason:
+                details = dict(source_sequence=item.sequence, upstream_distance_m=capture_distance,
+                               estimated_upstream_distance_m=distance, minimum_upstream_distance_m=(
+                                   self.config.raw['native_single_min_capture_upstream_m'] if exposure_gate else cutoff))
+                timings = item.detection.get('freeze_delivery', {})
+                if 'capture_feedback_retried' in timings:
+                    details.update(capture_feedback_retried=timings['capture_feedback_retried'],
+                                   capture_feedback_wait_s=timings['capture_feedback_wait_s'])
+                self.geometry_progress.block('waiting_upstream_window', reason, **details)
+                sink = getattr(self, 'event_sink', None)
+                if sink is not None:
+                    sink('target_freeze_rejected', reason=reason, identity=item.identity,
+                         freeze_source=item.speed_report.get('acquisition','tracked'), **details)
+                return None
+        if not self.frozen_queue.offer(item, delivered, self.config.raw['maximum_observation_age_s']):
+            return None
+        timings = item.detection.setdefault('freeze_delivery', {})
+        timings.update(published_monotonic_s=delivered, exposure_to_ready_s=delivered-item.capture_s,
+            geometry_done_to_publish_s=delivered-timings.get('geometry_done_monotonic_s',delivered))
+        return dict(active_task=self.active_task, published_monotonic_s=delivered,
+            freeze_gate='native_exposure_band' if native_exposure_window(self.config) else 'configured_window',
+            upstream_distance_m=capture_distance, published_upstream_distance_m=distance,
+            freeze_source=getattr(item,'speed_report',{}).get('acquisition','tracked'), freeze_delivery=dict(timings))
+
+    def _notify_frozen(self, item, publication):
+        if publication is None:
+            return
         self.progress.mark_ready()
         sink=getattr(self,'event_sink',None)
         if sink is not None:
-            sink('target_frozen',identity=item.identity,active_task=active_task,frame_sequence=item.sequence,
-                capture_monotonic_s=item.capture_s,published_monotonic_s=delivered,
-                upstream_distance_m=float(self.config.follow_bounds[0]-item.entry_position@self.config.direction),
-                freeze_delivery=dict(timings))
+            sink('target_frozen',identity=item.identity,frame_sequence=item.sequence,
+                capture_monotonic_s=item.capture_s,**publication)
+        next_pick_sink = getattr(self, 'next_pick_sink', None)
+        if next_pick_sink is not None:
+            next_pick_sink(publication['active_task'], item)
 
     def _geometry_completed(self, future):
         self._finish_geometry()
@@ -540,6 +701,10 @@ class LiveVision:
             with self.geometry_progress.measure('model_startup'):
                 from .planning import calibrated_model
                 self.geometry_model=calibrated_model(self.config)
+
+    def _refine_stereo(self, *args, **kwargs):
+        with self.fast_stereo_lock:
+            return self.fast_stereo.refine(*args, **kwargs)
 
     def _record_geometry_failure(self,error,frame,d2c,state,identity,surface,indices):
         """Preserve the exact failed exposure and subfilter decision, off-thread IO."""
@@ -577,6 +742,8 @@ class LiveVision:
         try:
             with progress.measure('target_detection'):
                 kwargs=dict(fit_plane=fit_plane,green_belt_points=green_belt_points,
+                    retain_native_seed=self.config.raw.get('depth_separation_enabled',False),
+                    rgb_cloud_completion=self.config.raw.get('rgb_cloud_completion_enabled',False),
                     target_shape='simple',robot_model=self.geometry_model,robot_state=state,
                     measured_surface=surface,maximum_target_height_m=self.config.raw['maximum_target_height_m'],
                     maximum_target_length_m=self.config.raw.get('maximum_target_length_m', .16),
@@ -615,8 +782,21 @@ class LiveVision:
         with self.lock:
             if self.stop.is_set() or generation!=self.geometry_generation:return
         progress.annotate_frame(component_extraction=detection.get('component_extraction'))
+        if self.fast_stereo is not None:
+            try:
+                with progress.measure('fast_stereo_reconstruction'):
+                    detection=self._refine_stereo(detection,frame,d2c,
+                        robot_model=self.geometry_model,robot_state=state,surface=surface)
+                progress.annotate_frame(fast_stereo=detection['fast_stereo'])
+            except TargetNotReady as error:
+                self._record_geometry_failure(error,frame,d2c,state,
+                    (peer.clock_epoch,peer.track_generation,track.track_id),surface,indices)
+                return
         center=np.median(detection['object_points'],axis=0)
-        if self.lookahead_enabled and self.repeats_recent_target(center, captured):
+        with self.lock:
+            repeated = (self.lookahead_enabled or self.single_frame_backup is not None) and self._repeats_locked(
+                center, captured, frame_sequence=frame.header.sequence, mask=detection.get('mask'))
+        if repeated:
             progress.block('waiting_new_target', 'same_physical_workpiece')
             return
         observed=np.asarray(track.observed_position_base,dtype=float)
@@ -627,9 +807,22 @@ class LiveVision:
             return
         progress.enter('generating_obb')
         try:
+            from .depth_separation import grasp_points
+            from .tracked_freeze import check_near_camera_footprint
+            check_near_camera_footprint(self.config, surface, frame, detection)
+            if self.config.raw.get('depth_separation_enabled', False):
+                with progress.measure('depth_separation'):
+                    obb_points = grasp_points(detection, frame, enabled=True)
+            else:
+                obb_points = detection['object_points']
             with progress.measure('obb_grasp'):
-                grasps,box=obb_grasps(detection['object_points'],detection['belt_region']['plane_to_base'],
-                                    self.config.canonical_tcp)
+                grasps,box=obb_grasps(obb_points,detection['belt_region']['plane_to_base'],
+                                    self.config.canonical_tcp,
+                                    tcp_z_offset_m=self.config.raw.get('grasp_tcp_z_offset_m', 0.))
+        except TargetNotReady as error:
+            self._record_geometry_failure(error,frame,d2c,state,
+                (peer.clock_epoch,peer.track_generation,track.track_id),surface,indices)
+            return
         except VisibleOBBError as error:
             progress.block('waiting_target_geometry', 'obb_invalid_visible_points',
                 error=str(error), point_count=len(detection['object_points']))
@@ -660,7 +853,93 @@ class LiveVision:
         progress.mark_ready()
         return generation,peer.track_generation,item
 
+    def _schedule_geometry(self, frame, d2c, peer, captured):
+        with self.lock:
+            self.progress_snapshot = peer
+            self.progress_entry = None
+            consumed = set(self.consumed)
+        self._finish_geometry()
+        with self.lock:
+            self._prune_frozen_locked(time.monotonic())
+            queued={e.target.identity for e in self.frozen_queue.entries}
+            queue_full=self.frozen_queue.full
+        if queue_full:
+            return None
+        if self.tracked_feedback_worker is not None:
+            active_match = self.tracked_feedback_worker.active_match()
+            if active_match is not None:
+                return active_match
+        elif self.geometry_future is not None:
+            return self.match_in_flight
+        valid = [] if peer is None or not peer.current else [t for t in peer.tracks
+            if not self._track_rejections(t, peer, consumed)
+            and (peer.clock_epoch,peer.track_generation,t.track_id) not in queued]
+        multiple_enabled=self.frozen_queue.capacity>1 and self.config.raw.get('tracked_local_geometry',False)
+        if not valid or (len(valid)>1 and not multiple_enabled):
+            reason = ('meter_not_current' if peer is None or not peer.current else
+                'no_tracks' if not peer.tracks else
+                'multiple_qualified_tracks' if len(valid) > 1 else 'no_qualified_tracks')
+            self.progress.block('waiting_qualified_speed', reason,
+                qualified_count=len(valid), track_count=0 if peer is None else len(peer.tracks),
+                meter_reason=None if peer is None else peer.reason,
+                track_rejections=[] if peer is None else [
+                    {'id': t.track_id, 'reasons': self._track_rejections(t, peer, consumed),
+                     'samples': t.sample_count, 'span_s': t.span_s,
+                     'speed_std_m_s': t.speed_std_m_s,
+                     'velocity_base_m_s': t.velocity_base_m_s}
+                    for t in peer.tracks])
+            return None
+        selected=self._select_geometry_track(frame,peer,valid,captured)
+        if selected is None:return None
+        track,seed_rgb=selected
+        identity=(peer.clock_epoch,peer.track_generation,track.track_id)
+        with self.lock:
+            if identity in self.consumed:return None
+            generation=self.geometry_generation
+        surface = self.model.measured_belt_surface
+        gate = float(self.meter.parameters['tracker_gate_radius'])
+        track_gate = (np.asarray(track.observed_position_base), gate)
+        d2c = np.array(d2c, copy=True)
+        submitted = time.monotonic()
+
+        def prepare(state):
+            return self._prepare_target(frame, d2c, peer, track, deepcopy(state), captured, generation,
+                                        surface, gate, seed_rgb_mask=seed_rgb, submitted_s=submitted)
+
+        if self.tracked_feedback_worker is None:
+            state = self._paired_state(captured)
+            if state is None:
+                return None
+            job = self.geometry_pool.submit(prepare, state)
+        else:
+            distance = float(self.config.follow_bounds[0]-track_gate[0]@self.config.direction)
+            deadline = pairing_deadline(self.config, captured, surface, distance)
+
+            def calculate(state, timing):
+                result = prepare(state)
+                if result is not None:
+                    item = result[2]
+                    item.detection['freeze_delivery'].update(timing)
+                    with self.lock:
+                        publication = self._accept_geometry_locked(*result)
+                    self._notify_frozen(item, publication)
+            job = self.tracked_feedback_worker.submit(captured, frame.header.clock_epoch, generation,
+                                                      deadline, calculate, identity=identity, track_gate=track_gate)
+            if job is None:
+                return self.tracked_feedback_worker.active_match() or self.match_in_flight
+        self.geometry_attempts.pop(identity,None)
+        self.geometry_attempts[identity]=frame.header.sequence
+        if len(self.geometry_attempts)>64:
+            self.geometry_attempts.pop(next(iter(self.geometry_attempts)))
+        match = (captured, *track_gate, job)
+        with self.lock:
+            self.geometry_future = job
+            self.match_in_flight = match
+        job.add_done_callback(self._geometry_completed)
+        return match
+
     def _run(self):
+        decision = None
         sequence = None
         try:
             d2c = self.camera.get_depth_to_color_cv()
@@ -733,7 +1012,8 @@ class LiveVision:
                 if reset_tracking and self.meter is not None:
                     self.meter.reset()
                 surface=getattr(self.model,'measured_belt_surface',None)
-                if self.meter is None or (isinstance(surface,BeltSurface) and not surface.matches_frame(frame,d2c)):
+                if (surface is None or (not self.native_band_only and self.meter is None)
+                        or (isinstance(surface,BeltSurface) and not surface.matches_frame(frame,d2c))):
                     with self.lock:
                         self.geometry_generation+=1
                         self.latest=None
@@ -746,8 +1026,15 @@ class LiveVision:
                             error=str(error), belt_surface_reason=error.reason)
                         continue
                     self.model.measured_belt_surface = surface
-                    from .perception import make_meter
-                    self.meter=make_meter(self.config,surface,previous=self.meter)
+                    if not self.native_band_only:
+                        from .perception import make_meter
+                        self.meter=make_meter(self.config,surface,previous=self.meter)
+                decision = None
+                if self.single_frame_backup is not None:
+                    decision = self.single_frame_backup.offer(frame, d2c, surface, captured)
+                if self.native_band_only:
+                    self.progress.enter('single_frame_depth_location')
+                    continue
                 self.progress.enter('tracking_and_speed')
                 with self.progress.measure('tracking_and_speed'):
                     speed_report = self.meter.update(frame, d2c)
@@ -770,54 +1057,9 @@ class LiveVision:
                             'control_velocity_source':FIXED,
                             'fixed_control_speed_m_s':self.config.raw['fixed_belt_speed_m_s']}
                     speed_sink(frame,d2c,peer,display_report,capture_s=captured)
-                with self.lock:
-                    self.progress_snapshot = peer
-                    self.progress_entry = None
-                    consumed = set(self.consumed)
-                self._finish_geometry()
-                with self.lock:
-                    self._prune_frozen_locked(time.monotonic())
-                    queued={e.target.identity for e in self.frozen_queue.entries}
-                    queue_full=self.frozen_queue.full
-                if self.geometry_future is not None or queue_full:
-                    continue
-                valid = [] if peer is None or not peer.current else [t for t in peer.tracks
-                    if not self._track_rejections(t, peer, consumed)
-                    and (peer.clock_epoch,peer.track_generation,t.track_id) not in queued]
-                multiple_enabled=self.frozen_queue.capacity>1 and self.config.raw.get('tracked_local_geometry',False)
-                if not valid or (len(valid)>1 and not multiple_enabled):
-                    reason = ('meter_not_current' if peer is None or not peer.current else
-                        'no_tracks' if not peer.tracks else
-                        'multiple_qualified_tracks' if len(valid) > 1 else 'no_qualified_tracks')
-                    self.progress.block('waiting_qualified_speed', reason,
-                        qualified_count=len(valid), track_count=0 if peer is None else len(peer.tracks),
-                        meter_reason=None if peer is None else peer.reason,
-                        track_rejections=[] if peer is None else [
-                            {'id': t.track_id, 'reasons': self._track_rejections(t, peer, consumed),
-                             'samples': t.sample_count, 'span_s': t.span_s,
-                             'speed_std_m_s': t.speed_std_m_s,
-                             'velocity_base_m_s': t.velocity_base_m_s}
-                            for t in peer.tracks])
-                    continue
-                selected=self._select_geometry_track(frame,peer,valid,captured)
-                if selected is None:continue
-                track,seed_rgb=selected
-                identity=(peer.clock_epoch,peer.track_generation,track.track_id)
-                # Pair encoders only after selecting an admissible exposure.
-                state=self._paired_state(captured)
-                if state is None:continue
-                with self.lock:
-                    if identity in self.consumed:continue
-                    generation=self.geometry_generation
-                self.geometry_attempts.pop(identity,None)
-                self.geometry_attempts[identity]=frame.header.sequence
-                if len(self.geometry_attempts)>64:
-                    self.geometry_attempts.pop(next(iter(self.geometry_attempts)))
-                self.geometry_future=self.geometry_pool.submit(self._prepare_target,frame,
-                    np.array(d2c,copy=True),peer,track,deepcopy(state),captured,generation,
-                    self.model.measured_belt_surface,float(self.meter.parameters['tracker_gate_radius']),
-                    seed_rgb_mask=seed_rgb,submitted_s=time.monotonic())
-                self.geometry_future.add_done_callback(self._geometry_completed)
+                match = self._schedule_geometry(frame, d2c, peer, captured)
+                if decision is not None:
+                    decision.set_result(match)
         except BaseException as error:
             if not self.stop.is_set():
                 self.progress.block('vision_error', 'vision_exception',
@@ -827,6 +1069,13 @@ class LiveVision:
                 with self.lock:
                     self.error = error
         finally:
+            self.stop.set()
+            if decision is not None and not decision.done():
+                decision.set_result(None)
+            if self.single_frame_backup is not None:
+                self.single_frame_backup.close()
+            if self.tracked_feedback_worker is not None:
+                self.tracked_feedback_worker.close()
             self.geometry_pool.shutdown(wait=True,cancel_futures=True)
             self.geometry_progress.finish()
             self.progress.finish()

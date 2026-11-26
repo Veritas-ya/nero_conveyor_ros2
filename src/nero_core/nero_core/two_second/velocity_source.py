@@ -52,7 +52,8 @@ def policy(config):
             association_prediction_source='none_single_exposure_native_depth',
             id_confirmation_source='single_real_native_depth_exposure',
             internal_tracking_kalman_still_runs=False,
-            identity_source='capture_epoch_generation_sequence')
+            identity_source=('native_depth_exposure_component' if config.raw.get('tracked_freeze_publish_before_upstream_m') is not None
+                             else 'capture_epoch_generation_sequence'))
     return report
 
 

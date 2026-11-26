@@ -42,10 +42,12 @@ def test_invalid_payload_profile_is_rejected_before_opening_devices(site, value,
         CellConfig.load(path)
 
 
-def test_real_cell_reports_current_per_axis_capability_and_payload_request():
+@pytest.mark.parametrize('profile', ['tracked_freeze','legacy_observed'])
+def test_real_cell_reports_current_per_axis_capability_and_payload_request(profile):
     config = CellConfig.load(Path(__file__).parents[1]/
-        'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
-    expected = [8., 8., 8., 8., 10., 10., 8.]
+        f'src/nero_bringup/config/two_second.hardware.{profile}.yaml')
+    expected = [10.]*7
+    np.testing.assert_array_equal(config.raw['manufacturer_joint_acceleration_limits_rad_s2'], expected)
     np.testing.assert_array_equal(config.acceleration_limits, expected)
     np.testing.assert_array_equal(select_motion_profile(config, payload=True).acceleration_limits, expected)
     assert config.settings.speed_percent == 100 and config.settings.force_n == 2.

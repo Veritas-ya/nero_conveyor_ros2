@@ -25,6 +25,18 @@ class FrozenEntry:
         return None
 
 
+@dataclass(frozen=True)
+class BinHandoff:
+    entry: FrozenEntry
+    previous_identity: tuple
+    release_joints: tuple
+    feedback_stamps: dict
+    released_tree: object
+    origin: str = 'bin'
+    candidate: object = None
+    ready_s: float | None = None
+
+
 class FrozenTargetQueue:
     def __init__(self, capacity):
         self.capacity=capacity

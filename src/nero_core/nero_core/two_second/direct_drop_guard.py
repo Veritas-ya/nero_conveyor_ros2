@@ -46,25 +46,34 @@ def load_guard(path, config, taught):
             'tcp_sha256':tcp_hash,'physical_calibration_verified':False}
 
 
+def lowest_gripper_point(model):
+    """Lowest world-Z mesh vertex across the palm and fingers at the current FK."""
+    lowest, name = float('inf'), None
+    for geom in model.gripper_geometries:
+        rotation = model.data.geom_xmat[geom].reshape(3, 3)
+        height = float(np.min(model.mesh_vertices[geom] @ rotation[2] + model.data.geom_xpos[geom][2]))
+        if height < lowest:
+            lowest, name = height, model.model.geom(geom).name
+    if not np.isfinite(lowest):
+        raise PickRejected('无法计算夹爪最低点')
+    return lowest, name
+
+
 def check_guard(planner, tcp, *, payload):
     guard=planner.config.raw.get('experimental_direct_drop_guard')
-    if not guard or not payload:
+    if not guard or (not payload and getattr(planner, 'bin_departure_tree', None) is None):
         return
     center=np.asarray(guard['drop_tcp_xyz_base_m'])
     distance=float(np.linalg.norm(tcp[:2,3]-center[:2]))
     if distance>guard['radius_m']:
         return
     planner.stats['bin_clearance_checks'] = planner.stats.get('bin_clearance_checks',0)+1
-    if planner.payload_local is None or len(planner.payload_local)==0:
+    if payload and (planner.payload_local is None or len(planner.payload_local)==0):
         raise PickRejected('料框高度检查缺少本次载物点云',details={'kind':'bin_clearance_missing_payload'})
-    lowest=float('inf');name=None
-    for geom in planner.model.gripper_geometries:
-        rotation=planner.model.data.geom_xmat[geom].reshape(3,3)
-        position=planner.model.data.geom_xpos[geom]
-        height=float(np.min(planner.model.mesh_vertices[geom]@rotation[2,:]+position[2]))
-        if height<lowest:lowest,name=height,planner.model.model.geom(geom).name
-    height=float(np.min(planner.payload_local@tcp[2,:3]+tcp[2,3]))
-    if height<lowest:lowest,name=height,'estimated_payload'
+    lowest, name = lowest_gripper_point(planner.model)
+    if payload:
+        height=float(np.min(planner.payload_local@tcp[2,:3]+tcp[2,3]))
+        if height<lowest:lowest,name=height,'estimated_payload'
     required=guard['required_min_z_m']
     if lowest < required:
         planner.stats['bin_clearance_rejections'] = planner.stats.get('bin_clearance_rejections',0)+1

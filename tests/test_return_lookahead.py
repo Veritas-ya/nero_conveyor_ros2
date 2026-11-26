@@ -132,14 +132,26 @@ def test_confirmed_wait_uses_latest_measured_state_not_nominal_or_capture_state(
     assert data['start_feedback_stamps']['joint'] == clock()
 
 
-def test_nominal_ready_path_replans_in_background_after_actual_return_offset():
+@pytest.mark.parametrize('offset_deg', [-1., -.52, .39, .52, 1.])
+def test_nominal_ready_path_survives_one_degree_return_offset_and_claim(offset_deg):
     worker,clock,item,vision,planner,events=fixture()
     worker._step();old=worker.ready
-    worker.confirm_return(wait_state(clock,.00685))
+    worker.confirm_return(wait_state(clock,np.deg2rad(offset_deg)))
+    worker._step()
+    assert worker.ready is old and len(planner.calls)==1 and not vision.discarded
+    assert worker.claim(worker.poll_ready(),Planner()) is old
+    assert not any(name=='lookahead_wait_state_replan' for name,_ in events)
+
+
+def test_ready_path_replans_when_actual_start_differs_by_more_than_one_degree():
+    worker,clock,item,vision,planner,events=fixture()
+    worker.confirm_return(wait_state(clock,-.01));worker._step();old=worker.ready
+    # Both states are within the standby tolerance, but their difference is not.
+    worker.update_wait_state(wait_state(clock,.01))
     assert worker.ready is None and worker.target is item and not vision.discarded
     worker._step()
     assert len(planner.calls)==2 and worker.ready is not old
-    np.testing.assert_allclose(worker.ready.plan.path.q0, [.00685]*7)
+    np.testing.assert_allclose(worker.ready.plan.path.q0, [.01]*7)
     assert worker.ready.target.capture_s == 10.
     assert any(name=='lookahead_wait_state_replan' for name,_ in events)
 
@@ -177,17 +189,17 @@ def test_snapshot_expiration_blocks_ready_claim_until_fresh_update():
 
 def test_new_wait_motion_cancels_inflight_plan_and_retains_exposure():
     worker,clock,item,vision,planner,_=fixture()
-    worker.confirm_return(wait_state(clock,.0068))
+    worker.confirm_return(wait_state(clock,.01))
     original=planner.intercept
     def changing(*args,**kwargs):
-        worker.update_wait_state(wait_state(clock,0.))
+        worker.update_wait_state(wait_state(clock,-.01))
         assert kwargs['cancelled']()
         raise PickRejected('old actual start cancelled')
     planner.intercept=changing
     worker._step()
     assert worker.ready is None and worker.target is item and not vision.discarded
     planner.intercept=original;worker._step()
-    assert worker.ready.start_state['joints']==[0.]*7
+    assert worker.ready.start_state['joints']==[-.01]*7
 
 
 def test_unchanged_fresh_snapshots_do_not_restart_planning_and_clock_reversal_blocks():

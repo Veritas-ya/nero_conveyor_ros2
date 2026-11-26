@@ -4,6 +4,52 @@ import numpy as np
 from .reference import EntryNotReady
 
 
+def check_near_camera_footprint(config, surface, frame, detection):
+    """Check the whole selected cloud before OBB selection or queue publication."""
+    margin = config.raw.get('perception_near_camera_footprint_margin_m', 0.)
+    if margin == 0:
+        return
+    from mujoco_conveyor_sorting.runtime.belt_surface import near_camera_footprint_clearances
+    from mujoco_conveyor_sorting.runtime.single_pick import TargetNotReady
+    points = np.asarray(detection['object_points'])
+    clearance = near_camera_footprint_clearances(surface, points, frame.camera_to_world_cv[:3,3], config.direction)
+    measured = np.isfinite(clearance)
+    inside = measured & (clearance <= margin + 1e-9)
+    evidence = dict(margin_m=margin, minimum_clearance_m=float(clearance[measured].min()) if measured.any() else None,
+                    points_in_strip=int(inside.sum()), points_with_cross_section=int(measured.sum()),
+                    total_points=len(points), frame_sequence=frame.header.sequence)
+    if inside.any() or not measured.any():
+        raise TargetNotReady('工件点云侵入近相机侧带边禁区或缺少对应带边',
+                             reason='near_camera_footprint', details=evidence)
+    detection['near_camera_footprint'] = evidence
+
+
+def upstream_at(config, position, velocity, capture_s, now_s):
+    return float(config.follow_bounds[0] - np.asarray(position) @ config.direction
+                 - (now_s - capture_s) * (velocity @ config.direction))
+
+
+def native_exposure_window(config):
+    """Direct single-frame input only. The matched worker retains its original window."""
+    r = config.raw
+    return (r.get('native_single_freeze_policy') == 'upstream_exposure'
+            and r.get('freeze_source') == 'single_exposure_native_depth'
+            and r.get('tracked_freeze_range') == 'detector_footprint'
+            and r.get('tracked_freeze_publish_before_upstream_m') is not None)
+
+
+def pairing_deadline(config, captured, surface, upstream_distance):
+    """Latest useful feedback time for this original exposure, along the measured belt."""
+    from .velocity_source import prediction_velocity
+    along = float(prediction_velocity(config, None, surface.normal_base) @ config.direction)
+    raw = config.raw
+    if native_exposure_window(config):
+        return captured + raw['maximum_observation_age_s']
+    distance = min(upstream_distance, raw['tracked_freeze_upstream_limit_m'])
+    return captured + min(raw['maximum_observation_age_s'],
+                          (distance - raw['tracked_freeze_publish_before_upstream_m']) / along)
+
+
 def detector_freeze_window(config, surface=None, *, belt_region=None):
     """Project the measured detection prism, clipped to detector base Y.
 

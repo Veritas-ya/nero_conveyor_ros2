@@ -40,11 +40,14 @@ def _number(value):
         return np.nan
 
 
-def _json(value):
+def _json(value, work=None):
     if isinstance(value, dict):
-        return {str(k): _json(v) for k, v in value.items()}
+        if work is not None:
+            work.checkpoint()
+        return {str(k): _json(v, work) for k, v in value.items()}
     if isinstance(value, (list, tuple, np.ndarray)):
-        return [_json(v) for v in value]
+        values = value if work is None else work.rows(value)
+        return [_json(v, work) for v in values]
     if isinstance(value, (float, np.floating)):
         return float(value) if np.isfinite(value) else None
     if isinstance(value, np.integer):
@@ -308,9 +311,11 @@ class ExecutionTrace:
             'velocity_tolerance_rad_s': _number(owner.numeric.config.planner_waypoint_velocity_tolerance),
             'reason': reason.get('reason'), 'diagnostics': dict(reason)})
 
-    def arrays(self):
+    def arrays(self, *, work=None):
         with self._lock:
             commands, feedback = list(self.command_rows), list(self.feedback_rows)
+        def rows(values):
+            return values if work is None else work.rows(values)
         vectors = ('raw_trajectory_q_rad', 'raw_trajectory_qd_rad_s',
                    'raw_trajectory_qdd_rad_s2', 'model_reference_q_rad',
                    'model_reference_qd_rad_s', 'model_reference_qdd_rad_s2',
@@ -319,7 +324,7 @@ class ExecutionTrace:
                   'final_sample_monotonic_s',
                   'raw_phase_progress', 'dispatch_start_monotonic_s', 'dispatch_end_monotonic_s',
                   'feedback_row_index')
-        result = {key: np.asarray([_vector(row.get(key)) for row in commands]).reshape(-1, 7)
+        result = {key: np.asarray([_vector(row.get(key)) for row in rows(commands)]).reshape(-1, 7)
                   for key in vectors}
         result.update({key: np.asarray([_number(row.get(key)) for row in commands]) for key in fields})
         result['final_sample_to_sdk_call_s'] = (result['dispatch_start_monotonic_s'] -
@@ -327,21 +332,21 @@ class ExecutionTrace:
         for key in ('sample_stage', 'stream_id'):
             result[key] = np.asarray([str(row.get(key, '')) for row in commands], dtype=str)
         result['command_context_json'] = np.asarray([json.dumps(_json({k:row.get(k) for k in
-            ('target_identity','request_id','trajectory_version','planned_contact_time','command_prepare_monotonic')}),ensure_ascii=False) for row in commands],dtype=str)
+            ('target_identity','request_id','trajectory_version','planned_contact_time','command_prepare_monotonic')}, work),ensure_ascii=False) for row in rows(commands)],dtype=str)
         result['dispatch_succeeded'] = np.asarray([row['dispatch_succeeded'] for row in commands], dtype=bool)
         result['joint_response_diagnostics_json'] = np.asarray([
-            json.dumps(_json(row.get('joint_response_diagnostics', {})), ensure_ascii=False)
-            for row in commands], dtype=str)
+            json.dumps(_json(row.get('joint_response_diagnostics', {}), work), ensure_ascii=False)
+            for row in rows(commands)], dtype=str)
         result['feedback_q_rad'] = np.asarray([row['feedback_q_rad'] for row in feedback]).reshape(-1, 7)
         for key, size in (('feedback_flange_pose_m_rad', 6), ('feedback_joints_at_pose_rad', 7),
                           ('feedback_pose_packet_monotonic_s', 3)):
             result[key] = np.asarray([row[key] for row in feedback]).reshape(-1, size)
         result['feedback_pose_joint_pairing_json'] = np.asarray([
-            json.dumps(_json(row.get('feedback_pose_joint_pairing')), ensure_ascii=False)
-            for row in feedback], dtype=str)
+            json.dumps(_json(row.get('feedback_pose_joint_pairing'), work), ensure_ascii=False)
+            for row in rows(feedback)], dtype=str)
         result['feedback_pose_grouping_json'] = np.asarray([
-            json.dumps(_json(row.get('feedback_pose_grouping')), ensure_ascii=False)
-            for row in feedback], dtype=str)
+            json.dumps(_json(row.get('feedback_pose_grouping'), work), ensure_ascii=False)
+            for row in rows(feedback)], dtype=str)
         for key in ('feedback_joint_stamp_s', 'feedback_joint_sample_monotonic_s',
                     'feedback_read_started_monotonic_s', 'feedback_read_monotonic_s', 'feedback_read_wall_s'):
             result[key] = np.asarray([row[key] for row in feedback])
@@ -354,7 +359,7 @@ class ExecutionTrace:
         result['feedback_joint_packet_stamps_s'] = np.asarray(
             [row['feedback_joint_packet_stamps_s'] for row in feedback]).reshape(-1, 4)
         reference = np.full((len(feedback),7),np.nan)
-        for i,row in enumerate(feedback):
+        for i,row in enumerate(rows(feedback)):
             full,origin=row.get('_full_reference'),row.get('_policy_origin')
             if full is None or origin is None or not np.isfinite(row['feedback_joint_sample_monotonic_s']):
                 continue
@@ -368,7 +373,7 @@ class ExecutionTrace:
         result['feedback_packet_aligned_error_rad']=result['feedback_q_rad']-reference
         return result
 
-    def summary(self, arrays=None):
+    def summary(self, arrays=None, *, work=None):
         a = self.arrays() if arrays is None else arrays
         good = a['dispatch_succeeded']
         differences = np.abs(a['raw_trajectory_q_rad']-a['policy_candidate_q_rad'])
@@ -383,9 +388,9 @@ class ExecutionTrace:
             'target_identity':identity_dict(self.target_identity),
             'task_finished_monotonic':getattr(self,'task_finished_monotonic',None),
             'task_terminal':getattr(self,'task_terminal',None),
-            'gripper_commands':_json(self.gripper_rows),
-            'feedback_time_records': [_json({
-                'target_identity':r.get('target_identity'),'feedback_time':r.get('feedback_time')}) for r in self.feedback_rows],
+            'gripper_commands':self.gripper_rows,
+            'feedback_time_records': [{
+                'target_identity':r.get('target_identity'),'feedback_time':r.get('feedback_time')} for r in self.feedback_rows],
             'clock_mapping': 'Immutable decode-boundary mapping; missing legacy mapping remains unknown. Paired joint packets map to axes [12,34,56,7].',
             'feedback_time_limitation': 'Mapped CAN receipt time is not encoder acquisition time; joint_stamp is oldest constituent packet.',
             'host_wall_to_monotonic_offset_s': self.host_wall_to_monotonic_offset_s,
@@ -403,7 +408,7 @@ class ExecutionTrace:
             'edges': self.edges, 'edge_timing': self.edge_timing(a),
             'handoffs': self.handoffs, 'diagnostic_errors': list(self.errors),
             'collection': 'memory only during execution; compressed arrays and JSON written after sender join',
-            'identification_limitation': 'Position commands and CAN receipt feedback do not directly identify internal firmware trajectory or motor torque.'})
+            'identification_limitation': 'Position commands and CAN receipt feedback do not directly identify internal firmware trajectory or motor torque.'}, work)
 
     @staticmethod
     def feedback_tracking(arrays):
@@ -457,17 +462,19 @@ class ExecutionTrace:
         try:
             directory = Path(directory)
             directory.mkdir(parents=True, exist_ok=True)
-            arrays = self.arrays()
+            from .archive_work import ArchiveWork
+            work = ArchiveWork()
+            arrays = self.arrays(work=work)
             np.savez_compressed(directory/'execution_trace.npz', **arrays)
-            (directory/'execution_trace_summary.json').write_text(
-                json.dumps(self.summary(arrays), ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+            work.write_json(directory/'execution_trace_summary.json', self.summary(arrays, work=work))
             timing_path = directory/'execution_dispatch_timing.jsonl'
             with timing_path.open('w', encoding='utf-8') as stream:
-                for row in self.sender_rows:
-                    stream.write(json.dumps(_json(row), ensure_ascii=False)+'\n')
+                for row in work.rows(self.sender_rows):
+                    stream.write(json.dumps(_json(row, work), ensure_ascii=False)+'\n')
             return {'npz': str(directory/'execution_trace.npz'),
                     'summary': str(directory/'execution_trace_summary.json'),
-                    'dispatch_timing': str(timing_path)}
+                    'dispatch_timing': str(timing_path),
+                    'serialization_scheduling': work.diagnostics()}
         except Exception as error:
             return {'write_error': f'{type(error).__name__}: {error}'}
 

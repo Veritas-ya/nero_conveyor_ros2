@@ -55,10 +55,21 @@ def test_local_workpiece_retains_full_scene_and_native_pixel_indices():
                                   result['points'].reshape(-1,3)[result['scene_pixel_indices']])
 
 
-def test_long_component_crossing_crop_falls_back_instead_of_truncating():
+def test_long_component_expands_crop_instead_of_truncating_or_repeating_full_frame():
     frame,kw = example()
     depth,rgb = frame.depth_m.copy(),frame.rgb.copy()
     depth[104:122,114:204] = .95;rgb[104:122,114:204] = 150
+    frame = replace(frame,depth_m=depth,rgb=rgb)
+    kw['maximum_target_length_m'] = .30
+    result = compare(frame,kw)
+    assert result['local_processing']['applied']
+    assert result['local_processing']['crop_halo_pixels']==64
+
+
+def test_component_crossing_larger_crop_still_falls_back_without_truncation():
+    frame,kw = example()
+    depth,rgb = frame.depth_m.copy(),frame.rgb.copy()
+    depth[104:122,80:172] = .95;rgb[104:122,80:172] = 150
     frame = replace(frame,depth_m=depth,rgb=rgb)
     kw['maximum_target_length_m'] = .30
     result = compare(frame,kw)
@@ -79,6 +90,24 @@ def test_low_rgb_connected_extension_outside_crop_is_not_lost():
     assert not result['local_processing']['applied']
     assert result['local_processing']['fallback_reason']=='rgb_outline_has_depth_outside_crop'
     assert np.count_nonzero(result['mask'][:,205:]) > 0
+
+
+def test_disabled_rgb_completion_keeps_native_foreground_and_skips_outline(monkeypatch):
+    from mujoco_conveyor_sorting.runtime import visible_target
+    frame, kw = example()
+    rgb = frame.rgb.copy()
+    rgb[110:115,171:220] = 150
+    frame = replace(frame, rgb=rgb)
+    enabled = compare(frame, {**kw, 'rgb_cloud_completion': True})
+    def unexpected(*args, **kwargs):
+        pytest.fail('disabled RGB completion requested a silhouette')
+    monkeypatch.setattr(visible_target, 'selected_rgb_silhouette', unexpected)
+    disabled = compare(frame, {**kw, 'rgb_cloud_completion': False, 'retain_native_seed': True})
+    assert disabled['visible_target_rgb_mask'] is None
+    assert disabled['local_processing']['applied']
+    assert not disabled['local_processing']['full_rgb_outline_checked']
+    assert np.count_nonzero(enabled['mask'] & ~disabled['mask']) > 0
+    np.testing.assert_array_equal(np.flatnonzero(disabled['mask']), disabled['object_seed_pixel_indices'])
 
 
 def test_unrelated_component_at_crop_edge_does_not_truncate_selected_workpiece():

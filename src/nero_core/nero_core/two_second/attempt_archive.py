@@ -1,12 +1,12 @@
 """Bounded archival of completed attempts, outside the next-pick handoff."""
-from dataclasses import dataclass
-import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from queue import Queue
 from threading import BoundedSemaphore, Lock, Thread
 import time
 
 from .diagnostics import json_value
+from mujoco_conveyor_sorting.runtime.archive_work import ArchiveWork
 
 
 @dataclass
@@ -17,6 +17,7 @@ class CompletedAttempt:
     report: object
     command_diagnostics: dict
     logging_errors: list
+    serialization_scheduling: dict = field(default_factory=dict)
 
     @classmethod
     def capture(cls, active, index, report=None):
@@ -35,12 +36,16 @@ def write_attempt(record, output):
     result = record.trace.write(directory)
     if isinstance(result, dict) and result.get('write_error'):
         raise OSError(result['write_error'])
+    if isinstance(result, dict):
+        record.serialization_scheduling['trace'] = result.get('serialization_scheduling', {})
+    work = ArchiveWork()
     for name, value in [('events', record.events), ('report', record.report)]:
         if value is None:
             continue
         temporary = directory/(name+'.json.tmp')
-        temporary.write_text(json.dumps(json_value(value), ensure_ascii=False, indent=2))
+        work.write_json(temporary, json_value(value, work=work))
         temporary.replace(directory/(name+'.json'))
+    record.serialization_scheduling['events_and_report'] = work.diagnostics()
     return directory
 
 
@@ -117,6 +122,7 @@ class AttemptArchive:
             self._emit('cycle_trace_saved', cycle_index=record.index, directory=str(directory),
                 command_diagnostics=record.command_diagnostics,
                 event_logging_errors=record.logging_errors, archival_mode='background',
+                serialization_scheduling=record.serialization_scheduling,
                 archive_wall_s=time.monotonic()-begin)
         finally:
             with self.lock:

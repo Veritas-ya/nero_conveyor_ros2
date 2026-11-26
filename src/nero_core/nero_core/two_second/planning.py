@@ -70,6 +70,9 @@ class MeasuredPlanner:
         self.payload_tree = None
         self.released_points = None
         self.released_tree = None
+        # The preceding release estimate remains separate from this target's scene
+        # through ordinary replans, hover and empty-gripper recovery from the bin.
+        self.bin_departure_tree = None
         self.stats = {'states': 0, 'payload_states': 0}
         self.progress = {'stage': 'idle', 'since_monotonic_s': self.clock()}
         self.attempt_diagnostics = []
@@ -90,13 +93,20 @@ class MeasuredPlanner:
                 'completed_attempts': list(self.attempt_diagnostics),
                 'collision_scene': self.scene_report}
 
-    def install(self, target, state):
+    def install(self, target, state, *, prepared_scene=None):
         """Install this exposure once. Existing native scene filters are reused."""
         self.model.check_feedback(state)
         ob = target.detection
         from .belt_collision_scene import OBSERVED_SCENE, BELT_SURFACE_ONLY, install_belt_surface
         scope = self.config.raw.get('environment_collision_scope', OBSERVED_SCENE)
-        if scope == BELT_SURFACE_ONLY:
+        if prepared_scene is not None:
+            from .parallel_scene import SCENE_FIELDS
+            if scope != BELT_SURFACE_ONLY:
+                raise PickRejected('并行带面场景不适用于当前环境范围')
+            shadow, self.scene_report, target_tree = prepared_scene
+            for name in SCENE_FIELDS:
+                setattr(self.model, name, getattr(shadow, name))
+        elif scope == BELT_SURFACE_ONLY:
             self.scene_report = install_belt_surface(self.model, target)
         elif scope == OBSERVED_SCENE:
             self.model.install_scene(ob['scene_points'], target.points, target.state,
@@ -109,7 +119,7 @@ class MeasuredPlanner:
         self.model.target = np.empty((0, 3))  # moving target checked separately
         self.identity = target.identity
         self.target = target
-        self.target_tree = cKDTree(target.points)
+        self.target_tree = cKDTree(target.points) if prepared_scene is None else target_tree
         self.payload_local = None
         self.released_points = self.released_tree = None
         self.scene_revision += 1
@@ -130,9 +140,18 @@ class MeasuredPlanner:
         if np.any(xyz < self.config.workspace[:, 0]) or np.any(xyz > self.config.workspace[:, 1]):
             raise PickRejected('TCP 超出现场工作区', details={'kind':'tcp_workspace',
                 'tcp_base_m':xyz.tolist(), 'workspace_base_m':self.config.workspace.tolist()})
-        if payload and self.config.raw.get('experimental_direct_drop_guard'):
+        departure = getattr(self, 'bin_departure_tree', None)
+        if (payload or departure is not None) and self.config.raw.get('experimental_direct_drop_guard'):
             from .direct_drop_guard import check_guard
-            check_guard(self, tcp, payload=True)
+            check_guard(self, tcp, payload=payload)
+        if departure is not None:
+            from .moving_target_collision import first_moving_target_hit
+            hit = first_moving_target_hit(self.model, departure.data, departure, np.zeros(3),
+                contact=False, margin_m=self.config.raw.get('workpiece_collision_margin_m', .004))
+            if hit is not None:
+                raise PickRejected('离框路径与上一件释放点云相交', details={
+                    'kind':'bin_departure_released_workpiece', 'geometry':self.model.model.geom(hit[0]).name,
+                    'sample_elapsed_s':self.geometry_context.get('sample_elapsed_s')})
         # Support height is checked on actual hull vertices rather than TCP.
         for geom in self.model.gripper_geometries:
             vertices = self.model.mesh_vertices[geom]
@@ -184,7 +203,8 @@ class MeasuredPlanner:
         if points is None and not payload:
             # Scope: moving target during approach/follow only. Payload and
             # released clouds and all scene/self/belt checks remain unchanged.
-            if allow_workpiece or not self.config.raw.get('grasp_workpiece_collision_check_enabled', True):
+            if allow_workpiece or (departure is None and
+                    not self.config.raw.get('grasp_workpiece_collision_check_enabled', True)):
                 self.stats['moving_workpiece_checks_skipped'] = self.stats.get('moving_workpiece_checks_skipped', 0) + 1
                 return
             # The exposure tree is shared; hardware supplies its own margin.
@@ -308,7 +328,27 @@ class MeasuredPlanner:
             value for value in (getattr(reference,'rotate_first_s',0.),getattr(reference,'prealign_s',0.), getattr(reference,'duration_s',path.duration),
                                 getattr(reference,'follow_end_s',path.duration))
             if 0. <= value <= path.duration)
+        relative = bool(getattr(reference, 'relative_descent_s', 0.))
+        if relative:
+            if not self.config.raw.get('grasp_workpiece_collision_check_enabled', True):
+                raise PickRejected('相对接近需要启用运动工件碰撞检查')
+            from .object_approach import lowest_mesh_projection
+            phases += reference.approach_knots
+            align = reference.relative_alignment_s
+            descent_start = align + reference.relative_sync_s
+            normal = np.asarray(reference.object_axes_world)[:,2]
+            object_top = np.max(self.target.points @ normal)
+            minimum_gap = float('inf')
         samples = geometry_check_times(path.duration,hz,*phases)
+        # The empty arm's bin departure is specified in joint space. Its entire
+        # curve is checked for workspace, collisions and joint limits. Cartesian
+        # tracking starts at the above-grasp switch knot, before contact.
+        cartesian_start = getattr(path, 'diagnostics', {}).get('bin_joint_transit_s', 0.)
+        if cartesian_start:
+            if (getattr(self, 'bin_departure_tree', None) is None or reference is None
+                    or not 0 < cartesian_start < reference.prealign_s):
+                raise PickRejected('离框关节段缺少对应的释放场景或接入时刻')
+            samples = np.unique(np.r_[samples, cartesian_start])
         max_position_error = 0.
         max_orientation_error = 0.
         for sample_index, t in enumerate(samples):
@@ -318,26 +358,41 @@ class MeasuredPlanner:
             if cancelled():
                 raise PickRejected('规划已取消')
             q = path.position(t)
-            count = max(1, int(np.ceil(np.max(np.abs(q-previous))/.008)))
+            joint_step = q-previous
+            count = max(1, int(np.ceil(np.max(np.abs(joint_step))/.008)))
             # The preceding segment already checked this start at the same
             # q, width, time and contact/payload phase. Keep every endpoint
             # and every extra .008-rad subdivision, without checking it twice.
-            for u in np.linspace(0., 1., count+1)[1:]:
+            fractions = (1.,) if count == 1 else np.linspace(0., 1., count+1)[1:]
+            for u in fractions:
                 if cancelled():
                     raise PickRejected('规划已取消')
-                stamp = None if origin is None else origin+previous_time+(t-previous_time)*u
+                dt = (t-previous_time)*u
+                elapsed = previous_time+dt
+                stamp = None if origin is None else origin+previous_time+dt
                 self.geometry_context = {**self.geometry_context,
                     'sample_index': sample_index, 'sample_count': len(samples),
-                    'sample_elapsed_s': float(previous_time+(t-previous_time)*u),
+                    'sample_elapsed_s': float(elapsed),
                     'sample_monotonic_s': stamp}
+                if relative:
+                    self.geometry_context['approach_phase'] = ('high_approach' if elapsed < align else
+                        'aligned_synchronization' if elapsed < descent_start else
+                        'relative_descent' if elapsed < reference.duration_s else 'grasp_and_brake')
                 brake = reference is not None and hasattr(reference, 'follow_end_s') and (
-                    previous_time+(t-previous_time)*u >= reference.follow_end_s)
-                self.valid(previous+(q-previous)*u, width,
+                    elapsed >= reference.follow_end_s)
+                self.valid(previous+joint_step*u, width,
                     stamp=None if brake else stamp,
                     contact=contact_time is not None and stamp >= contact_time-1e-8,
                     payload=payload or brake, allow_belt_support=brake)
-            if reference is not None:
+            if reference is not None and t >= cartesian_start:
                 actual = self.model.tcp()
+                if relative and align-1e-9 <= t <= descent_start+1e-9:
+                    predicted_top = object_top + (origin+t-self.target.capture_s)*(self.target.velocity@normal)
+                    gap = lowest_mesh_projection(self.model, normal, np.zeros(3)) - predicted_top
+                    if gap < self.config.raw.get('workpiece_collision_margin_m', .004)-1e-9:
+                        raise PickRejected('同步期间夹爪低于所需工件净空',details={
+                            'kind':'insufficient_alignment_clearance', 'elapsed_s':float(t),'gap_m':float(gap)})
+                    minimum_gap = min(minimum_gap, gap)
                 xyz, quat = reference.sample(t)
                 angle = Rotation.from_matrix(Rotation.from_quat(quat[[1,2,3,0]]).as_matrix().T@actual[:3,:3]).magnitude()
                 position_error = float(np.linalg.norm(actual[:3,3]-xyz))
@@ -350,23 +405,36 @@ class MeasuredPlanner:
             previous = q
             previous_time = t
         if reference is not None:
-            return {'samples':len(samples), 'configured_frequency_hz':hz, 'max_position_error_m': max_position_error,
+            extra = {}
+            if relative:
+                if not np.isfinite(minimum_gap):
+                    raise PickRejected('高位同步段缺少实际关节曲线净空检查')
+                extra['object_relative_approach'] = dict(alignment_s=align, descent_start_s=descent_start,
+                    contact_s=reference.contact_s, clearance_m=reference.approach_clearance_m,
+                    minimum_aligned_mesh_gap_m=float(minimum_gap), moving_workpiece_checked=True)
+            return {**extra,'samples':len(samples), 'configured_frequency_hz':hz, 'max_position_error_m': max_position_error,
                     'max_orientation_error_rad': max_orientation_error,
                     'position_tolerance_m': self.model.ik.config.position_tolerance,
                     'orientation_tolerance_rad': self.model.ik.config.orientation_tolerance}
 
-    def intercept(self, target, state, *, cancelled=lambda: False, experiment_deadline=None):
+    def intercept(self, target, state, *, cancelled=lambda: False, experiment_deadline=None,
+                  planning_deadline=None, recovery_replan=False):
         if self.config.raw.get('trajectory_profile') == 'smooth':
             from .smooth_planning import plan_smooth_intercept
+            planning_fn = plan_smooth_intercept
+            if recovery_replan:
+                from functools import partial
+                planning_fn = partial(plan_smooth_intercept, recovery_replan=True)
             if 'timing_experiment' in self.config.raw:
                 from .timing_experiment import plan_experiment
                 return plan_experiment(self, target, state, cancelled=cancelled,
-                    planning_fn=plan_smooth_intercept, deadline=experiment_deadline)
+                    planning_fn=planning_fn, deadline=experiment_deadline)
             if self.config.raw.get('planning_reserve_mode', 'fixed') == 'measured':
                 from .adaptive_planning import plan_with_measured_timing
                 return plan_with_measured_timing(self, target, state, cancelled=cancelled,
-                                                 planning_fn=plan_smooth_intercept)
-            return plan_smooth_intercept(self, target, state, cancelled=cancelled)
+                    planning_fn=planning_fn, global_deadline=planning_deadline)
+            return planning_fn(self, target, state, cancelled=cancelled,
+                                         global_deadline=planning_deadline)
         begun = self.clock()
         self.attempt_diagnostics = []
         self._progress('entry_selection', identity=target.identity)
@@ -499,8 +567,12 @@ class MeasuredPlanner:
         self.payload_tree = cKDTree(self.payload_local)
         self.capture_tcp = tcp
         try:
-            return self.check_path(path, self.config.settings.open_width_m, origin=reference.start_s,
+            report = self.check_path(path, self.config.settings.open_width_m, origin=reference.start_s,
                 contact_time=reference.contact_s, reference=reference, cancelled=cancelled)
+            if self.config.raw.get('brake_no_descent_rise_m',0.):
+                from .brake_height import certify
+                report['no_descent'] = certify(self.config,self.model,self.support,path,reference,cancelled)
+            return report
         finally:
             self.payload_local, self.payload_tree, self.capture_tcp = previous
 
@@ -559,13 +631,22 @@ class MeasuredPlanner:
             raise PickRejected('后续路径的指令起点与实际反馈偏差过大',
                 details={'route_diagnostics':report('start_feedback_mismatch')})
         smooth = self.config.raw.get('trajectory_profile') == 'smooth'
-        if smooth:
-            from .precise_ik import PrecisePoseSolver
-            solver = PrecisePoseSolver(self.model)
         rng = np.random.default_rng(41)
         current_goal = None
         def abort():
             return cancelled() or self.clock()-begun > self.config.raw['planning_budget_s']
+        if stage == 'recovery_bin_lift':
+            from .bin_recovery import plan_bin_lift
+            if payload or self.bin_departure_tree is None or goal_pose is None:
+                raise PickRejected('空爪竖直离框缺少释放场景或目标')
+            curve = plan_bin_lift(self, q0, width, float(goal_pose[2, 3]), motion, cancelled=abort)
+            if abort():
+                raise PickRejected('空爪竖直离框规划已取消或超出预算')
+            self.version = curve.version
+            return replace(curve, planning_s=self.clock()-begun)
+        if smooth:
+            from .precise_ik import PrecisePoseSolver
+            solver = PrecisePoseSolver(self.model)
         def valid(q):
             role = ('start' if np.array_equal(q, q0) else
                     'goal' if current_goal is not None and np.array_equal(q, current_goal) else 'path')

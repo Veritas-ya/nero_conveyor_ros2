@@ -11,19 +11,22 @@ import time
 import numpy as np
 
 
-def json_value(value):
+def json_value(value, *, work=None):
     if isinstance(value, np.ndarray):
-        return json_value(value.tolist())
+        return json_value(value.tolist(), work=work)
     if isinstance(value, np.generic):
-        return json_value(value.item())
+        return json_value(value.item(), work=work)
     if isinstance(value, float) and not np.isfinite(value):
         return None
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, dict):
-        return {str(k): json_value(v) for k, v in value.items()}
+        if work is not None:
+            work.checkpoint()
+        return {str(k): json_value(v, work=work) for k, v in value.items()}
     if isinstance(value, (tuple, list)):
-        return [json_value(v) for v in value]
+        values = value if work is None else work.rows(value)
+        return [json_value(v, work=work) for v in values]
     return value
 
 
@@ -120,8 +123,8 @@ class RunJournal:
     def __init__(self, directory, *, clock=time.monotonic, capacity=256, observer=None):
         self.clock = clock
         self.observer = observer
-        self.path = Path(directory)/'events.jsonl'
-        self.file = self.path.open('x', encoding='utf-8')
+        self.path = Path(directory)/'events.jsonl' if directory is not None else None
+        self.file = self.path.open('x', encoding='utf-8') if self.path is not None else None
         self.queue = Queue(maxsize=capacity)
         self.lock = Lock()
         self.closing = Event()
@@ -156,10 +159,11 @@ class RunJournal:
                     continue
                 begin = time.monotonic()
                 try:
-                    self.file.write(json.dumps(json_value(row), ensure_ascii=False, allow_nan=False)+'\n')
-                    self.file.flush()
-                    with self.lock:
-                        self.written += 1
+                    if self.file is not None:
+                        self.file.write(json.dumps(json_value(row), ensure_ascii=False, allow_nan=False)+'\n')
+                        self.file.flush()
+                        with self.lock:
+                            self.written += 1
                 except Exception as error:
                     with self.lock:
                         if len(self.errors) < 10:
@@ -177,7 +181,8 @@ class RunJournal:
                     self.queue.task_done()
         finally:
             try:
-                self.file.close()
+                if self.file is not None:
+                    self.file.close()
             except Exception as error:
                 with self.lock:
                     if len(self.errors) < 10:
@@ -191,7 +196,7 @@ class RunJournal:
 
     def snapshot(self):
         with self.lock:
-            return {'path': str(self.path), 'enqueued': self.enqueued,
+            return {'path': str(self.path) if self.path is not None else None, 'enqueued': self.enqueued,
                 'written': self.written, 'dropped': self.dropped, 'errors': list(self.errors),
                 'writer_alive': self.worker.is_alive(), 'writer_wall_s': self.write_wall_s,
                 'observer_errors': list(self.observer_errors)}

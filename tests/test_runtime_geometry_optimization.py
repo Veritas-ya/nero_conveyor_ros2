@@ -94,3 +94,38 @@ def test_separated_payload_skips_scene_query_but_near_belt_retains_it():
     planner.valid(np.zeros(7), .1, payload=True)
     with pytest.raises(PickRejected, match='载物点云与实测场景碰撞'):
         payload_case(.004).valid(np.zeros(7), .1, payload=True)
+
+
+@pytest.mark.parametrize('contact', [False, True])
+def test_moving_cloud_batched_query_preserves_first_mesh_and_point_ids(contact):
+    from nero_core.two_second.moving_target_collision import first_moving_target_hit
+
+    cfg = CellConfig.load(Path(__file__).parents[1] /
+        'src/nero_bringup/config/two_second.hardware.legacy_observed.yaml')
+    model = calibrated_model(cfg)
+    rng = np.random.default_rng(862)
+    translation = np.array([.093, -.207, .012])
+    hits = 0
+    for q in (cfg.standby, cfg.standby + .01):
+        model.set_state(q, cfg.settings.open_width_m)
+        for geom in model.meshes:
+            vertices = model.mesh_vertices[geom]
+            local = vertices.mean(axis=0) + rng.normal(0, .002, (12, 3))
+            world = local @ model.data.geom_xmat[geom].reshape(3, 3).T + model.data.geom_xpos[geom]
+            cloud = np.vstack((world - translation, world + 5.))
+            tree = cKDTree(cloud)
+            expected = None
+            for g in model.meshes:
+                if contact and g in model.fingers:
+                    continue
+                ids = tree.query_ball_point(model.data.geom_xpos[g]-translation, model.collision_radii[g]+1e-9)
+                if ids:
+                    inside = model.inside_geom(cloud[ids]+translation, g, .004)
+                    if inside.any():
+                        expected = (g, np.asarray(ids)[inside].tolist())
+                        break
+            hit = first_moving_target_hit(model, cloud, tree, translation, contact=contact)
+            actual = None if hit is None else (hit[0], hit[1].tolist())
+            assert actual == expected
+            hits += hit is not None
+    assert hits

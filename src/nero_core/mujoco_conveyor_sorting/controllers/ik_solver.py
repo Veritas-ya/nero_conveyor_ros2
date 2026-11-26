@@ -16,7 +16,6 @@ from ._math import (
     as_vector,
     config_from_mapping,
     normalized_quat,
-    quat_error_vector,
 )
 
 try:  # Import lazily enough that policy-only use does not require MuJoCo.
@@ -188,12 +187,21 @@ class DampedLeastSquaresIK:
             f"full-model values, got {seed.size}"
         )
 
-    def _site_quaternion(self) -> np.ndarray:
-        quat = np.empty(4, dtype=float)
-        _require_mujoco().mju_mat2Quat(
-            quat, self._scratch.site_xmat[self.ee_site_id]
-        )
-        return normalized_quat(quat)
+    def _orientation_error(self, target: np.ndarray) -> np.ndarray:
+        """Shortest world-frame rotation from the current site to a unit target."""
+        mj = _require_mujoco()
+        current = np.empty(4)
+        delta = np.empty(4)
+        mj.mju_mat2Quat(current, self._scratch.site_xmat[self.ee_site_id])
+        current[1:] *= -1.
+        mj.mju_mulQuat(delta, target, current)
+        if delta[0] < 0.:
+            delta = -delta
+        if np.linalg.norm(delta[1:]) < 1e-12:
+            return 2. * delta[1:]
+        result = np.empty(3)
+        mj.mju_quat2Vel(result, delta, 1.)
+        return result
 
     def _clip_joint_positions(self, positions: np.ndarray) -> np.ndarray:
         return np.minimum(np.maximum(positions, self.lower_limits), self.upper_limits)
@@ -293,13 +301,17 @@ class DampedLeastSquaresIK:
         orientation_error_norm = np.inf if target_quaternion is not None else 0.0
         iteration = 0
         success = False
+        task_identity = np.eye(3 if target_quaternion is None else 6)
+        damping = self.config.damping**2 * task_identity
+        use_nullspace = (self.config.joint_centering_gain > 0.
+                         or self.config.joint_limit_avoidance_gain > 0.)
 
         for iteration in range(1, self.config.max_iterations + 1):
             if cancelled is not None and cancelled():
                 break
             self._scratch.qpos[:] = full_qpos
             self._scratch.qvel[:] = 0.0
-            mj.mj_forward(self.model, self._scratch)
+            mj.mj_kinematics(self.model, self._scratch)
 
             position_error = (
                 target_pos - self._scratch.site_xpos[self.ee_site_id]
@@ -309,9 +321,7 @@ class DampedLeastSquaresIK:
                 orientation_error = np.empty(0, dtype=float)
                 orientation_error_norm = 0.0
             else:
-                orientation_error = quat_error_vector(
-                    target_quaternion, self._site_quaternion()
-                )
+                orientation_error = self._orientation_error(target_quaternion)
                 orientation_error_norm = float(np.linalg.norm(orientation_error))
 
             if (
@@ -321,6 +331,7 @@ class DampedLeastSquaresIK:
                 success = True
                 break
 
+            mj.mj_comPos(self.model, self._scratch)
             mj.mj_jacSite(
                 self.model,
                 self._scratch,
@@ -340,25 +351,22 @@ class DampedLeastSquaresIK:
                         self.config.orientation_weight * rotation_jacobian,
                     )
                 )
-                error = np.r_[
+                error = np.concatenate((
                     self.config.position_weight * position_error,
                     self.config.orientation_weight * orientation_error,
-                ]
+                ))
 
-            regularized = (
-                jacobian @ jacobian.T
-                + self.config.damping**2 * np.eye(jacobian.shape[0])
-            )
+            regularized = jacobian @ jacobian.T + damping
             try:
                 solved_error = np.linalg.solve(regularized, error)
-                jacobian_inverse = jacobian.T @ np.linalg.solve(
-                    regularized, np.eye(jacobian.shape[0])
-                )
+                if use_nullspace:
+                    jacobian_inverse = jacobian.T @ np.linalg.solve(regularized, task_identity)
             except np.linalg.LinAlgError:
                 # The damping should make this rare, but lstsq is a safe,
                 # deterministic fallback for numerically pathological models.
                 solved_error = np.linalg.lstsq(regularized, error, rcond=None)[0]
-                jacobian_inverse = jacobian.T @ np.linalg.pinv(regularized)
+                if use_nullspace:
+                    jacobian_inverse = jacobian.T @ np.linalg.pinv(regularized)
             joint_update = jacobian.T @ solved_error
 
             if self.config.joint_centering_gain > 0.0:
@@ -414,17 +422,13 @@ class DampedLeastSquaresIK:
         # measured immediately before its update).
         self._scratch.qpos[:] = full_qpos
         self._scratch.qvel[:] = 0.0
-        mj.mj_forward(self.model, self._scratch)
+        mj.mj_kinematics(self.model, self._scratch)
         position_error_norm = float(
             np.linalg.norm(target_pos - self._scratch.site_xpos[self.ee_site_id])
         )
         if target_quaternion is not None:
             orientation_error_norm = float(
-                np.linalg.norm(
-                    quat_error_vector(
-                        target_quaternion, self._site_quaternion()
-                    )
-                )
+                np.linalg.norm(self._orientation_error(target_quaternion))
             )
         success = (
             position_error_norm <= self.config.position_tolerance

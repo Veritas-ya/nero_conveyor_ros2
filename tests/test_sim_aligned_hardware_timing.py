@@ -54,6 +54,8 @@ def test_short_follow_requires_scheduled_confirmation_during_brake(change, tmp_p
     raw = yaml.safe_load(CONFIG.read_text())
     for key in ('camera_calibration_file', 'tcp_calibration_file'):
         raw[key] = str((CONFIG.parent / raw[key]).resolve())
+    raw['pick_settings']['full_plan_close_window_s'] = 0.
+    raw['grip_confirmation_dwell_s'] = .2
     raw.update(change)
     path = tmp_path / 'short.yaml'
     path.write_text(yaml.safe_dump(raw))
@@ -61,17 +63,21 @@ def test_short_follow_requires_scheduled_confirmation_during_brake(change, tmp_p
         CellConfig.load(path)
 
 
-@pytest.mark.parametrize('brake_s,valid', [(.3, True), (.1, True), (.0999, False)])
-def test_short_follow_accepts_confirmation_boundary_but_not_shorter(brake_s, valid, tmp_path):
+@pytest.mark.parametrize('dwell_s,follow_s,brake_s,valid', [
+    (.2, .1, .3, True), (.2, .1, .1, True), (.2, .1, .0999, False),
+    (.05, 0., .05, True), (.05, 0., .0499, False),
+])
+def test_short_follow_accepts_confirmation_boundary_but_not_shorter(dwell_s, follow_s, brake_s, valid, tmp_path):
     raw = yaml.safe_load(CONFIG.read_text())
     for key in ('camera_calibration_file', 'tcp_calibration_file'):
         raw[key] = str((CONFIG.parent / raw[key]).resolve())
-    raw['pick_settings']['full_plan_close_window_s'] = .1
+    raw['grip_confirmation_dwell_s'] = dwell_s
+    raw['pick_settings']['full_plan_close_window_s'] = follow_s
     raw['brake_duration_s'] = brake_s
     path = tmp_path / 'boundary.yaml'
     path.write_text(yaml.safe_dump(raw))
     if valid:
         CellConfig.load(path)
     else:
-        with pytest.raises(ValueError, match='不得短于0.2秒'):
+        with pytest.raises(ValueError, match=f'不得短于{dwell_s:g}秒'):
             CellConfig.load(path)

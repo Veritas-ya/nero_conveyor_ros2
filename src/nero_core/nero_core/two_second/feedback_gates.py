@@ -13,7 +13,8 @@ GRIP_CONFIRMATION_DWELL_S = .1
 
 
 def closure_feedback(reference, tcp, stamp, previous_tcp, previous_stamp, *,
-                     command_elapsed, support=None, gates=None, follow_end_s=None):
+                     command_elapsed, support=None, gates=None, follow_end_s=None,
+                     grip_dwell_s=GRIP_CONFIRMATION_DWELL_S):
     """Use exposure/pose time for alignment, future command time for remaining follow."""
     gates = BaselinePolicyConfig() if gates is None else gates
     normal = np.array([0., 0., 1.]) if support is None else np.asarray(support, float)
@@ -37,7 +38,7 @@ def closure_feedback(reference, tcp, stamp, previous_tcp, previous_stamp, *,
                   if follow_end_s is None else follow_end_s)
     remaining = float(follow_end-command_elapsed)
     eligible = (stamp-reference.start_s >= reference.duration_s-1e-9 and
-        remaining >= GRIP_CONFIRMATION_DWELL_S-1e-9 and
+        remaining >= grip_dwell_s-1e-9 and
         horizontal <= gates.closure_horizontal_tolerance and
         abs(vertical) <= gates.closure_vertical_tolerance and
         angle <= gates.closure_orientation_tolerance and drift_ok)
@@ -55,6 +56,11 @@ class GripConfirmation:
     since: float | None = None
     previous_stamp: float | None = None
     confirmed: bool = False
+    dwell_s: float = GRIP_CONFIRMATION_DWELL_S
+
+    def __post_init__(self):
+        if not np.isfinite(self.dwell_s) or self.dwell_s <= 0:
+            raise ValueError('夹持确认时间须为正有限秒数')
 
     def observe(self, width, force, stamp):
         if not np.isfinite([width, force, stamp]).all():
@@ -69,7 +75,7 @@ class GripConfirmation:
             self.since, self.confirmed = None, False
         elif self.since is None:
             self.since = stamp
-        elif stamp-self.since >= GRIP_CONFIRMATION_DWELL_S-1e-9:
+        elif stamp-self.since >= self.dwell_s-1e-9:
             self.confirmed = True
         return self.confirmed
 

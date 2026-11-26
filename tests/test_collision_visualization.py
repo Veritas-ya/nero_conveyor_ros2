@@ -170,7 +170,8 @@ def test_production_frozen_obb_is_shared_without_running_a_second_detector(tmp_p
     assert len(snap['live_geometry']['grasps'])==4
 
 
-def test_planned_fk_path_is_paired_to_same_frozen_exposure(tmp_path):
+@pytest.mark.parametrize('live_only', [False, True])
+def test_planned_fk_path_is_paired_to_same_frozen_exposure(tmp_path, live_only):
     from nero_core.two_second.trajectory import TimedPath
     packet,_,planner=make_packet();target=planner.target
     target.detection.update(obb={'center_world_m':[0,0,1], 'axes_world_columns':np.eye(3),
@@ -185,7 +186,7 @@ def test_planned_fk_path_is_paired_to_same_frozen_exposure(tmp_path):
     reference=SimpleNamespace(start_s=2.,duration_s=1.,follow_end_s=1.5,
         contact_s=3.,contact_xyz=np.array([2.,0.,1.]))
     plan=SimpleNamespace(path=path,reference=reference,target=target,selected_grasp=np.eye(4))
-    archive=VisualArchive(tmp_path,lambda *a,**kw:None,live=True,path_model_factory=PrivateModel)
+    archive=VisualArchive(tmp_path,lambda *a,**kw:None,live=True,path_model_factory=PrivateModel,live_only=live_only)
     archive.offer_target(target);archive.offer_plan(plan,width_m=.1)
     assert not archive.close()['errors']
     reader=RunPreviewWorker(tmp_path);snap=reader.poll();shown=snap['production_plan']

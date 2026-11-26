@@ -7,6 +7,20 @@ from nero_core.two_second.preview import freeze_candidate, CameraPreview
 from mujoco_conveyor_sorting.runtime.nero7_belt_velocity import Nero7TrackSnapshot
 
 
+def test_freeze_preview_uses_selected_points_for_grasps_and_keeps_raw_cloud():
+    c,t,p,d = fixture()
+    expected = freeze_candidate(c,t,p,d,10.,10.1,.05)
+    size = len(d['object_points'])
+    d['object_points'] = np.vstack([d['object_points'], [-.42, .02, .04]])
+    c.raw['depth_separation_enabled'] = True
+    with pytest.raises(ValueError, match='选点掩码'):
+        freeze_candidate(c,t,p,d,10.,10.1,.05)
+    d['grasp_point_keep_mask'] = np.arange(size+1) < size
+    selected = freeze_candidate(c,t,p,d,10.,10.1,.05)
+    np.testing.assert_array_equal(selected['grasps'], expected['grasps'])
+    np.testing.assert_array_equal(selected['points'], d['object_points'])
+
+
 def fixture():
     config=SimpleNamespace(direction=np.array([1.,0.,0.]),follow_bounds=np.array([-.2,.28]),
         canonical_tcp=np.eye(4),workspace=np.array([[-2,2],[-2,2],[-2,2]]),

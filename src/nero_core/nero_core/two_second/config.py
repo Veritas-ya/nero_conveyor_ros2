@@ -58,17 +58,34 @@ class CellConfig:
         if isinstance(length, bool) or not isinstance(length, (int, float)) or not np.isfinite(length) or not .015 <= length <= .30:
             raise ValueError('maximum_target_length_m 必须为0.015至0.30米的有限长边上限')
         raw['maximum_target_length_m'] = float(length)
-        near_margin = raw.setdefault('perception_belt_near_camera_margin_m', 0.)
-        if (isinstance(near_margin, bool) or not isinstance(near_margin, (int, float))
-                or not np.isfinite(near_margin) or not 0 <= near_margin <= .1):
-            raise ValueError('perception_belt_near_camera_margin_m 须为0至0.1米的有限数')
-        raw['perception_belt_near_camera_margin_m'] = float(near_margin)
-        edge_margin = raw.setdefault('perception_belt_edge_margin_m', .025)
-        if (isinstance(edge_margin, bool) or not isinstance(edge_margin, (int, float))
-                or not np.isfinite(edge_margin) or not 0 < edge_margin <= .1):
-            raise ValueError('perception_belt_edge_margin_m 须为大于0且不超过0.1的有限数')
+        tcp_z_offset = raw.setdefault('grasp_tcp_z_offset_m', 0.)
+        if (isinstance(tcp_z_offset, bool) or not isinstance(tcp_z_offset, (int, float))
+                or not np.isfinite(tcp_z_offset) or abs(tcp_z_offset) > .05):
+            raise ValueError('grasp_tcp_z_offset_m 须为-0.05至0.05米的有限数')
+        raw['grasp_tcp_z_offset_m'] = float(tcp_z_offset)
+        from .fast_perception import validate as validate_fast_stereo
+        validate_fast_stereo(raw)
+        from .depth_separation import validate as validate_depth_separation
+        validate_depth_separation(raw)
+        if not isinstance(raw.setdefault('rgb_cloud_completion_enabled', False), bool):
+            raise ValueError('rgb_cloud_completion_enabled 须为布尔值')
+        for key in ('perception_belt_near_camera_margin_m', 'perception_near_camera_footprint_margin_m'):
+            near_margin = raw.setdefault(key, 0.)
+            if (isinstance(near_margin, bool) or not isinstance(near_margin, (int, float))
+                    or not np.isfinite(near_margin) or not 0 <= near_margin <= .1):
+                raise ValueError(f'{key} 须为0至0.1米的有限数')
+            raw[key] = float(near_margin)
+        for key, default, upper in (('perception_belt_edge_margin_m', .025, .1),
+                                    ('grip_confirmation_dwell_s', GRIP_CONFIRMATION_DWELL_S, 1.)):
+            value = raw.setdefault(key, default)
+            if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not np.isfinite(value) or not 0 < value <= upper):
+                raise ValueError(f'{key} 须为大于0且不超过{upper:g}的有限数')
+            raw[key] = float(value)
         if not isinstance(raw.setdefault('local_target_geometry_enabled', True), bool):
             raise ValueError('local_target_geometry_enabled 必须为布尔值')
+        if not isinstance(raw.setdefault('parallel_belt_scene_enabled', False), bool):
+            raise ValueError('parallel_belt_scene_enabled 必须为布尔值')
         mode=raw.setdefault('perception_detection_mode','rgb_depth')
         if mode not in ('legacy_depth','depth_plane','rgb','rgb_depth'):
             raise ValueError('perception_detection_mode 不受原Nero7检测器支持')
@@ -119,6 +136,8 @@ class CellConfig:
             raise ValueError('direct_drop_orientation_first 必须为布尔值')
         if not isinstance(raw.setdefault('direct_drop_continuous_carry', False), bool):
             raise ValueError('direct_drop_continuous_carry 必须为布尔值')
+        if not isinstance(raw.setdefault('post_grasp_retime_enabled', False), bool):
+            raise ValueError('post_grasp_retime_enabled 必须为布尔值')
         if raw['direct_drop_continuous_carry'] and not raw['direct_drop_orientation_first']:
             raise ValueError('整段投放需要 direct_drop_orientation_first')
         if raw['carry_lookahead_enabled'] and not (raw['prepared_taught_cycle_enabled'] and raw['taught_playback_enabled']):
@@ -138,6 +157,8 @@ class CellConfig:
             raise ValueError('动态示教切入需要启用示教回放和预计算搬运')
         if not isinstance(raw.setdefault('continuous_lookahead_enabled', True), bool):
             raise ValueError('continuous_lookahead_enabled 必须为布尔值')
+        if raw.setdefault('lookahead_late_return_policy', 'replan') not in ('replan', 'skip_target'):
+            raise ValueError('lookahead_late_return_policy 须为 replan 或 skip_target')
         margin = raw.setdefault('lookahead_return_margin_s', .2)
         if isinstance(margin, (bool, str)) or not isinstance(margin, (int, float)) or not np.isfinite(margin) or margin < .1:
             raise ValueError('lookahead_return_margin_s 须为至少0.1秒的有限数值')
@@ -270,6 +291,16 @@ class CellConfig:
         if isinstance(initial, bool) or not isinstance(initial, (int, float)) or not np.isfinite(initial) or initial < 0:
             raise ValueError('measured_planning_initial_s 须为非负有限秒数')
         raw['measured_planning_initial_s'] = float(initial)
+        if raw.setdefault('planning_time_estimator', 'maximum') not in ('maximum', 'recent_complete'):
+            raise ValueError('planning_time_estimator 须为 maximum 或 recent_complete')
+        window = raw.setdefault('planning_time_window_size', 8)
+        quantile = raw.setdefault('planning_time_quantile', .8)
+        if isinstance(window, bool) or not isinstance(window, int) or not 2 <= window <= 64:
+            raise ValueError('planning_time_window_size 须为2到64的整数')
+        if isinstance(quantile, bool) or not isinstance(quantile, (int, float)) or not .5 <= quantile <= 1.:
+            raise ValueError('planning_time_quantile 须在0.5到1之间')
+        if raw.setdefault('candidate_retry_policy', 'per_grasp') not in ('per_grasp', 'coarse_first'):
+            raise ValueError('candidate_retry_policy 须为 per_grasp 或 coarse_first')
         for key, default_value in (('command_advance_s', .1), ('minimum_speed_span_s', .45),
                                    ('planning_reserve_s', 1.5), ('maximum_observation_age_s', 1.),
                                    ('freeze_upstream_distance_m', DEFAULT_FREEZE_UPSTREAM_DISTANCE_M),
@@ -295,6 +326,20 @@ class CellConfig:
         if raw['intercept_strategy'] == 'synchronized' and profile != 'smooth':
             raise ValueError('synchronized 抓取策略需要 smooth 轨迹')
         position = raw.setdefault('freeze_position_upstream_m', None)
+        if not isinstance(raw.setdefault('native_single_along_belt_quantile_center', False), bool):
+            raise ValueError('native_single_along_belt_quantile_center 须为布尔值')
+        if raw.setdefault('native_single_geometry_mode','seed_then_detector') not in ('seed_then_detector','foreground_once'):
+            raise ValueError('invalid native_single_geometry_mode')
+        rise = raw.setdefault('brake_no_descent_rise_m', 0.)
+        if isinstance(rise,bool) or not isinstance(rise,(float,int)) or not np.isfinite(rise) or not 0 <= rise <= .005:
+            raise ValueError('brake_no_descent_rise_m 须为 0 至 5 mm，以米填写')
+        if rise and (raw['intercept_strategy'] != 'synchronized' or profile != 'smooth'):
+            raise ValueError('禁止下移需要平滑同步抓取')
+        if raw.setdefault('native_single_freeze_policy','publication_window') not in ('publication_window','upstream_exposure'):
+            raise ValueError('invalid native_single_freeze_policy')
+        minimum = raw.setdefault('native_single_min_height_m', .035)
+        if isinstance(minimum,bool) or not isinstance(minimum,(int,float)) or not .012 <= minimum <= .11:
+            raise ValueError('native_single_min_height_m must be between 0.012 and 0.11 m')
         freeze_range = raw.setdefault('tracked_freeze_range', 'configured_distance')
         if freeze_range not in ('configured_distance', 'detector_footprint'):
             raise ValueError('tracked_freeze_range 必须为 configured_distance 或 detector_footprint')
@@ -307,6 +352,16 @@ class CellConfig:
         if cap is not None and (isinstance(cap, bool) or not isinstance(cap, (int, float))
                                 or not np.isfinite(cap) or cap <= 0):
             raise ValueError('tracked_freeze_upstream_limit_m 必须为正有限米数')
+        deadline = raw.get('tracked_freeze_publish_before_upstream_m')
+        if raw['native_single_freeze_policy']=='upstream_exposure':
+            lower=raw.get('native_single_min_capture_upstream_m')
+            if (isinstance(lower,bool) or not isinstance(lower,(float,int)) or not np.isfinite(lower)
+                    or not isinstance(cap,(float,int)) or not 0 <= lower < cap):
+                raise ValueError('native_single_min_capture_upstream_m must be within the configured upstream range')
+        if deadline is not None and (freeze_range != 'detector_footprint' or cap is None
+                or isinstance(deadline, bool) or not isinstance(deadline, (int, float))
+                or not np.isfinite(deadline) or not 0 < deadline < cap):
+            raise ValueError('冻结发布截止须在实测跟踪模式下设置，且在入口与最早曝光位置之间')
         if not isinstance(raw.setdefault('tracked_local_geometry', False), bool):
             raise ValueError('tracked_local_geometry 必须为布尔值')
         capacity = raw.setdefault('tracked_frozen_queue_capacity', 1)
@@ -387,17 +442,18 @@ class CellConfig:
                 if not np.isfinite(value) or value <= 0:
                     raise ValueError(key+' 须为正有限秒数')
                 raw[key] = value
-        if follow_window < GRIP_CONFIRMATION_DWELL_S:
+        grip_dwell = raw['grip_confirmation_dwell_s']
+        if follow_window < grip_dwell:
             # Only scheduled_attempt continues grip confirmation into braking.
             # Feedback-gated closure requires the full dwell during follow.
             if (profile != 'smooth' or raw['intercept_strategy'] != 'synchronized'
                     or raw['closure_policy'] != 'scheduled_attempt'):
-                raise ValueError(f'不足{GRIP_CONFIRMATION_DWELL_S:g}秒的跟随仅支持平滑同步定时闭爪，确认在减速期间继续')
+                raise ValueError(f'不足{grip_dwell:g}秒的跟随仅支持平滑同步定时闭爪，确认在减速期间继续')
             # Equality is allowed: fresh grip feedback is still checked while
             # holding the certified endpoint for arrival. This admission check
             # never replaces the measured dwell or authorizes a lift.
-            if follow_window + raw['brake_duration_s'] < GRIP_CONFIRMATION_DWELL_S-1e-9:
-                raise ValueError(f'跟随与减速总时长不得短于{GRIP_CONFIRMATION_DWELL_S:g}秒夹持确认时间')
+            if follow_window + raw['brake_duration_s'] < grip_dwell-1e-9:
+                raise ValueError(f'跟随与减速总时长不得短于{grip_dwell:g}秒夹持确认时间')
         if raw['hardware'].get('joint_command_mode') not in ('j', 'js'):
             raise ValueError('必须明确选择厂家 j 或 js 接口')
         if not raw['hardware'].get('can_channel') or not raw['hardware'].get('firmware'):
@@ -412,6 +468,10 @@ class CellConfig:
         if 'phase_timing' in raw:
             from .phase_timing import validate_configuration
             validate_configuration(raw, workspace, direction)
+        from .hover_config import validate as validate_hover
+        validate_hover(raw)
+        from .delivery_repair import validate as validate_delivery_repair
+        validate_delivery_repair(raw)
         return cls(raw, settings, path, hashlib.sha256(content).hexdigest(), tcp,
                    canonical, direction, follow, workspace,
                    vector(raw['standby_joint_rad'], 7, 'standby joints'), bins,

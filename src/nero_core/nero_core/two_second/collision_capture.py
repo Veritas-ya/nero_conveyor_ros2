@@ -11,7 +11,11 @@ def frame_metadata(frame, depth_to_color):
         'depth_to_base_cv': np.asarray(frame.camera_to_world_cv).tolist(),
         'depth_to_color_cv': np.asarray(depth_to_color).tolist(),
         'serial_number': frame.serial_number, 'calibration_id': frame.calibration_id,
-        'source': frame.source, 'timestamp_metadata': frame.timestamp_metadata}
+        'source': frame.source, 'timestamp_metadata': frame.timestamp_metadata,
+        'left_ir_intrinsics':None if getattr(frame,'left_ir_intrinsics',None) is None else asdict(frame.left_ir_intrinsics),
+        'right_ir_intrinsics':None if getattr(frame,'right_ir_intrinsics',None) is None else asdict(frame.right_ir_intrinsics),
+        'stereo_baseline_m':getattr(frame,'stereo_baseline_m',None),
+        'stereo_calibration':getattr(frame,'stereo_calibration',None)}
 
 
 def capture_collision(planner, q, width, points, ids, geom, *, stamp, contact, payload, released, margin_m=.004):

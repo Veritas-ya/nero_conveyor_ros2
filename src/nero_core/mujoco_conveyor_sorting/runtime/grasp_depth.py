@@ -234,12 +234,33 @@ def _save_artifacts(directory, frame, native, result_points, result_mask, metada
     return {key: metadata[key] for key in ('artifact_prefix', 'artifact_error') if key in metadata}
 
 
+def _deliver_fast_pixels(frame, depth, seed, region, publish, prefix):
+    """Lift finite predictions on the selected object into base coordinates, before grasp admission."""
+    rows, cols = np.nonzero(seed & np.isfinite(depth) & (depth > 0))
+    if not len(rows):
+        return None
+    z = depth[rows,cols].astype(np.float64)
+    rows += region[0].start or 0
+    cols += region[1].start or 0
+    k = frame.depth_intrinsics
+    optical = np.column_stack(((cols-k.cx)*z/k.fx, (rows-k.cy)*z/k.fy, z))
+    points = optical @ frame.camera_to_world_cv[:3,:3].T + frame.camera_to_world_cv[:3,3]
+    return publish(frame, points, rows * frame.depth_m.shape[1] + cols, prefix)
+
+
 def refine_grasp_observation(observation, backend, *, output_directory=None, emit=None,
-                             robot_model=None):
+                             robot_model=None, quality_filter=None, compact_native_geometry=False,
+                             publish_cloud=None, enforce_quality=True):
     """Return a target reconstruction or an explicitly recorded native fallback.
 
     This function never advances the observation timestamp, installs a scene,
     writes to the camera backend, or starts/reuses a velocity measurement.
+    compact_native_geometry runs pixel-local postprocessing and its quality
+    callback on the native mask rectangle when no RGB silhouette is used.
+    Returned target masks always use the original sensor grid. An optional sink
+    receives the authenticated Fast cloud before any grasp-specific filters.
+    enforce_quality controls only whole-cloud admission; pointwise support
+    filtering still applies to the cloud used for grasp geometry.
     """
     started = time.perf_counter_ns()
     cpu_started = time.thread_time_ns()
@@ -269,12 +290,11 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
         native_mask = np.asarray(observation['mask'], dtype=bool)
     with stage('native_points_hash'):
         native_sha = _points_sha(native)
-        network_native_sha = _points_sha(native)
     metadata = {'applied': False, 'requested_source': 'fast_foundationstereo',
                 'source': 'native_depth', 'capture_header': asdict(frame.header),
                 'timestamp_metadata': frame.timestamp_metadata,
                 'native_target_points': len(native), 'native_target_points_sha256': native_sha,
-                'network_input_points_sha256': network_native_sha,
+                'network_input_points_sha256': native_sha,
                 'scene_source': 'native_device_depth', 'velocity_source': 'native_nero7_rgbd',
                 'new_capture': False, 'hidden_surface_added': False,
                 'timing_trace': timing_trace,
@@ -329,17 +349,32 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
             depth = np.asarray(result.reconstructed_depth_m, dtype=np.float32)
             if depth.shape != frame.depth_m.shape:
                 raise ValueError('fast_result_grid_mismatch')
+        silhouette = observation.get('visible_target_rgb_mask')
+        # Without a silhouette every proposed target pixel belongs to the native
+        # mask. Only CPU geometry can be cropped; stereo still needs disparity context.
+        compact = compact_native_geometry and silhouette is None and not frame.rgb_aligned_to_depth
+        region = np.s_[:, :]
+        if compact:
+            rr = np.flatnonzero(native_mask.any(axis=1))
+            cc = np.flatnonzero(native_mask.any(axis=0))
+            region = np.s_[rr[0]:rr[-1]+1, cc[0]:cc[-1]+1]
+        seed = native_mask[region]
+        estimated = depth[region]
+        if publish_cloud is not None:
+            metadata['cloud_delivery'] = _deliver_fast_pixels(
+                frame, estimated, seed, region, publish_cloud, result.artifact_prefix)
+            if metadata['cloud_delivery'] is None:
+                metadata['cloud_unavailable_reason'] = 'no_finite_positive_fast_depth_on_target'
         with stage('hybrid_depth_copy'):
-            hybrid_depth = frame.depth_m.copy()
+            hybrid_depth = frame.depth_m[region].copy()
         # Stereo reconstructs a larger crop. The old native-depth seed must
         # not permanently cut out the part's low base or depth-hole edges.
         with stage('hybrid_depth_update'):
-            hybrid_depth[native_mask] = 0.
-            silhouette = observation.get('visible_target_rgb_mask')
-            valid = np.isfinite(depth) & (depth > 0.)
+            hybrid_depth[seed] = 0.
+            valid = np.isfinite(estimated) & (estimated > 0.)
             if silhouette is None:
-                valid &= native_mask
-            hybrid_depth[valid] = depth[valid]
+                valid &= seed
+            hybrid_depth[valid] = estimated[valid]
         with stage('frame_replace'):
             # Same calibrated exposure and immutable RGB/IR, with a private
             # learned-depth image. Do not recopy all three native images.
@@ -347,14 +382,24 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
             hybrid = copy.copy(frame)
             object.__setattr__(hybrid, 'depth_m', hybrid_depth)
             object.__setattr__(hybrid, '_perception_products', None)
+            if compact:
+                from .frame_products import frame_products, green_rgb_mask
+                y0, x0 = region[0].start, region[1].start
+                k = frame.depth_intrinsics
+                intrinsic = replace(k, height=seed.shape[0], width=seed.shape[1], cy=k.cy-y0, cx=k.cx-x0)
+                object.__setattr__(hybrid, 'depth_intrinsics', intrinsic)
+                object.__setattr__(hybrid, '_depth_pixel_origin', (y0, x0))
+                object.__setattr__(hybrid, '_uncropped_depth_intrinsics', k)
+                d2c = observation['depth_to_color_cv']
+                frame_products(hybrid, d2c).get('green_rgb_mask', lambda: green_rgb_mask(frame, d2c))
         plane_to_base, base_to_plane = _plane_transforms(observation)
         products = observation.get('_frame_products')
-        local = (products is not None
+        local = (not compact and products is not None
                  and products.matches(frame, observation['depth_to_color_cv'])
                  and observation.get('points') is products.values.get('native_deprojection')
                  and observation.get('points_plane') is products.values.get(
                      ('belt_coordinates', plane_to_base.tobytes())))
-        changed = native_mask | valid
+        changed = seed | valid
         with stage('deproject_depth_to_world'):
             if local:
                 rows, cols = np.nonzero(changed)
@@ -373,10 +418,15 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
                 flat[changed] = updated @ base_to_plane[:3, :3].T + base_to_plane[:3, 3]
             else:
                 flat = points @ base_to_plane[:3, :3].T + base_to_plane[:3, 3]
+        valid_hybrid_count = int(np.count_nonzero(np.isfinite(hybrid_depth) & (hybrid_depth > 0)))
+        if compact:
+            native_valid = np.isfinite(frame.depth_m) & (frame.depth_m > 0)
+            valid_hybrid_count += int(native_valid.sum()) - int(native_valid[region].sum())
         metadata['timing_inputs'].update(
             reconstructed_depth_shape=list(depth.shape), world_points_shape=list(points.shape),
             belt_points_shape=list(flat.shape),
-            hybrid_valid_depth_points=int(np.count_nonzero(np.isfinite(hybrid.depth_m) & (hybrid.depth_m > 0))),
+            geometry_region_xyxy=([x0,y0,region[1].stop,region[0].stop] if compact else None),
+            hybrid_valid_depth_points=valid_hybrid_count,
             local_native_reuse=bool(local), updated_coordinate_points=int(changed.sum()) if local else int(hybrid_depth.size),
             rgb_projection_eligible_points=int(valid.sum()),
             visible_rgb_mask_shape=list(silhouette.shape) if silhouette is not None else None)
@@ -413,6 +463,14 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
             with stage('robot_mask_update'):
                 mask[mask] = ~self_check.removed_mask
                 support['estimated_target_self_filter'] = self_check.statistics
+        if quality_filter is not None:
+            with stage('reconstruction_quality'):
+                mask, quality = quality_filter(native, seed, frame.depth_m[region],
+                    mask, points[mask], hybrid_depth[mask], plane_to_base)
+                quality['enforced_as_delivery_gate'] = enforce_quality
+                metadata['quality_check'] = quality
+                if not quality['accepted'] and enforce_quality:
+                    raise ValueError('fast_quality_rejected:'+','.join(quality['reasons']))
         with stage('target_arrays_copy'):
             target = points[mask]
             target_flat, target_depth = flat[mask], hybrid_depth[mask]
@@ -423,14 +481,17 @@ def refine_grasp_observation(observation, backend, *, output_directory=None, emi
             geometry = _simple_geometry(target, target_flat, target_depth, frame, plane_to_base)
         with stage('refined_points_hash'):
             refined_sha = _points_sha(target)
-            network_refined_sha = _points_sha(target)
         with stage('result_bookkeeping'):
+            if compact:
+                full_mask = np.zeros(native_mask.shape, dtype=bool)
+                full_mask[region] = mask
+                mask = full_mask
             support = dict(support, source='estimated_fast_stereo_rgb_and_metric_neighbor_support',
                            native_depth_modified=False, learned_target_depth=True)
             metadata.update(applied=True, source='estimated_fast_stereo_visible_depth', reason='applied',
                             refined_target_points=len(target), refined_target_pixels=int(mask.sum()),
                             refined_target_points_sha256=refined_sha,
-                            network_input_points_sha256=network_refined_sha,
+                            network_input_points_sha256=refined_sha,
                             native_target_pixels=int(native_mask.sum()), target_cloud_filter=support,
                             geometry_seed_source='original_simple_geometry_rules_on_estimated_visible_depth')
             refined.update(geometry, object_points=target, grasp_target_mask=mask,
